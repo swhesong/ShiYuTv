@@ -263,7 +263,7 @@ export abstract class BaseRedisStorage implements IStorage {
       return false;
     }
 
-    // 关键修复：使用 bcrypt.compare 安全地比较
+    // 使用 bcrypt.compare 安全地比较
     // 用户输入的明文密码 (password) 和数据库中存储的哈希值 (stored)
     return bcrypt.compare(password, stored);
   }
