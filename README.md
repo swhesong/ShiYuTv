@@ -72,11 +72,11 @@
 ```yml
 services:
   moontv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: devinglaw/lunatv:latest
     container_name: moontv-core
     restart: on-failure
     ports:
-      - '3000:3000'
+      - '3113:3000'
     environment:
       - USERNAME=admin
       - PASSWORD=admin_password
