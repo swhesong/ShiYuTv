@@ -1,5 +1,5 @@
 # A friendly name for the workflow, displayed in the GitHub Actions UI.
-name: Build & Push Docker image
+name: Build & Push Docker image to Docker Hub
 
 # Defines the events that trigger this workflow.
 on:
@@ -23,7 +23,8 @@ on:
 # Defines a global environment variable for the Docker image name.
 # This avoids repetition and makes future updates easier.
 env:
-  IMAGE_NAME: ghcr.io/moontechlab/lunatv
+  # MODIFIED: Image name changed to Docker Hub format.
+  IMAGE_NAME: moontechlab/lunatv
 
 # Concurrency settings to ensure only one run of this workflow per branch is active at a time.
 concurrency:
@@ -32,8 +33,8 @@ concurrency:
 
 # Specifies the permissions required by the jobs in this workflow.
 permissions:
+  # MODIFIED: Removed 'packages: write' as it's for GHCR.
   contents: write
-  packages: write
   actions: write
 
 # Contains the jobs to be executed.
@@ -60,14 +61,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Login to Docker Hub
+        # MODIFIED: Login now uses Docker Hub secrets you created.
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Note: The manual lowercase step was removed as it's handled automatically by docker actions.
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Extract metadata for labels
         id: meta
@@ -121,14 +120,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Login to GitHub Container Registry
+      - name: Login to Docker Hub
+        # MODIFIED: Login now uses Docker Hub secrets you created.
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      # Note: The manual lowercase step was removed as it's handled automatically by docker actions.
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Create manifest list and push
         working-directory: /tmp/digests
