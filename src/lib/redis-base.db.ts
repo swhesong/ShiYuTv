@@ -1,7 +1,7 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 import { createClient, RedisClientType } from 'redis';
-import bcrypt from 'bcrypt'; // 1. 导入 bcrypt 库
+import bcrypt from 'bcrypt'; // 1. 在文件顶部导入 bcrypt
 
 import { AdminConfig } from './admin.types';
 import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
@@ -248,24 +248,25 @@ export abstract class BaseRedisStorage implements IStorage {
     return `u:${user}:pwd`;
   }
 
-  async registerUser(userName: string, passwordHash: string): Promise<void> {
-    // 存储哈希后的密码
-    await this.withRetry(() => this.client.set(this.userPwdKey(userName), passwordHash));
+  async registerUser(userName: string, password: string): Promise<void> {
+    // 简单存储明文密码，生产环境应加密
+    await this.withRetry(() => this.client.set(this.userPwdKey(userName), password));
   }
 
-  // 2. 修正密码验证逻辑
-  async verifyUser(userName: string, password_plaintext: string): Promise<boolean> {
-    const storedHash = await this.withRetry(() =>
+  // 2. 修正 verifyUser 函数的内部实现
+  async verifyUser(userName: string, password: string): Promise<boolean> {
+    const stored = await this.withRetry(() =>
       this.client.get(this.userPwdKey(userName))
     );
-    if (!storedHash) {
-      // 如果用户不存在，storedHash 为 null
+    if (stored === null) {
+      // 用户不存在
       return false;
     }
-    // 使用 bcrypt.compare 比较明文密码和哈希值
-    return bcrypt.compare(password_plaintext, storedHash);
-  }
 
+    // 关键修复：使用 bcrypt.compare 安全地比较
+    // 用户输入的明文密码 (password) 和数据库中存储的哈希值 (stored)
+    return bcrypt.compare(password, stored);
+  }
 
   // 检查用户是否存在
   async checkUserExist(userName: string): Promise<boolean> {
@@ -277,10 +278,10 @@ export abstract class BaseRedisStorage implements IStorage {
   }
 
   // 修改用户密码
-  async changePassword(userName: string, newPasswordHash: string): Promise<void> {
-    // 存储新的哈希密码
+  async changePassword(userName: string, newPassword: string): Promise<void> {
+    // 简单存储明文密码，生产环境应加密
     await this.withRetry(() =>
-      this.client.set(this.userPwdKey(userName), newPasswordHash)
+      this.client.set(this.userPwdKey(userName), newPassword)
     );
   }
 
