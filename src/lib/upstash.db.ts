@@ -1,6 +1,7 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 import { Redis } from '@upstash/redis';
+import bcrypt from 'bcrypt'; // 1. 在文件顶部导入 bcrypt
 
 import { AdminConfig } from './admin.types';
 import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
@@ -158,13 +159,19 @@ export class UpstashRedisStorage implements IStorage {
     await withRetry(() => this.client.set(this.userPwdKey(userName), password));
   }
 
+  // 2. 修正 verifyUser 函数的内部实现
   async verifyUser(userName: string, password: string): Promise<boolean> {
     const stored = await withRetry(() =>
       this.client.get(this.userPwdKey(userName))
     );
-    if (stored === null) return false;
-    // 确保比较时都是字符串类型
-    return ensureString(stored) === password;
+    if (stored === null) {
+      // 用户不存在
+      return false;
+    }
+
+    // 关键修复：使用 bcrypt.compare 安全地比较
+    // Upstash Redis 的 get 方法可能返回不同类型，用 String() 包装以确保安全
+    return bcrypt.compare(password, String(stored));
   }
 
   // 检查用户是否存在
@@ -317,29 +324,31 @@ export class UpstashRedisStorage implements IStorage {
   async getAllSkipConfigs(
     userName: string
   ): Promise<{ [key: string]: SkipConfig }> {
-    const pattern = `u:${userName}:skip:*`;
-    const keys = await withRetry(() => this.client.keys(pattern));
-
-    if (keys.length === 0) {
-      return {};
-    }
-
     const configs: { [key: string]: SkipConfig } = {};
+    const pattern = `u:${userName}:skip:*`;
 
-    // 批量获取所有配置
-    const values = await withRetry(() => this.client.mget(keys));
+    // Upstash's `scan` is preferred over `keys` for large datasets
+    let cursor = 0;
+    do {
+      const [nextCursor, keys] = await withRetry(() =>
+        this.client.scan(cursor, { match: pattern, count: 100 })
+      );
+      cursor = nextCursor;
 
-    keys.forEach((key, index) => {
-      const value = values[index];
-      if (value) {
-        // 从key中提取source+id
-        const match = key.match(/^u:.+?:skip:(.+)$/);
-        if (match) {
-          const sourceAndId = match[1];
-          configs[sourceAndId] = value as SkipConfig;
-        }
+      if (keys.length > 0) {
+        const values = await withRetry(() => this.client.mget(...keys));
+        keys.forEach((key, index) => {
+          const value = values[index];
+          if (value) {
+            const match = key.match(/^u:.+?:skip:(.+)$/);
+            if (match) {
+              const sourceAndId = match[1];
+              configs[sourceAndId] = value as SkipConfig;
+            }
+          }
+        });
       }
-    });
+    } while (cursor !== 0);
 
     return configs;
   }
@@ -347,16 +356,17 @@ export class UpstashRedisStorage implements IStorage {
   // 清空所有数据
   async clearAllData(): Promise<void> {
     try {
-      // 获取所有用户
-      const allUsers = await this.getAllUsers();
-
-      // 删除所有用户及其数据
-      for (const username of allUsers) {
-        await this.deleteUser(username);
-      }
-
-      // 删除管理员配置
-      await withRetry(() => this.client.del(this.adminConfigKey()));
+      // 使用 scan 避免在大量 keys 时阻塞
+      let cursor = 0;
+      do {
+        const [nextCursor, keys] = await withRetry(() =>
+          this.client.scan(cursor, { count: 500 })
+        );
+        cursor = nextCursor;
+        if (keys.length > 0) {
+          await withRetry(() => this.client.del(...keys));
+        }
+      } while (cursor !== 0);
 
       console.log('所有数据已清空');
     } catch (error) {
