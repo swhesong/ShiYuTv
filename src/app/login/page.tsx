@@ -5,7 +5,7 @@
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
-
+import Link from 'next/link';
 import { CURRENT_VERSION } from '@/lib/version';
 import { checkForUpdates, UpdateStatus } from '@/lib/version_check';
 
@@ -177,6 +177,16 @@ function LoginPageClient() {
           >
             {loading ? '登录中...' : '登录'}
           </button>
+          {/* 开始：添加这部分代码 */}
+          {shouldAskUsername && (
+            <p className="text-center text-sm text-gray-600 dark:text-gray-400 pt-4">
+              还没有账户？{' '}
+              <Link href="/register" className="font-semibold text-green-600 hover:underline">
+                注册一个
+              </Link>
+            </p>
+          )}
+          {/* 结束：添加这部分代码 */}
         </form>
       </div>
 
