@@ -24,7 +24,7 @@ on:
 # This avoids repetition and makes future updates easier.
 env:
   # MODIFIED: Image name changed to Docker Hub format.
-  IMAGE_NAME: moontechlab/lunatv
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/shiyutv
 
 # Concurrency settings to ensure only one run of this workflow per branch is active at a time.
 concurrency:
