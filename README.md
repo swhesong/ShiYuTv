@@ -106,7 +106,7 @@ volumes:
 ```yml
 services:
   ShiYuTv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: devinglaw/shiyutv:latest
     container_name: ShiYuTv-core
     restart: on-failure
     ports:
@@ -142,7 +142,7 @@ networks:
 ```yml
 services:
   ShiYuTv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: devinglaw/shiyutv:latest
     container_name: ShiYuTv-core
     restart: on-failure
     ports:
