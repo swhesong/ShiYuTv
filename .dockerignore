@@ -1,2 +1,24 @@
+# Git 版本控制文件
+.git
+.gitignore
+
+# Node.js 依赖目录 (关键加速项，必须忽略)
+# 我们在容器内安装依赖，绝不应复制本地的 node_modules
+node_modules
+
+# Next.js 构建产物目录 (在容器内生成)
+.next
+
+# IDE 和操作系统特有的文件
+.vscode
+*.log
+.DS_Store
+
+# 您原有的配置，用于忽略本地环境变量文件 (保留)
 .env
 .env*.local
+.env.production
+.env.development
+
+# 文档文件
+README.md
