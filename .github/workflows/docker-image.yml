@@ -38,7 +38,7 @@ permissions:
 jobs:
   # 一个单一的任务，用于构建并推送多架构镜像。
   build-and-push:
-    runs-on: ubuntu-latest # <-- 我们在标准的运行器上执行所有操作。
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
@@ -69,20 +69,22 @@ jobs:
         with:
           context: .
           file: ./Dockerfile
-          # (修改) 在这里用逗号分隔，指定所有需要构建的平台。
-          platforms: linux/amd64,linux/arm64 
+          # 指定所有需要构建的平台。
+          platforms: linux/amd64,linux/arm64
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
           # 这一行告诉 Action 在构建成功后推送到仓库。
           push: true
-          # 使用缓存来加速未来的构建
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
 
-  # 清理任务可以保持不变。
+          # 使用镜像仓库作为缓存后端，这是当前最快的策略。
+          # 它会创建一个特殊的缓存镜像，如: yourname/shiyutv:buildcache
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
+
+
   cleanup-refresh:
     runs-on: ubuntu-latest
-    # (修改) 它现在只需要等待唯一的 'build-and-push' 任务完成。
+    # 等待唯一的 'build-and-push' 任务完成。
     needs:
       - build-and-push
     if: always()
