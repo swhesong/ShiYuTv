@@ -3,7 +3,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
-import { getConfig } from '@/lib/config';
+import { getConfig, setCachedConfig } from '@/lib/config';
 import { db } from '@/lib/db';
 
 export const runtime = 'nodejs';
@@ -39,6 +39,8 @@ export async function POST(request: NextRequest) {
       DoubanImageProxy,
       DisableYellowFilter,
       FluidSearch,
+      EnableRegistration,
+      RegistrationApproval,
     } = body as {
       SiteName: string;
       Announcement: string;
@@ -50,6 +52,8 @@ export async function POST(request: NextRequest) {
       DoubanImageProxy: string;
       DisableYellowFilter: boolean;
       FluidSearch: boolean;
+      EnableRegistration: boolean;
+      RegistrationApproval: boolean;
     };
 
     // 参数校验
@@ -63,7 +67,9 @@ export async function POST(request: NextRequest) {
       typeof DoubanImageProxyType !== 'string' ||
       typeof DoubanImageProxy !== 'string' ||
       typeof DisableYellowFilter !== 'boolean' ||
-      typeof FluidSearch !== 'boolean'
+      typeof FluidSearch !== 'boolean' ||
+      typeof EnableRegistration !== 'boolean' ||
+      typeof RegistrationApproval !== 'boolean'
     ) {
       return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
     }
@@ -81,8 +87,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 更新缓存中的站点设置
+    // 更新缓存中的站点设置（保留 OAuth 配置）
     adminConfig.SiteConfig = {
+      ...adminConfig.SiteConfig,
       SiteName,
       Announcement,
       SearchDownstreamMaxPage,
@@ -93,9 +100,12 @@ export async function POST(request: NextRequest) {
       DoubanImageProxy,
       DisableYellowFilter,
       FluidSearch,
+      EnableRegistration,
+      RegistrationApproval,
     };
 
-    // 写入数据库
+    // 写入数据库和缓存
+    await setCachedConfig(adminConfig);
     await db.saveAdminConfig(adminConfig);
 
     return NextResponse.json(

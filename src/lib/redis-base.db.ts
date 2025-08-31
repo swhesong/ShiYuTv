@@ -1,9 +1,8 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 import { createClient, RedisClientType } from 'redis';
-import bcrypt from 'bcrypt'; // 1. 在文件顶部导入 bcrypt
 
-import { AdminConfig } from './admin.types';
+import { AdminConfig, PendingUser, RegistrationStats } from './admin.types';
 import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
 
 // 搜索历史最大条数
@@ -25,7 +24,10 @@ export interface RedisConnectionConfig {
 }
 
 // 添加Redis操作重试包装器
-function createRetryWrapper(clientName: string, getClient: () => RedisClientType) {
+function createRetryWrapper(
+  clientName: string,
+  getClient: () => RedisClientType
+) {
   return async function withRetry<T>(
     operation: () => Promise<T>,
     maxRetries = 3
@@ -44,7 +46,9 @@ function createRetryWrapper(clientName: string, getClient: () => RedisClientType
 
         if (isConnectionError && !isLastAttempt) {
           console.log(
-            `${clientName} operation failed, retrying... (${i + 1}/${maxRetries})`
+            `${clientName} operation failed, retrying... (${
+              i + 1
+            }/${maxRetries})`
           );
           console.error('Error:', err.message);
 
@@ -73,7 +77,10 @@ function createRetryWrapper(clientName: string, getClient: () => RedisClientType
 }
 
 // 创建客户端的工厂函数
-export function createRedisClient(config: RedisConnectionConfig, globalSymbol: symbol): RedisClientType {
+export function createRedisClient(
+  config: RedisConnectionConfig,
+  globalSymbol: symbol
+): RedisClientType {
   let client: RedisClientType | undefined = (global as any)[globalSymbol];
 
   if (!client) {
@@ -87,9 +94,13 @@ export function createRedisClient(config: RedisConnectionConfig, globalSymbol: s
       socket: {
         // 重连策略：指数退避，最大30秒
         reconnectStrategy: (retries: number) => {
-          console.log(`${config.clientName} reconnection attempt ${retries + 1}`);
+          console.log(
+            `${config.clientName} reconnection attempt ${retries + 1}`
+          );
           if (retries > 10) {
-            console.error(`${config.clientName} max reconnection attempts exceeded`);
+            console.error(
+              `${config.clientName} max reconnection attempts exceeded`
+            );
             return false; // 停止重连
           }
           return Math.min(1000 * Math.pow(2, retries), 30000); // 指数退避，最大30秒
@@ -144,7 +155,10 @@ export function createRedisClient(config: RedisConnectionConfig, globalSymbol: s
 // 抽象基类，包含所有通用的Redis操作逻辑
 export abstract class BaseRedisStorage implements IStorage {
   protected client: RedisClientType;
-  protected withRetry: <T>(operation: () => Promise<T>, maxRetries?: number) => Promise<T>;
+  protected withRetry: <T>(
+    operation: () => Promise<T>,
+    maxRetries?: number
+  ) => Promise<T>;
 
   constructor(config: RedisConnectionConfig, globalSymbol: symbol) {
     this.client = createRedisClient(config, globalSymbol);
@@ -180,7 +194,9 @@ export abstract class BaseRedisStorage implements IStorage {
     userName: string
   ): Promise<Record<string, PlayRecord>> {
     const pattern = `u:${userName}:pr:*`;
-    const keys: string[] = await this.withRetry(() => this.client.keys(pattern));
+    const keys: string[] = await this.withRetry(() =>
+      this.client.keys(pattern)
+    );
     if (keys.length === 0) return {};
     const values = await this.withRetry(() => this.client.mGet(keys));
     const result: Record<string, PlayRecord> = {};
@@ -224,7 +240,9 @@ export abstract class BaseRedisStorage implements IStorage {
 
   async getAllFavorites(userName: string): Promise<Record<string, Favorite>> {
     const pattern = `u:${userName}:fav:*`;
-    const keys: string[] = await this.withRetry(() => this.client.keys(pattern));
+    const keys: string[] = await this.withRetry(() =>
+      this.client.keys(pattern)
+    );
     if (keys.length === 0) return {};
     const values = await this.withRetry(() => this.client.mGet(keys));
     const result: Record<string, Favorite> = {};
@@ -250,22 +268,18 @@ export abstract class BaseRedisStorage implements IStorage {
 
   async registerUser(userName: string, password: string): Promise<void> {
     // 简单存储明文密码，生产环境应加密
-    await this.withRetry(() => this.client.set(this.userPwdKey(userName), password));
+    await this.withRetry(() =>
+      this.client.set(this.userPwdKey(userName), password)
+    );
   }
 
-  // 2. 修正 verifyUser 函数的内部实现
   async verifyUser(userName: string, password: string): Promise<boolean> {
     const stored = await this.withRetry(() =>
       this.client.get(this.userPwdKey(userName))
     );
-    if (stored === null) {
-      // 用户不存在
-      return false;
-    }
-
-    // 使用 bcrypt.compare 安全地比较
-    // 用户输入的明文密码 (password) 和数据库中存储的哈希值 (stored)
-    return bcrypt.compare(password, stored);
+    if (stored === null) return false;
+    // 确保比较时都是字符串类型
+    return ensureString(stored) === password;
   }
 
   // 检查用户是否存在
@@ -341,13 +355,17 @@ export abstract class BaseRedisStorage implements IStorage {
     // 插入到最前
     await this.withRetry(() => this.client.lPush(key, ensureString(keyword)));
     // 限制最大长度
-    await this.withRetry(() => this.client.lTrim(key, 0, SEARCH_HISTORY_LIMIT - 1));
+    await this.withRetry(() =>
+      this.client.lTrim(key, 0, SEARCH_HISTORY_LIMIT - 1)
+    );
   }
 
   async deleteSearchHistory(userName: string, keyword?: string): Promise<void> {
     const key = this.shKey(userName);
     if (keyword) {
-      await this.withRetry(() => this.client.lRem(key, 0, ensureString(keyword)));
+      await this.withRetry(() =>
+        this.client.lRem(key, 0, ensureString(keyword))
+      );
     } else {
       await this.withRetry(() => this.client.del(key));
     }
@@ -370,7 +388,9 @@ export abstract class BaseRedisStorage implements IStorage {
   }
 
   async getAdminConfig(): Promise<AdminConfig | null> {
-    const val = await this.withRetry(() => this.client.get(this.adminConfigKey()));
+    const val = await this.withRetry(() =>
+      this.client.get(this.adminConfigKey())
+    );
     return val ? (JSON.parse(val) as AdminConfig) : null;
   }
 
@@ -469,5 +489,157 @@ export abstract class BaseRedisStorage implements IStorage {
       console.error('清空数据失败:', error);
       throw new Error('清空数据失败');
     }
+  }
+
+  // ---------- 注册相关方法 ----------
+  private pendingUserKey(username: string) {
+    return `pending:user:${username}`;
+  }
+
+  private registrationStatsKey() {
+    return 'registration:stats';
+  }
+
+  async createPendingUser(username: string, password: string): Promise<void> {
+    const pendingUser: PendingUser = {
+      username,
+      registeredAt: Date.now(),
+      password: password, // 存储明文密码，与主系统保持一致
+    };
+
+    await this.withRetry(() =>
+      this.client.set(
+        this.pendingUserKey(username),
+        JSON.stringify(pendingUser)
+      )
+    );
+
+    // 更新今日注册统计
+    const today = new Date().toISOString().split('T')[0];
+    const todayKey = `registration:today:${today}`;
+    await this.withRetry(() => this.client.incr(todayKey));
+    await this.withRetry(() => this.client.expire(todayKey, 24 * 60 * 60)); // 24小时过期
+  }
+
+  async getPendingUsers(): Promise<PendingUser[]> {
+    const pattern = 'pending:user:*';
+    const keys: string[] = await this.withRetry(() =>
+      this.client.keys(pattern)
+    );
+    if (keys.length === 0) return [];
+
+    const values = await this.withRetry(() => this.client.mGet(keys));
+    const pendingUsers: PendingUser[] = [];
+
+    values.forEach((raw, index) => {
+      if (raw) {
+        try {
+          // 检查 raw 是否为有效的 JSON 字符串
+          if (typeof raw === 'string' && raw !== '[object Object]') {
+            const parsed = JSON.parse(raw) as PendingUser;
+            // 验证解析后的数据结构是否完整
+            if (
+              parsed &&
+              parsed.username &&
+              typeof parsed.registeredAt === 'number'
+            ) {
+              pendingUsers.push(parsed);
+            } else {
+              console.warn('待审核用户数据结构不完整:', parsed);
+              // 可选：清理损坏的数据
+              const keyToClean = keys[index];
+              if (keyToClean) {
+                this.withRetry(() => this.client.del(keyToClean)).catch((err) =>
+                  console.error('清理损坏数据失败:', err)
+                );
+              }
+            }
+          } else {
+            console.warn('待审核用户数据格式无效:', raw);
+            // 清理无效数据
+            const keyToClean = keys[index];
+            if (keyToClean) {
+              this.withRetry(() => this.client.del(keyToClean)).catch((err) =>
+                console.error('清理无效数据失败:', err)
+              );
+            }
+          }
+        } catch (error) {
+          console.error('解析待审核用户数据失败:', error, 'raw data:', raw);
+          // 清理解析失败的损坏数据
+          const keyToClean = keys[index];
+          if (keyToClean) {
+            this.withRetry(() => this.client.del(keyToClean)).catch((err) =>
+              console.error('清理解析失败的数据失败:', err)
+            );
+          }
+        }
+      }
+    });
+
+    return pendingUsers.sort((a, b) => a.registeredAt - b.registeredAt);
+  }
+
+  async approvePendingUser(username: string): Promise<void> {
+    // 获取待审核用户信息
+    const pendingData = await this.withRetry(() =>
+      this.client.get(this.pendingUserKey(username))
+    );
+
+    if (!pendingData) {
+      throw new Error('待审核用户不存在');
+    }
+
+    const pendingUser: PendingUser = JSON.parse(pendingData);
+
+    // 创建正式用户账号（使用明文密码）
+    await this.withRetry(() =>
+      this.client.set(this.userPwdKey(username), pendingUser.password)
+    );
+
+    // 删除待审核记录
+    await this.withRetry(() => this.client.del(this.pendingUserKey(username)));
+
+    console.log(`用户 ${username} 注册审核通过`);
+  }
+
+  async rejectPendingUser(username: string): Promise<void> {
+    const exists = await this.withRetry(() =>
+      this.client.exists(this.pendingUserKey(username))
+    );
+
+    if (exists === 0) {
+      throw new Error('待审核用户不存在');
+    }
+
+    await this.withRetry(() => this.client.del(this.pendingUserKey(username)));
+    console.log(`用户 ${username} 注册申请已拒绝`);
+  }
+
+  async getRegistrationStats(): Promise<RegistrationStats> {
+    // 获取总用户数
+    const allUsers = await this.getAllUsers();
+    const totalUsers = allUsers.length;
+
+    // 获取待审核用户数
+    const pendingUsers = await this.getPendingUsers();
+    const pendingCount = pendingUsers.length;
+
+    // 获取今日注册数
+    const today = new Date().toISOString().split('T')[0];
+    const todayKey = `registration:today:${today}`;
+    const todayCount = await this.withRetry(() => this.client.get(todayKey));
+    const todayRegistrations = todayCount ? parseInt(todayCount) : 0;
+
+    // 从配置中获取最大用户数限制
+    const adminConfig = await this.getAdminConfig();
+    const maxUsers = adminConfig?.SiteConfig?.MaxUsers;
+
+    return {
+      totalUsers,
+      maxUsers,
+      pendingUsers: pendingCount,
+      todayRegistrations,
+    };
   }
 }

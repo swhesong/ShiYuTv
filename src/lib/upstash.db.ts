@@ -1,13 +1,14 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any, @typescript-eslint/no-non-null-assertion */
 
 import { Redis } from '@upstash/redis';
-import bcrypt from 'bcrypt';
 
-import { AdminConfig } from './admin.types';
+import { AdminConfig, PendingUser, RegistrationStats } from './admin.types';
 import { Favorite, IStorage, PlayRecord, SkipConfig } from './types';
 
 // 搜索历史最大条数
-const SEARCH_HISTORY_LIMIT = 20;// 哈希加密的轮数，数值越高越安全，但耗时也越长。10 是一个比较均衡的选择。const SALT_ROUNDS = 10;// 数据类型转换辅助函数
+const SEARCH_HISTORY_LIMIT = 20;
+
+// 数据类型转换辅助函数
 function ensureString(value: any): string {
   return String(value);
 }
@@ -59,7 +60,7 @@ export class UpstashRedisStorage implements IStorage {
     this.client = getUpstashRedisClient();
   }
 
-  // ---------- 播放记录----------
+  // ---------- 播放记录 ----------
   private prKey(user: string, key: string) {
     return `u:${user}:pr:${key}`; // u:username:pr:source+id
   }
@@ -88,128 +89,118 @@ export class UpstashRedisStorage implements IStorage {
     const pattern = `u:${userName}:pr:*`;
     const keys: string[] = await withRetry(() => this.client.keys(pattern));
     if (keys.length === 0) return {};
-    const values = await withRetry(() => this.client.mget(...keys));
+
     const result: Record<string, PlayRecord> = {};
-    keys.forEach((fullKey: string, idx: number) => {
-        const raw = values[idx];
-        if (raw) {
-            const rec = raw as PlayRecord;
-            const keyPart = ensureString(fullKey.replace(`u:${userName}:pr:`, ''));
-            result[keyPart] = rec;
-        }
-    });
+    for (const fullKey of keys) {
+      const value = await withRetry(() => this.client.get(fullKey));
+      if (value) {
+        // 截取 source+id 部分
+        const keyPart = ensureString(fullKey.replace(`u:${userName}:pr:`, ''));
+        result[keyPart] = value as PlayRecord;
+      }
+    }
     return result;
   }
-  
+
   async deletePlayRecord(userName: string, key: string): Promise<void> {
     await withRetry(() => this.client.del(this.prKey(userName, key)));
   }
 
-  // ---------- 收藏----------
+  // ---------- 收藏 ----------
   private favKey(user: string, key: string) {
     return `u:${user}:fav:${key}`;
   }
 
   async getFavorite(userName: string, key: string): Promise<Favorite | null> {
     const val = await withRetry(() =>
-        this.client.get(this.favKey(userName, key))
+      this.client.get(this.favKey(userName, key))
     );
     return val ? (val as Favorite) : null;
   }
-  
+
   async setFavorite(
-      userName: string,
-      key: string,
-      favorite: Favorite
+    userName: string,
+    key: string,
+    favorite: Favorite
   ): Promise<void> {
-      await withRetry(() =>
-          this.client.set(this.favKey(userName, key), favorite)
-      );
-  }
-  
-  async getAllFavorites(userName: string): Promise<Record<string, Favorite>> {
-      const pattern = `u:${userName}:fav:*`;
-      const keys: string[] = await withRetry(() => this.client.keys(pattern));
-      if (keys.length === 0) return {};
-      const values = await withRetry(() => this.client.mget(...keys));
-      const result: Record<string, Favorite> = {};
-      keys.forEach((fullKey: string, idx: number) => {
-          const raw = values[idx];
-          if (raw) {
-              const fav = raw as Favorite;
-              const keyPart = ensureString(fullKey.replace(`u:${userName}:fav:`, ''));
-              result[keyPart] = fav;
-          }
-      });
-      return result;
-  }
-  
-  async deleteFavorite(userName: string, key: string): Promise<void> {
-      await withRetry(() => this.client.del(this.favKey(userName, key)));
+    await withRetry(() =>
+      this.client.set(this.favKey(userName, key), favorite)
+    );
   }
 
-  // ---------- 用户注册 / 登录----------
+  async getAllFavorites(userName: string): Promise<Record<string, Favorite>> {
+    const pattern = `u:${userName}:fav:*`;
+    const keys: string[] = await withRetry(() => this.client.keys(pattern));
+    if (keys.length === 0) return {};
+
+    const result: Record<string, Favorite> = {};
+    for (const fullKey of keys) {
+      const value = await withRetry(() => this.client.get(fullKey));
+      if (value) {
+        const keyPart = ensureString(fullKey.replace(`u:${userName}:fav:`, ''));
+        result[keyPart] = value as Favorite;
+      }
+    }
+    return result;
+  }
+
+  async deleteFavorite(userName: string, key: string): Promise<void> {
+    await withRetry(() => this.client.del(this.favKey(userName, key)));
+  }
+
+  // ---------- 用户注册 / 登录 ----------
   private userPwdKey(user: string) {
     return `u:${user}:pwd`;
   }
-  
-  // *** 注册时对密码进行哈希加密 ***
+
   async registerUser(userName: string, password: string): Promise<void> {
-    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
-    await withRetry(() => this.client.set(this.userPwdKey(userName), hashedPassword));
+    // 简单存储明文密码，生产环境应加密
+    await withRetry(() => this.client.set(this.userPwdKey(userName), password));
   }
-  
-  // *** 登录时比较哈希值 ***
+
   async verifyUser(userName: string, password: string): Promise<boolean> {
-    const storedHash = await withRetry(() =>
+    const stored = await withRetry(() =>
       this.client.get(this.userPwdKey(userName))
     );
-    if (storedHash === null) {
-      return false; // 用户不存在
-    }
-    return bcrypt.compare(password, String(storedHash));
+    if (stored === null) return false;
+    // 确保比较时都是字符串类型
+    return ensureString(stored) === password;
   }
 
   // 检查用户是否存在
   async checkUserExist(userName: string): Promise<boolean> {
+    // 使用 EXISTS 判断 key 是否存在
     const exists = await withRetry(() =>
       this.client.exists(this.userPwdKey(userName))
     );
     return exists === 1;
   }
 
-  // *** 修改密码时对新密码进行哈希加密 ***
+  // 修改用户密码
   async changePassword(userName: string, newPassword: string): Promise<void> {
-    const hashedPassword = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    // 简单存储明文密码，生产环境应加密
     await withRetry(() =>
-      this.client.set(this.userPwdKey(userName), hashedPassword)
+      this.client.set(this.userPwdKey(userName), newPassword)
     );
   }
 
-  // 删除用户及其所有数据 (逻辑依赖keys/scan)
+  // 删除用户及其所有数据
   async deleteUser(userName: string): Promise<void> {
-    const keysToDelete: string[] = [
-      this.userPwdKey(userName),
-      this.shKey(userName)
-    ];
+    // 删除用户密码
+    await withRetry(() => this.client.del(this.userPwdKey(userName)));
 
-    const patterns = [
-      `u:${userName}:pr:*`,
-      `u:${userName}:fav:*`,
-      `u:${userName}:skip:*`
-    ];
-    
-    for (const pattern of patterns) {
-        let cursor = 0;
-        do {
-            const [nextCursor, keys] = await withRetry(() =>
-                this.client.scan(cursor, { match: pattern, count: 100 })
-            );
-            cursor = nextCursor;
-            if (keys.length > 0) {
-                keysToDelete.push(...keys);
-            }
-        } while (cursor !== 0);
+    // 删除搜索历史
+    await withRetry(() => this.client.del(this.shKey(userName)));
+
+    // 删除播放记录
+    const playRecordPattern = `u:${userName}:pr:*`;
+    const playRecordKeys = await withRetry(() =>
+      this.client.keys(playRecordPattern)
+    );
+    if (playRecordKeys.length > 0) {
+      await withRetry(() => this.client.del(...playRecordKeys));
+    }
+
     // 删除收藏夹
     const favoritePattern = `u:${userName}:fav:*`;
     const favoriteKeys = await withRetry(() =>
@@ -218,19 +209,18 @@ export class UpstashRedisStorage implements IStorage {
     if (favoriteKeys.length > 0) {
       await withRetry(() => this.client.del(...favoriteKeys));
     }
-    
+
     // 删除跳过片头片尾配置
     const skipConfigPattern = `u:${userName}:skip:*`;
     const skipConfigKeys = await withRetry(() =>
       this.client.keys(skipConfigPattern)
     );
-    if (keysToDelete.length > 0) {
-        await withRetry(() => this.client.del(...keysToDelete));
+    if (skipConfigKeys.length > 0) {
+      await withRetry(() => this.client.del(...skipConfigKeys));
     }
   }
 
-
-  // ---------- 搜索历史----------
+  // ---------- 搜索历史 ----------
   private shKey(user: string) {
     return `u:${user}:sh`; // u:username:sh
   }
@@ -262,7 +252,7 @@ export class UpstashRedisStorage implements IStorage {
     }
   }
 
-  // ---------- 获取全部用户----------
+  // ---------- 获取全部用户 ----------
   async getAllUsers(): Promise<string[]> {
     const keys = await withRetry(() => this.client.keys('u:*:pwd'));
     return keys
@@ -273,7 +263,7 @@ export class UpstashRedisStorage implements IStorage {
       .filter((u): u is string => typeof u === 'string');
   }
 
-  // ---------- 管理员配置----------
+  // ---------- 管理员配置 ----------
   private adminConfigKey() {
     return 'admin:config';
   }
@@ -287,7 +277,7 @@ export class UpstashRedisStorage implements IStorage {
     await withRetry(() => this.client.set(this.adminConfigKey(), config));
   }
 
-  // ---------- 跳过片头片尾配置----------
+  // ---------- 跳过片头片尾配置 ----------
   private skipConfigKey(user: string, source: string, id: string) {
     return `u:${user}:skip:${source}+${id}`;
   }
@@ -327,30 +317,29 @@ export class UpstashRedisStorage implements IStorage {
   async getAllSkipConfigs(
     userName: string
   ): Promise<{ [key: string]: SkipConfig }> {
-    const configs: { [key: string]: SkipConfig } = {};
     const pattern = `u:${userName}:skip:*`;
-    
-    let cursor = 0;
-    do {
-      const [nextCursor, keys] = await withRetry(() =>
-        this.client.scan(cursor, { match: pattern, count: 100 })
-      );
-      cursor = nextCursor;
+    const keys = await withRetry(() => this.client.keys(pattern));
 
-      if (keys.length > 0) {
-        const values = await withRetry(() => this.client.mget(...keys));
-        keys.forEach((key, index) => {
-          const value = values[index];
-          if (value) {
-            const match = key.match(/^u:.+?:skip:(.+)$/);
-            if (match) {
-              const sourceAndId = match[1];
-              configs[sourceAndId] = value as SkipConfig;
-            }
-          }
-        });
+    if (keys.length === 0) {
+      return {};
+    }
+
+    const configs: { [key: string]: SkipConfig } = {};
+
+    // 批量获取所有配置
+    const values = await withRetry(() => this.client.mget(keys));
+
+    keys.forEach((key, index) => {
+      const value = values[index];
+      if (value) {
+        // 从key中提取source+id
+        const match = key.match(/^u:.+?:skip:(.+)$/);
+        if (match) {
+          const sourceAndId = match[1];
+          configs[sourceAndId] = value as SkipConfig;
+        }
       }
-    } while (cursor !== 0);
+    });
 
     return configs;
   }
@@ -358,16 +347,19 @@ export class UpstashRedisStorage implements IStorage {
   // 清空所有数据
   async clearAllData(): Promise<void> {
     try {
-      let cursor = 0;
-      do {
-        const [nextCursor, keys] = await withRetry(() =>
-          this.client.scan(cursor, { count: 500 })
-        );
-        cursor = nextCursor;
-        if (keys.length > 0) {
-          await withRetry(() => this.client.del(...keys));
-        }
-      } while (cursor !== 0);
+      // 获取所有用户
+      const allUsers = await this.getAllUsers();
+
+      // 删除所有用户及其数据
+      for (const username of allUsers) {
+        await this.deleteUser(username);
+      }
+
+      // 删除管理员配置
+      await withRetry(() => this.client.del(this.adminConfigKey()));
+
+      // 删除待审核用户
+      await withRetry(() => this.client.del(this.pendingUsersKey()));
 
       console.log('所有数据已清空');
     } catch (error) {
@@ -375,39 +367,161 @@ export class UpstashRedisStorage implements IStorage {
       throw new Error('清空数据失败');
     }
   }
+
+  // ---------- 注册相关方法 ----------
+  private pendingUsersKey() {
+    return 'admin:pending_users';
+  }
+
+  private registrationStatsKey() {
+    return 'admin:registration_stats';
+  }
+
+  async createPendingUser(username: string, password: string): Promise<void> {
+    const pendingUser: PendingUser = {
+      username,
+      password: password, // 存储明文密码，与主系统保持一致
+      registeredAt: Date.now(),
+    };
+
+    await withRetry(() =>
+      this.client.hset(this.pendingUsersKey(), {
+        [username]: JSON.stringify(pendingUser),
+      })
+    );
+  }
+
+  async getPendingUsers(): Promise<PendingUser[]> {
+    const result = await withRetry(() =>
+      this.client.hgetall(this.pendingUsersKey())
+    );
+
+    if (!result) return [];
+
+    const pendingUsers: PendingUser[] = [];
+    const usernames = Object.keys(result);
+
+    for (const username of usernames) {
+      const userData = result[username];
+      if (userData) {
+        try {
+          const userDataString = ensureString(userData);
+          // 检查 userData 是否为有效的 JSON 字符串
+          if (userDataString && userDataString !== '[object Object]') {
+            const parsed = JSON.parse(userDataString) as PendingUser;
+            // 验证解析后的数据结构是否完整
+            if (
+              parsed &&
+              parsed.username &&
+              typeof parsed.registeredAt === 'number'
+            ) {
+              pendingUsers.push(parsed);
+            } else {
+              console.warn('待审核用户数据结构不完整:', parsed);
+              // 清理损坏的数据
+              this.client
+                .hdel(this.pendingUsersKey(), username)
+                .catch((err) => console.error('清理损坏数据失败:', err));
+            }
+          } else {
+            console.warn('待审核用户数据格式无效:', userData);
+            // 清理无效数据
+            this.client
+              .hdel(this.pendingUsersKey(), username)
+              .catch((err) => console.error('清理无效数据失败:', err));
+          }
+        } catch (error) {
+          console.error(
+            '解析待审核用户数据失败:',
+            error,
+            'raw data:',
+            userData
+          );
+          // 清理解析失败的损坏数据
+          this.client
+            .hdel(this.pendingUsersKey(), username)
+            .catch((err) => console.error('清理解析失败的数据失败:', err));
+        }
+      }
+    }
+
+    return pendingUsers;
+  }
+
+  async approvePendingUser(username: string): Promise<void> {
+    // 获取待审核用户数据
+    const pendingUserData = await withRetry(() =>
+      this.client.hget(this.pendingUsersKey(), username)
+    );
+
+    if (!pendingUserData) {
+      throw new Error(`Pending user ${username} not found`);
+    }
+
+    const pendingUser: PendingUser = JSON.parse(ensureString(pendingUserData));
+
+    // 创建正式用户（使用明文密码）
+    await this.registerUser(username, pendingUser.password);
+
+    // 删除待审核用户记录
+    await withRetry(() => this.client.hdel(this.pendingUsersKey(), username));
+  }
+
+  async rejectPendingUser(username: string): Promise<void> {
+    await withRetry(() => this.client.hdel(this.pendingUsersKey(), username));
+  }
+
+  async getRegistrationStats(): Promise<RegistrationStats> {
+    const totalUsers = (await this.getAllUsers()).length;
+    const pendingUsers = (await this.getPendingUsers()).length;
+
+    // 简单实现：今日注册数为0（可以后续扩展）
+    const todayRegistrations = 0;
+
+    // 从配置中获取最大用户数
+    const adminConfig = await this.getAdminConfig();
+    const maxUsers = adminConfig?.SiteConfig?.MaxUsers;
+
+    return {
+      totalUsers,
+      pendingUsers,
+      todayRegistrations,
+      maxUsers,
+    };
+  }
 }
 
 // 单例 Upstash Redis 客户端
 function getUpstashRedisClient(): Redis {
-    const globalKey = Symbol.for('__MOONTV_UPSTASH_REDIS_CLIENT__');
-    let client: Redis | undefined = (global as any)[globalKey];
-  
-    if (!client) {
-      const upstashUrl = process.env.UPSTASH_URL;
-      const upstashToken = process.env.UPSTASH_TOKEN;
-  
-      if (!upstashUrl || !upstashToken) {
-        throw new Error(
-          'UPSTASH_URL and UPSTASH_TOKEN env variables must be set'
-        );
-      }
-  
-    // 创建 Upstash Redis 客户端
-      client = new Redis({
-        url: upstashUrl,
-        token: upstashToken,
-      // 可选配置
-        retry: {
-          retries: 3,
-          backoff: (retryCount: number) =>
-            Math.min(1000 * Math.pow(2, retryCount), 30000),
-        },
-      });
-  
-      console.log('Upstash Redis client created successfully');
-  
-      (global as any)[globalKey] = client;
+  const globalKey = Symbol.for('__MOONTV_UPSTASH_REDIS_CLIENT__');
+  let client: Redis | undefined = (global as any)[globalKey];
+
+  if (!client) {
+    const upstashUrl = process.env.UPSTASH_URL;
+    const upstashToken = process.env.UPSTASH_TOKEN;
+
+    if (!upstashUrl || !upstashToken) {
+      throw new Error(
+        'UPSTASH_URL and UPSTASH_TOKEN env variables must be set'
+      );
     }
-  
-    return client;
+
+    // 创建 Upstash Redis 客户端
+    client = new Redis({
+      url: upstashUrl,
+      token: upstashToken,
+      // 可选配置
+      retry: {
+        retries: 3,
+        backoff: (retryCount: number) =>
+          Math.min(1000 * Math.pow(2, retryCount), 30000),
+      },
+    });
+
+    console.log('Upstash Redis client created successfully');
+
+    (global as any)[globalKey] = client;
   }
+
+  return client;
+}
