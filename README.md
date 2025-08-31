@@ -72,7 +72,7 @@
 ```yml
 services:
   moontv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: devinglaw/shiyutv:latest
     container_name: moontv-core
     restart: on-failure
     ports:
@@ -106,7 +106,7 @@ volumes:
 ```yml
 services:
   moontv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: devinglaw/shiyutv:latest
     container_name: moontv-core
     restart: on-failure
     ports:
@@ -143,7 +143,7 @@ networks:
 ```yml
 services:
   moontv-core:
-    image: ghcr.io/moontechlab/lunatv:latest
+    image: devinglaw/shiyutv:latest
     container_name: moontv-core
     restart: on-failure
     ports:
@@ -282,6 +282,8 @@ NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE 选项解释：
 
 - [ts-nextjs-tailwind-starter](https://github.com/theodorusclarence/ts-nextjs-tailwind-starter) — 项目最初基于该脚手架。
 - [LibreTV](https://github.com/LibreSpark/LibreTV) — 由此启发，站在巨人的肩膀上。
+- [MoonTV](https://github.com/MoonTechLab/LunaTV) — 已完项目基础上完善。
+- [MoonTV二改](https://github.com/puyujian/LunaTV) — 对MoonTV进行二次改造。
 - [ArtPlayer](https://github.com/zhw2590582/ArtPlayer) — 提供强大的网页视频播放器。
 - [HLS.js](https://github.com/video-dev/hls.js) — 实现 HLS 流媒体在浏览器中的播放支持。
 - [Zwei](https://github.com/bestzwei) — 提供获取豆瓣数据的 cors proxy
