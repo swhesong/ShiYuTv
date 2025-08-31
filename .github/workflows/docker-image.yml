@@ -36,14 +36,14 @@ permissions:
 
 # 包含要执行的任务。
 jobs:
-  # 一个单一的任务，用于构建并推送多架构镜像。
-  build-and-push:
+  # 任务一：专门用于构建和推送 amd64 平台的镜像，速度极快。
+  build-amd64:
+    name: Build for linux/amd64
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      # (新增) 设置 QEMU 以支持多架构构建。
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
@@ -62,31 +62,88 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable={{is_default_branch}}
+            type=raw,value=${{ github.event.inputs.tag || 'latest' }}-amd64
 
-      - name: Build and push multi-platform image
+      - name: Build and push amd64 image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          # 指定所有需要构建的平台。
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
           labels: ${{ steps.meta.outputs.labels }}
           tags: ${{ steps.meta.outputs.tags }}
-          # 这一行告诉 Action 在构建成功后推送到仓库。
           push: true
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-amd64
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-amd64,mode=max
 
-          # 使用镜像仓库作为缓存后端，这是当前最快的策略。
-          # 它会创建一个特殊的缓存镜像，如: yourname/shiyutv:buildcache
-          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache
-          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache,mode=max
+  # 任务二：专门用于构建和推送 arm64 平台的镜像，并行执行。
+  build-arm64:
+    name: Build for linux/arm64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata for labels and tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.tag || 'latest' }}-arm64
+
+      - name: Build and push arm64 image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/arm64
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          push: true
+          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-arm64
+          cache-to: type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-arm64,mode=max
+
+  # 任务三：等待两个平台构建完成后，将它们合并成一个多架构清单。
+  push-manifest:
+    name: Push Multi-arch Manifest
+    runs-on: ubuntu-latest
+    # 必须在两个 build 任务成功后才执行。
+    needs: [build-amd64, build-arm64]
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      
+      - name: Create and push multi-arch manifest
+        run: |
+          TAG=${{ github.event.inputs.tag || 'latest' }}
+          docker manifest create ${{ env.IMAGE_NAME }}:${TAG} \
+            --amend ${{ env.IMAGE_NAME }}:${TAG}-amd64 \
+            --amend ${{ env.IMAGE_NAME }}:${TAG}-arm64
+          docker manifest push ${{ env.IMAGE_NAME }}:${TAG}
+
+  # 清理任务：等待最终的 'push-manifest' 任务。
   cleanup-refresh:
     runs-on: ubuntu-latest
-    # 等待唯一的 'build-and-push' 任务完成。
+    # 等待 'push-manifest' 任务完成，无论成功与否。
     needs:
-      - build-and-push
+      - push-manifest
+    # 确保无论构建是否成功，这个清理任务都会运行。
     if: always()
     steps:
       - name: Delete workflow runs
