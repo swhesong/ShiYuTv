@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { LinuxDoUserInfo, OAuthTokenResponse } from '@/lib/admin.types';
 import { getConfig, saveAndCacheConfig } from '@/lib/config';
 import { db } from '@/lib/db';
-
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs';
 
 /**
