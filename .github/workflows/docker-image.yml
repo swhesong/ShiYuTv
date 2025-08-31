@@ -1,9 +1,9 @@
-# A friendly name for the workflow, displayed in the GitHub Actions UI.
+# 工作流的友好名称，会显示在 GitHub Actions 的 UI 中。
 name: Build & Push Docker image to Docker Hub
 
-# Defines the events that trigger this workflow.
+# 定义触发此工作流的事件。
 on:
-  # Allows manual triggering from the Actions tab with an optional tag input.
+  # 允许从 Actions 标签页手动触发，并可选择性输入 tag。
   workflow_dispatch:
     inputs:
       tag:
@@ -12,134 +12,79 @@ on:
         default: 'latest'
         type: string
 
-  # Triggers on pushes to the main or master branches.
+  # 在 main 或 master 分支有 push 时触发。
   push:
     branches: [ main, master ]
 
-  # Triggers on pull requests targeting the main or master branches.
+  # 在目标为 main 或 master 分支的 pull request 时触发。
   pull_request:
     branches: [ main, master ]
 
-# Defines a global environment variable for the Docker image name.
-# This avoids repetition and makes future updates easier.
+# 定义全局环境变量，方便统一管理镜像名称。
 env:
-  # MODIFIED: Image name changed to Docker Hub format.
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/shiyutv
 
-# Concurrency settings to ensure only one run of this workflow per branch is active at a time.
+# 并发设置，确保每个分支同一时间只有一个工作流在运行。
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Specifies the permissions required by the jobs in this workflow.
+# 指定工作流中任务所需的权限。
 permissions:
-  # MODIFIED: Removed 'packages: write' as it's for GHCR.
   contents: write
   actions: write
 
-# Contains the jobs to be executed.
+# 包含要执行的任务。
 jobs:
-  # The 'build' job builds the Docker image for multiple architectures in parallel.
-  build:
-    strategy:
-      matrix:
-        include:
-          - platform: linux/amd64
-            os: ubuntu-latest
-          - platform: linux/arm64
-            os: ubuntu-24.04-arm  # Using a native ARM runner for better performance.
-    runs-on: ${{ matrix.os }}
-
+  # 一个单一的任务，用于构建并推送多架构镜像。
+  build-and-push:
+    runs-on: ubuntu-latest # <-- 我们在标准的运行器上执行所有操作。
     steps:
-      - name: Prepare platform name
-        id: prep_platform
-        run: echo "PLATFORM_NAME=${{ matrix.platform }}" | sed 's|/|-|g' >> $GITHUB_ENV
-
       - name: Checkout source code
         uses: actions/checkout@v4
+
+      # (新增) 设置 QEMU 以支持多架构构建。
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
-        # MODIFIED: Login now uses Docker Hub secrets you created.
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata for labels
+      - name: Extract metadata for labels and tags
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
-          # The tags logic is kept identical to the original file.
           tags: |
             type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable={{is_default_branch}}
 
-      - name: Build and push by digest
-        id: build
+      - name: Build and push multi-platform image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
-          platforms: ${{ matrix.platform }}
+          # (修改) 在这里用逗号分隔，指定所有需要构建的平台。
+          platforms: linux/amd64,linux/arm64 
           labels: ${{ steps.meta.outputs.labels }}
-          # The tag is constructed using the environment variable for the image name.
-          tags: ${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag || 'latest' }}
-          # Pushes the architecture-specific image layer and outputs its digest.
-          outputs: type=image,name=${{ env.IMAGE_NAME }},name-canonical=true,push=true
+          tags: ${{ steps.meta.outputs.tags }}
+          # 这一行告诉 Action 在构建成功后推送到仓库。
+          push: true
+          # 使用缓存来加速未来的构建
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-      - name: Export digest
-        run: |
-          mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
-
-      - name: Upload digest as artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: digests-${{ env.PLATFORM_NAME }}
-          path: /tmp/digests/*
-          if-no-files-found: error
-          retention-days: 1
-
-  # The 'merge' job runs after all 'build' jobs are complete. It creates the multi-arch manifest.
-  merge:
-    runs-on: ubuntu-latest
-    needs:
-      - build
-    steps:
-      - name: Download all architecture digests
-        uses: actions/download-artifact@v4
-        with:
-          path: /tmp/digests
-          pattern: digests-*
-          merge-multiple: true
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to Docker Hub
-        # MODIFIED: Login now uses Docker Hub secrets you created.
-        uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Create manifest list and push
-        working-directory: /tmp/digests
-        run: |
-          # Uses the IMAGE_NAME env var and combines all downloaded digests into a single manifest list.
-          docker buildx imagetools create -t ${{ env.IMAGE_NAME }}:${{ github.event.inputs.tag || 'latest' }} \
-            $(printf '${{ env.IMAGE_NAME }}@sha256:%s ' *)
-
-  # The 'cleanup' job runs after 'merge' to keep the Actions history clean.
+  # 清理任务可以保持不变。
   cleanup-refresh:
     runs-on: ubuntu-latest
+    # (修改) 它现在只需要等待唯一的 'build-and-push' 任务完成。
     needs:
-      - merge
-    # 'if: always()' ensures this job runs even if a previous job fails.
+      - build-and-push
     if: always()
     steps:
       - name: Delete workflow runs
