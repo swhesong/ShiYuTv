@@ -11,7 +11,7 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
-    version: 'v0.0.1',
+    version: '0.0.1',
     date: '2025-08-26',
     added: [
       '新增对 SITE_BASE 环境变量的支持，解决 m3u8 重写时 base url 错误的问题',
