@@ -1,7 +1,12 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
-
+export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs';
+
+// 添加全局类型声明
+declare global {
+  var tempTokenStore: Map<string, { cookie: string; expires: number }> | undefined;
+}
 
 /**
  * 通过临时token换取cookie的端点
@@ -51,7 +56,7 @@ export async function GET(req: NextRequest) {
  */
 async function getCookieFromToken(token: string): Promise<string | null> {
   try {
-    const tempTokenStore = global.tempTokenStore;
+    const tempTokenStore = (globalThis as any).tempTokenStore;
     if (!tempTokenStore) {
       return null;
     }
