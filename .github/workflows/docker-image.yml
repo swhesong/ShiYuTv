@@ -61,7 +61,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20 # 请确保版本与您项目匹配
-
+          
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
+          
       - name: 📦 Install dependencies
         run: pnpm install # 您的项目使用 pnpm
 
@@ -145,6 +150,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20 # 请确保版本与您项目匹配
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 8
 
       - name: 📦 Install dependencies
         run: pnpm install # 您的项目使用 pnpm
