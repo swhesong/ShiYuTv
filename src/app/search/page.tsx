@@ -148,73 +148,33 @@ function SearchPageClient() {
     return getDefaultAggregate() ? 'agg' : 'all';
   });
 
-  // Enhanced sorting with relevance scoring for better search results
+  // Frontend sorting that fully trusts the backend's relevance score.
   const sortBatchForNoOrder = (items: SearchResult[]) => {
-    const q = currentQueryRef.current.trim();
-    
-    // Calculate relevance score for frontend sorting
-    const calculateFrontendRelevanceScore = (item: SearchResult): number => {
-      const query = q.toLowerCase();
-      const title = (item.title || '').toLowerCase();
-      
-      let score = 0;
-      
-      // Use backend relevance score if available
-      if ((item as any).relevanceScore) {
-        score = (item as any).relevanceScore;
-      } else {
-        // Fallback scoring for items without backend scoring
-        if (title === query) {
-          score += 100;
-        } else if (title.startsWith(query)) {
-          score += 80;
-        } else if (title.includes(query)) {
-          score += 40;
-        }
-        
-        // Check for partial word matches
-        const queryWords = query.split(/\s+/).filter(word => word.length > 0);
-        const titleWords = title.split(/\s+/);
-        
-        queryWords.forEach(queryWord => {
-          titleWords.forEach(titleWord => {
-            if (titleWord === queryWord) {
-              score += 20;
-            } else if (titleWord.includes(queryWord) && queryWord.length >= 2) {
-              score += 10;
-            }
-          });
-        });
-      }
-      
-      return score;
-    };
-    
+    // This function now primarily relies on the backend's relevance score.
+    // Frontend sorting is only for batches and as a fallback.
     return items.slice().sort((a, b) => {
-      // First priority: relevance score
-      const aRelevance = calculateFrontendRelevanceScore(a);
-      const bRelevance = calculateFrontendRelevanceScore(b);
+      // Primary sorting criterion: relevance score from backend (descending).
+      // The `relevanceScore` is dynamically added by the backend APIs.
+      const aRelevance = (a as any).relevanceScore ?? 0;
+      const bRelevance = (b as any).relevanceScore ?? 0;
       
       if (bRelevance !== aRelevance) {
         return bRelevance - aRelevance;
       }
       
-      // Second priority: exact match
-      const aExact = (a.title || '').trim().toLowerCase() === q.toLowerCase();
-      const bExact = (b.title || '').trim().toLowerCase() === q.toLowerCase();
-      if (aExact && !bExact) return -1;
-      if (!aExact && bExact) return 1;
-
-      // Third priority: year (recent first)
-      const aNum = Number.parseInt(a.year as any, 10);
-      const bNum = Number.parseInt(b.year as any, 10);
+      // Secondary sorting criterion: year (descending, more recent first).
+      // This serves as a secondary sort key, consistent with the backend logic.
+      const aNum = Number.parseInt(a.year, 10);
+      const bNum = Number.parseInt(b.year, 10);
       const aValid = !Number.isNaN(aNum);
       const bValid = !Number.isNaN(bNum);
+      if (aValid && bValid && bNum !== aNum) {
+        return bNum - aNum;
+      }
       if (aValid && !bValid) return -1;
       if (!aValid && bValid) return 1;
-      if (aValid && bValid) return bNum - aNum; // Descending by year
       
-      // Final priority: alphabetical order
+      // Tertiary sorting criterion: alphabetical order by title.
       return (a.title || '').localeCompare(b.title || '');
     });
   };
