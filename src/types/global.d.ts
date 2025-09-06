@@ -1,8 +1,5 @@
-export {};
+// src/types/global.d.ts
 
-declare global {
-  var tempTokenStore: Map<string, { 
-    cookie: string; 
-    expires: number 
-  }> | undefined;
-}
+// The 'declare global' block has been removed because we are now using
+// a typed, imported module ('token-store.ts') instead of a global variable.
+export {};
