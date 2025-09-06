@@ -22,3 +22,6 @@ node_modules
 
 # 文档文件
 README.md
+
+# 忽略 IPTV 文件夹，因为它与应用运行无关
+iptv
