@@ -91,7 +91,7 @@ export async function GET(request: NextRequest) {
         
         queryWords.forEach(queryWord => {
           let bestWordScore = 0;
-          titleWords.forEach(titleWord => {
+          titleWords.forEach((titleWord: string) => {
             if (titleWord === queryWord) {
               bestWordScore = Math.max(bestWordScore, 50);
               exactWordMatches++;
