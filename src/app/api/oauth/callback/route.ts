@@ -6,9 +6,7 @@ import { getConfig, saveAndCacheConfig } from '@/lib/config';
 import { db } from '@/lib/db';
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs';
-declare global {
-  var tempTokenStore: Map<string, { cookie: string; expires: number }> | undefined;
-}
+
 
 /**
  * OAuth2 回调处理端点
