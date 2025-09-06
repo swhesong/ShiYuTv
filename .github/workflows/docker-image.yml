@@ -47,7 +47,6 @@ jobs:
     steps:
       - name: ⚡ Maximize build space
         run: |
-          # 清理不必要的软件包以释放空间
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt-get clean
           df -h
@@ -55,8 +54,20 @@ jobs:
       - name: 📥 Checkout source code  
         uses: actions/checkout@v4
         with:
-          # 浅克隆以减少网络传输
           fetch-depth: 1
+
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # 请确保版本与您项目匹配
+
+      - name: 📦 Install dependencies
+        run: pnpm install # 您的项目使用 pnpm
+
+      - name: 📜 Generate version and changelog from CHANGELOG
+        run: node scripts/convert-changelog.js
+
 
       - name: 🔧 Setup ultra-fast Docker buildx
         uses: docker/setup-buildx-action@v3
@@ -128,6 +139,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+      
+
+      - name: ⚙️ Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20 # 请确保版本与您项目匹配
+
+      - name: 📦 Install dependencies
+        run: pnpm install # 您的项目使用 pnpm
+
+      - name: 📜 Generate version and changelog from CHANGELOG
+        run: node scripts/convert-changelog.js
+
 
       - name: 🎯 Setup optimized QEMU for ARM64
         uses: docker/setup-qemu-action@v3
@@ -205,18 +229,14 @@ jobs:
       - name: ⚡ Ultra-fast manifest creation with retry mechanism
         run: |
           TAG=${{ github.event.inputs.tag || 'latest' }}
-          
           # 启用最新的buildx特性
           export DOCKER_CLI_EXPERIMENTAL=enabled
-          
           echo "🚀 Creating multi-arch manifest using buildx imagetools..."
           echo "ℹ️ Single-arch images are guaranteed to exist due to job dependencies"
-          
           # 创建manifest with重试机制
           create_manifest_with_retry() {
             local max_attempts=3
             local wait_time=5
-            
             for attempt in $(seq 1 $max_attempts); do
               echo "Creating manifest (attempt $attempt/$max_attempts)..."
               if docker buildx imagetools create \
@@ -236,21 +256,17 @@ jobs:
               fi
             done
           }
-          
           # 执行manifest创建
           if ! create_manifest_with_retry; then
             echo "❌ Failed to create multi-arch manifest"
             exit 1
           fi
-          
           echo "✅ Multi-arch manifest created successfully!"
-          
           # 最终验证函数 - 添加重试机制
           verify_manifest_with_retry() {
             local image_tag=$1
             local max_attempts=5
             local wait_time=3
-            
             for attempt in $(seq 1 $max_attempts); do
               echo "Verifying $image_tag (attempt $attempt/$max_attempts)..."
               if docker buildx imagetools inspect "$image_tag" >/dev/null 2>&1; then
@@ -268,11 +284,9 @@ jobs:
               fi
             done
           }
-          
           # 最终验证 - 添加等待时间以确保传播完成
           echo "🔍 Final verification with propagation wait..."
           sleep 10  # 等待Docker Hub传播完成
-          
           # 使用重试机制进行最终验证
           echo "🔍 Performing final manifest verification..."
           if verify_manifest_with_retry "${{ env.IMAGE_NAME }}:${TAG}"; then
@@ -291,8 +305,6 @@ jobs:
         run: |
           TAG=${{ github.event.inputs.tag || 'latest' }}
           echo "📊 Registry optimization completed for tag: ${TAG}"
-          # 可选：清理架构特定标签以节省空间
-          # 注释：如果需要保留单架构标签用于调试，请保持此部分注释状态
 
   # 智能清理任务
   cleanup-refresh:
