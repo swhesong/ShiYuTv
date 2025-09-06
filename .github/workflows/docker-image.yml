@@ -64,8 +64,7 @@ jobs:
           
       - name: 📦 Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 8
+
           
       - name: 📦 Install dependencies
         run: pnpm install # 您的项目使用 pnpm
@@ -153,8 +152,6 @@ jobs:
 
       - name: 📦 Setup pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 8
 
       - name: 📦 Install dependencies
         run: pnpm install # 您的项目使用 pnpm
