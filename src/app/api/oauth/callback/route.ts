@@ -588,24 +588,8 @@ async function storeTemporaryToken(
   cookie: string
 ): Promise<void> {
   try {
-    // 使用内存存储（生产环境建议用Redis）
-    const tempTokenStore = (globalThis as any).tempTokenStore || new Map();
-    (globalThis as any).tempTokenStore = tempTokenStore;
-
-    // 存储5分钟过期
-    tempTokenStore.set(token, {
-      cookie,
-      expires: Date.now() + 5 * 60 * 1000, // 5分钟
-    });
-
-    // 清理过期token
-    const now = Date.now();
-    const entries: [string, { cookie: string; expires: number }][] = Array.from(tempTokenStore.entries());
-    for (const [key, value] of entries) {
-      if (value.expires < now) {
-        tempTokenStore.delete(key);
-      }
-    }
+    // 直接使用导入的 tokenStore，它已经处理了所有复杂的逻辑。
+    tokenStore.set(token, cookie);
 
     console.log('临时token存储成功:', token);
   } catch (error) {
@@ -613,3 +597,4 @@ async function storeTemporaryToken(
     throw new Error('无法存储临时token');
   }
 }
+
