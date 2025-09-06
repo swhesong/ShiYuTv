@@ -82,7 +82,7 @@ export async function GET(request: NextRequest) {
       
       // Advanced multi-word query processing
       const queryWords = query.split(/\s+/).filter(word => word.length > 0);
-      const titleWords = title.split(/[\s-._]+/).filter(word => word.length > 0);
+      const titleWords = title.split(/[\s-._]+/).filter((word: string) => word.length > 0);
       
       if (queryWords.length > 1) {
         let wordMatchScore = 0;
