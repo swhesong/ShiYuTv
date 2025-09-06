@@ -1,11 +1,14 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
-
+import { tokenStore } from '@/lib/token-store';
 import { LinuxDoUserInfo, OAuthTokenResponse } from '@/lib/admin.types';
 import { getConfig, saveAndCacheConfig } from '@/lib/config';
 import { db } from '@/lib/db';
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs';
+declare global {
+  var tempTokenStore: Map<string, { cookie: string; expires: number }> | undefined;
+}
 
 /**
  * OAuth2 回调处理端点
@@ -588,8 +591,8 @@ async function storeTemporaryToken(
 ): Promise<void> {
   try {
     // 使用内存存储（生产环境建议用Redis）
-    const tempTokenStore = global.tempTokenStore || new Map();
-    global.tempTokenStore = tempTokenStore;
+    const tempTokenStore = (globalThis as any).tempTokenStore || new Map();
+    (globalThis as any).tempTokenStore = tempTokenStore;
 
     // 存储5分钟过期
     tempTokenStore.set(token, {
