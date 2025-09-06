@@ -602,7 +602,7 @@ async function storeTemporaryToken(
 
     // 清理过期token
     const now = Date.now();
-    const entries = Array.from(tempTokenStore.entries());
+    const entries: [string, { cookie: string; expires: number }][] = Array.from(tempTokenStore.entries());
     for (const [key, value] of entries) {
       if (value.expires < now) {
         tempTokenStore.delete(key);
