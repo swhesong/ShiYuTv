@@ -46,9 +46,9 @@ RUN echo "=== Running TypeScript Type Check ===" && \
     pnpm exec tsc --noEmit --pretty && \
     echo "=== TypeScript Check Completed Successfully ==="
 
-# 4. 执行构建命令，并附带详细日志标志
-RUN echo "=== Starting Next.js Build with Verbose Output ===" && \
-    pnpm run build --verbose
+# 4. 执行构建命令
+RUN echo "=== Starting Next.js Build ===" && \
+    pnpm run build
 # ======================================================
 
 # ---- 第 3 阶段：生成运行时镜像 ----
