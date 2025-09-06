@@ -1,12 +1,8 @@
 /* eslint-disable no-console, @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from 'next/server';
+import { tokenStore } from '@/lib/token-store';
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs';
-
-// 添加全局类型声明
-declare global {
-  var tempTokenStore: Map<string, { cookie: string; expires: number }> | undefined;
-}
 
 /**
  * 通过临时token换取cookie的端点
@@ -56,27 +52,12 @@ export async function GET(req: NextRequest) {
  */
 async function getCookieFromToken(token: string): Promise<string | null> {
   try {
-    const tempTokenStore = (globalThis as any).tempTokenStore;
-    if (!tempTokenStore) {
-      return null;
-    }
-
-    const tokenData = tempTokenStore.get(token);
-    if (!tokenData) {
-      return null;
-    }
-
-    // 检查是否过期
-    if (tokenData.expires < Date.now()) {
-      tempTokenStore.delete(token);
-      return null;
-    }
-
-    // 使用后立即删除
-    tempTokenStore.delete(token);
-    return tokenData.cookie;
+    // 直接使用导入的 tokenStore，它会自动处理检查过期和用后删除的逻辑。
+    const cookie = tokenStore.get(token);
+    return cookie;
   } catch (error) {
     console.error('获取cookie失败:', error);
     return null;
   }
 }
+
