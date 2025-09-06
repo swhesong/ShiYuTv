@@ -87,63 +87,117 @@ export async function GET(request: NextRequest) {
 
           const results = (await searchPromise) as any[];
 
-              // Advanced search relevance scoring algorithm
+              // International leading advanced search relevance scoring algorithm (consistent with standard API)
               const calculateRelevanceScore = (item: any, searchQuery: string): number => {
                 const query = searchQuery.toLowerCase().trim();
                 const title = (item.title || '').toLowerCase();
                 const typeName = (item.type_name || '').toLowerCase();
+                const director = (item.director || '').toLowerCase();
+                const actor = (item.actor || '').toLowerCase();
                 
                 let score = 0;
+                const queryLength = query.length;
+                const titleLength = title.length;
                 
-                // Exact title match gets highest score
+                // Advanced exact matching with weight adjustment
                 if (title === query) {
-                  score += 100;
+                  score += 1000; // Significantly higher for exact match
                 }
-                // Title starts with query
+                // Perfect prefix matching (high priority for user intent)
                 else if (title.startsWith(query)) {
-                  score += 80;
+                  score += 800 * (queryLength / titleLength); // Weight by query coverage
                 }
-                // Title contains query as whole word
-                else if (title.includes(` ${query} `) || title.includes(`${query} `) || title.includes(` ${query}`)) {
-                  score += 60;
+                // Word boundary exact matches (important for multi-word queries)
+                else if (new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(title)) {
+                  score += 600;
                 }
-                // Title contains query as substring
+                // Substring matching with position weighting
                 else if (title.includes(query)) {
-                  score += 40;
+                  const position = title.indexOf(query);
+                  const positionWeight = 1 - (position / titleLength); // Earlier position gets higher score
+                  score += 300 * positionWeight;
                 }
                 
-                // Check individual keywords for partial matches
+                // Advanced multi-word query processing
                 const queryWords = query.split(/\s+/).filter(word => word.length > 0);
-                const titleWords = title.split(/\s+/);
+                const titleWords = title.split(/[\s\-_\.]+/).filter(word => word.length > 0);
                 
-                queryWords.forEach(queryWord => {
-                  titleWords.forEach(titleWord => {
-                    if (titleWord === queryWord) {
-                      score += 20;
-                    } else if (titleWord.includes(queryWord) && queryWord.length >= 2) {
-                      score += 10;
-                    }
+                if (queryWords.length > 1) {
+                  let wordMatchScore = 0;
+                  let exactWordMatches = 0;
+                  let partialWordMatches = 0;
+                  
+                  queryWords.forEach(queryWord => {
+                    let bestWordScore = 0;
+                    titleWords.forEach(titleWord => {
+                      if (titleWord === queryWord) {
+                        bestWordScore = Math.max(bestWordScore, 50);
+                        exactWordMatches++;
+                      } else if (titleWord.includes(queryWord) && queryWord.length >= 2) {
+                        const coverage = queryWord.length / titleWord.length;
+                        bestWordScore = Math.max(bestWordScore, 25 * coverage);
+                        partialWordMatches++;
+                      } else if (queryWord.includes(titleWord) && titleWord.length >= 2) {
+                        const coverage = titleWord.length / queryWord.length;
+                        bestWordScore = Math.max(bestWordScore, 20 * coverage);
+                      }
+                    });
+                    wordMatchScore += bestWordScore;
                   });
-                });
+                  
+                  // Bonus for matching all query words
+                  if (exactWordMatches === queryWords.length) {
+                    wordMatchScore *= 2;
+                  }
+                  
+                  // Bonus for high match ratio
+                  const matchRatio = (exactWordMatches + partialWordMatches * 0.5) / queryWords.length;
+                  wordMatchScore *= (0.5 + matchRatio);
+                  
+                  score += wordMatchScore;
+                }
                 
-                // Bonus for type name matches
+                // Enhanced metadata matching
+                let metadataScore = 0;
                 if (typeName.includes(query)) {
-                  score += 15;
+                  metadataScore += 40;
                 }
-                
-                // Penalty for very long titles that might be less relevant
-                if (title.length > query.length * 3) {
-                  score -= 5;
+                if (director.includes(query)) {
+                  metadataScore += 60; // Director matches are quite relevant
                 }
+                if (actor.includes(query)) {
+                  metadataScore += 50; // Actor matches are also relevant
+                }
+                score += metadataScore;
                 
-                // Bonus for recent content
+                // Content quality and recency weighting
                 const currentYear = new Date().getFullYear();
                 const itemYear = parseInt(item.year) || 0;
-                if (itemYear >= currentYear - 2) {
-                  score += 5;
+                
+                if (itemYear >= currentYear - 1) {
+                  score += 30; // Very recent content
+                } else if (itemYear >= currentYear - 3) {
+                  score += 20; // Recent content
+                } else if (itemYear >= currentYear - 10) {
+                  score += 10; // Moderately recent
                 }
                 
-                return Math.max(0, score);
+                // Penalty adjustments for better relevance
+                if (titleLength > queryLength * 4) {
+                  score *= 0.9; // Slight penalty for very long titles
+                }
+                
+                // Boost for concise, relevant titles
+                if (titleLength <= queryLength * 2 && score > 100) {
+                  score *= 1.1;
+                }
+                
+                // Ensure minimum threshold for very weak matches
+                if (score > 0 && score < 50 && !title.includes(query)) {
+                  score = 0; // Filter out very weak matches
+                }
+                
+                return Math.max(0, Math.round(score));
               };
 
               // Apply yellow content filter
@@ -157,22 +211,41 @@ export async function GET(request: NextRequest) {
                 });
               }
               
-              // Apply relevance scoring and filtering
+              // Apply advanced relevance scoring and intelligent filtering (consistent with standard API)
               const scoredResults = filteredResults
                 .map(item => ({
                   ...item,
                   relevanceScore: calculateRelevanceScore(item, query)
                 }))
-                .filter(item => item.relevanceScore >= 10) // Filter out very low relevance results
+                .filter(item => {
+                  // Dynamic threshold based on query characteristics
+                  const minThreshold = query.length <= 2 ? 100 : 50;
+                  return item.relevanceScore >= minThreshold;
+                })
                 .sort((a, b) => {
-                  // Sort by relevance score first, then by year
-                  if (b.relevanceScore !== a.relevanceScore) {
-                    return b.relevanceScore - a.relevanceScore;
+                  // Multi-tier sorting for optimal relevance
+                  const scoreDiff = b.relevanceScore - a.relevanceScore;
+                  
+                  // If scores are very close (within 10%), consider secondary factors
+                  if (Math.abs(scoreDiff) <= Math.max(a.relevanceScore, b.relevanceScore) * 0.1) {
+                    // Prefer exact year matches if query contains year
+                    const yearMatch = query.match(/\b(19|20)\d{2}\b/);
+                    if (yearMatch) {
+                      const targetYear = yearMatch[0];
+                      const aYearMatch = a.year === targetYear;
+                      const bYearMatch = b.year === targetYear;
+                      if (aYearMatch !== bYearMatch) {
+                        return aYearMatch ? -1 : 1;
+                      }
+                    }
+                    
+                    // Then by recency
+                    const aYear = parseInt(a.year) || 0;
+                    const bYear = parseInt(b.year) || 0;
+                    return bYear - aYear;
                   }
-                  // If relevance scores are equal, prefer more recent content
-                  const aYear = parseInt(a.year) || 0;
-                  const bYear = parseInt(b.year) || 0;
-                  return bYear - aYear;
+                  
+                  return scoreDiff;
                 });
               
               filteredResults = scoredResults;
