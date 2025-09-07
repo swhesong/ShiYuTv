@@ -1,301 +1,422 @@
-# ShiYuTV
+# 🎬 ShiYuTV
 
 <div align="center">
-  <img src="public/logo.png" alt="ShiYuTv Logo" width="120">
+  <img src="public/logo.png" alt="ShiYuTV Logo" width="160" style="border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);">
+  
+  <h3 style="margin: 24px 0 8px 0; color: #1a1a1a; font-weight: 700;">跨平台影视聚合播放器</h3>
+  <p style="color: #6b7280; font-size: 16px; margin: 0 0 32px 0; max-width: 600px;">
+    基于 Next.js 14 构建的现代化影视应用，支持多资源搜索、云端同步、离线缓存，为您提供无缝的观影体验
+  </p>
+
+  <!-- 技术栈徽章 -->
+  <div style="margin: 24px 0;">
+    <img src="https://img.shields.io/badge/Next.js-15-000000?style=for-the-badge&logo=nextdotjs&logoColor=white" alt="Next.js" style="margin: 4px;">
+    <img src="https://img.shields.io/badge/TailwindCSS-38bdf8?style=for-the-badge&logo=tailwindcss&logoColor=white" alt="TailwindCSS" style="margin: 4px;">
+    <img src="https://img.shields.io/badge/TypeScript-3178c6?style=for-the-badge&logo=typescript&logoColor=white" alt="TypeScript" style="margin: 4px;">
+    <img src="https://img.shields.io/badge/Docker-2496ed?style=for-the-badge&logo=docker&logoColor=white" alt="Docker" style="margin: 4px;">
+  </div>
+
+  <!-- 状态徽章 -->
+  <div style="margin: 16px 0 32px 0;">
+    <img src="https://img.shields.io/badge/License-MIT-22c55e?style=flat-square" alt="License" style="margin: 0 4px;">
+    <img src="https://img.shields.io/badge/PWA-Ready-ff6b6b?style=flat-square" alt="PWA Ready" style="margin: 0 4px;">
+    <img src="https://img.shields.io/badge/Mobile-Optimized-blue?style=flat-square" alt="Mobile Optimized" style="margin: 0 4px;">
+  </div>
 </div>
 
-> 🎬 **ShiYuTv** 是一个开箱即用的、跨平台的影视聚合播放器。它基于 **Next.js 14** + **Tailwind&nbsp;CSS** + **TypeScript** 构建，支持多资源搜索、在线播放、收藏同步、播放记录、云端存储，让你可以随时随地畅享海量免费影视内容。
+---
 
-<div align="center">
+## ✨ 核心特性
 
-![Next.js](https://img.shields.io/badge/Next.js-14-000?logo=nextdotjs)
-![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3-38bdf8?logo=tailwindcss)
-![TypeScript](https://img.shields.io/badge/TypeScript-4.x-3178c6?logo=typescript)
-![License](https://img.shields.io/badge/License-MIT-green)
-![Docker Ready](https://img.shields.io/badge/Docker-ready-blue?logo=docker)
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 24px; margin: 32px 0;">
+
+### 🔍 智能聚合搜索
+**一键全网搜索**  
+集成多个资源站点，单次搜索即可获得全网影视资源，告别逐站搜索的繁琐
+
+### 📱 PWA 原生体验
+**离线可用 · 桌面安装**  
+支持离线缓存和桌面安装，在移动设备上提供接近原生应用的流畅体验
+
+### ☁️ 云端同步
+**多端数据同步**  
+基于 Kvrocks/Redis/Upstash 存储，收藏夹和播放进度在所有设备间实时同步
+
+### 🎨 响应式设计
+**精美界面 · 自适应布局**  
+现代化 UI 设计，支持深色模式，完美适配桌面端和移动端各种屏幕尺寸
+
+### ▶️ 高质量播放
+**流畅播放 · 智能优化**  
+集成 ArtPlayer 和 HLS.js，支持多种视频格式，智能跳过广告片段
+
+### 📊 详尽信息展示
+**丰富的影视资料**  
+完整的剧集列表、演员信息、上映年份、剧情简介等详细信息展示
+
+</div>
+
+> ⚠️ **重要提示**：部署后项目为空壳应用，无内置播放源和直播源，需要管理员自行配置资源站点
+
+<details>
+<summary>📸 <strong>项目截图预览</strong></summary>
+
+<div style="margin: 20px 0;">
+  <img src="public/screenshot1.png" alt="主界面" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 8px 0;">
+  <img src="public/screenshot2.png" alt="搜索界面" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 8px 0;">
+  <img src="public/screenshot3.png" alt="播放界面" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 8px 0;">
+  <img src="public/screenshot4.png" alt="移动端界面" style="max-width: 100%; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); margin: 8px 0;">
+</div>
+
+</details>
+
+---
+
+## 🏗️ 技术架构
+
+<div style="margin: 24px 0;">
+
+| 技术分类 | 核心技术 | 描述 |
+|----------|----------|------|
+| **🎯 前端框架** | Next.js 14 · App Router | 现代化 React 全栈框架 |
+| **🎨 UI 设计** | Tailwind CSS 3 | 原子化 CSS 框架 |
+| **⚡ 开发语言** | TypeScript 4 | 类型安全的 JavaScript |
+| **📺 播放引擎** | ArtPlayer · HLS.js | 高性能视频播放解决方案 |
+| **🔧 开发工具** | ESLint · Prettier · Jest | 代码质量保障 |
+| **🚀 部署方案** | Docker | 容器化部署 |
 
 </div>
 
 ---
 
-## ✨ 功能特性
+## 🚀 快速部署
 
-- 🔍 **多源聚合搜索**：一次搜索立刻返回全源结果。
-- 📄 **丰富详情页**：支持剧集列表、演员、年份、简介等完整信息展示。
-- ▶️ **流畅在线播放**：集成 HLS.js & ArtPlayer。
-- ❤️ **收藏 + 继续观看**：支持 Kvrocks/Redis/Upstash 存储，多端同步进度。
-- 📱 **PWA**：离线缓存、安装到桌面/主屏，移动端原生体验。
-- 🌗 **响应式布局**：桌面侧边栏 + 移动底部导航，自适应各种屏幕尺寸。
-- 👿 **智能去广告**：自动跳过视频中的切片广告（实验性）。
+> 💡 **推荐方式**：使用 Docker Compose 进行容器化部署
 
-### 注意：部署后项目为空壳项目，无内置播放源和直播源，需要自行收集
+### 方案一：Kvrocks 存储（🌟 推荐）
 
-<details>
-  <summary>点击查看项目截图</summary>
-  <img src="public/screenshot1.png" alt="项目截图" style="max-width:600px">
-  <img src="public/screenshot2.png" alt="项目截图" style="max-width:600px">
-  <img src="public/screenshot3.png" alt="项目截图" style="max-width:600px">
-  <img src="public/screenshot4.png" alt="项目截图" style="max-width:600px">  
-</details>
-
-### 请不要在 B 站、小红书、微信公众号、抖音、今日头条或其他中国大陆社交平台发布视频或文章宣传本项目，不授权任何“科技周刊/月刊”类项目或站点收录本项目。
-
-## 🗺 目录
-
-- [技术栈](#技术栈)
-- [部署](#部署)
-- [配置文件](#配置文件)
-- [自动更新](#自动更新)
-- [环境变量](#环境变量)
-- [AndroidTV 使用](#AndroidTV-使用)
-- [Roadmap](#roadmap)
-- [安全与隐私提醒](#安全与隐私提醒)
-- [License](#license)
-- [致谢](#致谢)
-
-## 技术栈
-
-| 分类      | 主要依赖                                                                                              |
-| --------- | ----------------------------------------------------------------------------------------------------- |
-| 前端框架  | [Next.js 14](https://nextjs.org/) · App Router                                                        |
-| UI & 样式 | [Tailwind&nbsp;CSS 3](https://tailwindcss.com/)                                                       |
-| 语言      | TypeScript 4                                                                                          |
-| 播放器    | [ArtPlayer](https://github.com/zhw2590582/ArtPlayer) · [HLS.js](https://github.com/video-dev/hls.js/) |
-| 代码质量  | ESLint · Prettier · Jest                                                                              |
-| 部署      | Docker                                                                                                |
-
-## 部署
-
-本项目**仅支持 Docker 或其他基于 Docker 的平台** 部署。
-
-### Kvrocks 存储（推荐）
-
-```yml
+```yaml
+# docker-compose.yml
 services:
-  ShiYuTv-core:
+  shiyutv-core:
     image: devinglaw/shiyutv:latest
-    container_name: ShiYuTv-core
-    restart: on-failure
+    container_name: shiyutv-core
+    restart: unless-stopped
     ports:
       - '3000:3000'
     environment:
       - USERNAME=admin
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=kvrocks
-      - KVROCKS_URL=redis://ShiYuTv-kvrocks:6666
+      - KVROCKS_URL=redis://shiyutv-kvrocks:6666
     networks:
-      - ShiYuTv-network
+      - shiyutv-network
     depends_on:
-      - ShiYuTv-kvrocks
-  ShiYuTv-kvrocks:
+      - shiyutv-kvrocks
+
+  shiyutv-kvrocks:
     image: apache/kvrocks
-    container_name: ShiYuTv-kvrocks
+    container_name: shiyutv-kvrocks
     restart: unless-stopped
     volumes:
       - kvrocks-data:/var/lib/kvrocks
     networks:
-      - ShiYuTv-network
+      - shiyutv-network
+
 networks:
-  ShiYuTv-network:
+  shiyutv-network:
     driver: bridge
+
 volumes:
   kvrocks-data:
+    driver: local
 ```
 
-### Redis 存储（有一定的丢数据风险）
+### 方案二：Redis 存储
 
-```yml
+```yaml
+# docker-compose.yml
 services:
-  ShiYuTv-core:
+  shiyutv-core:
     image: devinglaw/shiyutv:latest
-    container_name: ShiYuTv-core
-    restart: on-failure
+    container_name: shiyutv-core
+    restart: unless-stopped
     ports:
       - '3000:3000'
     environment:
       - USERNAME=admin
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=redis
-      - REDIS_URL=redis://ShiYuTv-redis:6379
+      - REDIS_URL=redis://shiyutv-redis:6379
     networks:
-      - ShiYuTv-network
+      - shiyutv-network
     depends_on:
-      - ShiYuTv-redis
-  ShiYuTv-redis:
+      - shiyutv-redis
+
+  shiyutv-redis:
     image: redis:alpine
-    container_name: ShiYuTv-redis
+    container_name: shiyutv-redis
     restart: unless-stopped
-    networks:
-      - ShiYuTv-network
-    # 请开启持久化，否则升级/重启后数据丢失
+    command: redis-server --appendonly yes
     volumes:
       - ./data:/data
+    networks:
+      - shiyutv-network
+
 networks:
-  ShiYuTv-network:
+  shiyutv-network:
     driver: bridge
 ```
 
-### Upstash 存储
+### 方案三：Upstash 云存储
 
-1. 在 [upstash](https://upstash.com/) 注册账号并新建一个 Redis 实例，名称任意。
-2. 复制新数据库的 **HTTPS ENDPOINT 和 TOKEN**
-3. 使用如下 docker compose
+1. **注册 Upstash 账号**  
+   访问 [upstash.com](https://upstash.com/) 创建 Redis 实例
 
-```yml
+2. **获取连接信息**  
+   复制 **HTTPS ENDPOINT** 和 **TOKEN**
+
+3. **部署配置**
+```yaml
+# docker-compose.yml
 services:
-  ShiYuTv-core:
+  shiyutv-core:
     image: devinglaw/shiyutv:latest
-    container_name: ShiYuTv-core
-    restart: on-failure
+    container_name: shiyutv-core
+    restart: unless-stopped
     ports:
       - '3000:3000'
     environment:
       - USERNAME=admin
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=upstash
-      - UPSTASH_URL=上面 https 开头的 HTTPS ENDPOINT
-      - UPSTASH_TOKEN=上面的 TOKEN
+      - UPSTASH_URL=你的_HTTPS_ENDPOINT
+      - UPSTASH_TOKEN=你的_TOKEN
 ```
 
-## 配置文件
+---
 
-完成部署后为空壳应用，无播放源，需要站长在管理后台的配置文件设置中填写配置文件（后续会支持订阅）
+## ⚙️ 配置管理
 
-配置文件示例如下：
+### 📋 配置文件结构
+
+完成部署后，需要在管理后台配置资源站点。配置文件采用 JSON 格式：
 
 ```json
 {
   "cache_time": 7200,
   "api_site": {
-    "dyttzy": {
-      "api": "http://xxx.com/api.php/provide/vod",
-      "name": "示例资源",
-      "detail": "http://xxx.com"
+    "example_site": {
+      "api": "https://api.example.com/provide/vod",
+      "name": "示例影视资源",
+      "detail": "https://www.example.com"
     }
-    // ...更多站点
   },
   "custom_category": [
     {
-      "name": "华语",
+      "name": "华语电影",
       "type": "movie",
       "query": "华语"
+    },
+    {
+      "name": "美剧推荐", 
+      "type": "tv",
+      "query": "美剧"
     }
   ]
 }
 ```
 
-- `cache_time`：接口缓存时间（秒）。
-- `api_site`：你可以增删或替换任何资源站，字段说明：
-  - `key`：唯一标识，保持小写字母/数字。
-  - `api`：资源站提供的 `vod` JSON API 根地址。
-  - `name`：在人机界面中展示的名称。
-  - `detail`：（可选）部分无法通过 API 获取剧集详情的站点，需要提供网页详情根 URL，用于爬取。
-- `custom_category`：自定义分类配置，用于在导航中添加个性化的影视分类。以 type + query 作为唯一标识。支持以下字段：
-  - `name`：分类显示名称（可选，如不提供则使用 query 作为显示名）
-  - `type`：分类类型，支持 `movie`（电影）或 `tv`（电视剧）
-  - `query`：搜索关键词，用于在豆瓣 API 中搜索相关内容
+### 🏷️ 配置项说明
 
-custom_category 支持的自定义分类已知如下：
+<div style="margin: 20px 0;">
 
-- movie：热门、最新、经典、豆瓣高分、冷门佳片、华语、欧美、韩国、日本、动作、喜剧、爱情、科幻、悬疑、恐怖、治愈
-- tv：热门、美剧、英剧、韩剧、日剧、国产剧、港剧、日本动画、综艺、纪录片
+| 配置项 | 类型 | 说明 |
+|--------|------|------|
+| **cache_time** | `number` | API 缓存时间（秒），建议 7200 |
+| **api_site** | `object` | 资源站点配置对象 |
+| **custom_category** | `array` | 自定义分类配置数组 |
 
-也可输入如 "哈利波特" 效果等同于豆瓣搜索
+</div>
 
-ShiYuTv 支持标准的苹果 CMS V10 API 格式。
+### 🎯 自定义分类
 
-## 自动更新
+支持创建个性化的影视分类，可用的预设分类：
 
-可借助 [watchtower](https://github.com/containrrr/watchtower) 自动更新镜像容器
+**电影分类**：热门、最新、经典、豆瓣高分、冷门佳片、华语、欧美、韩国、日本、动作、喜剧、爱情、科幻、悬疑、恐怖、治愈
 
-dockge/komodo 等 docker compose UI 也有自动更新功能
+**电视剧分类**：热门、美剧、英剧、韩剧、日剧、国产剧、港剧、日本动画、综艺、纪录片
 
-## 环境变量
+---
 
-| 变量                                | 说明                     | 可选值                   | 默认值                                                                                                                     |
-| ----------------------------------- | ------------------------ | ------------------------ | -------------------------------------------------------------------------------------------------------------------------- |
-| USERNAME                            | 站长账号                 | 任意字符串               | 无默认，必填字段                                                                                                           |
-| PASSWORD                            | 站长密码                 | 任意字符串               | 无默认，必填字段                                                                                                           |
-| SITE_BASE                           | 站点 url                 | 形如 https://example.com | 空                                                                                                                         |
-| NEXT_PUBLIC_SITE_NAME               | 站点名称                 | 任意字符串               | ShiYuTv                                                                                                                     |
-| ANNOUNCEMENT                        | 站点公告                 | 任意字符串               | 本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。 |
-| NEXT_PUBLIC_STORAGE_TYPE            | 播放记录/收藏的存储方式  | redis、kvrocks、upstash  | 无默认，必填字段                                                                                                           |
-| KVROCKS_URL                         | kvrocks 连接 url         | 连接 url                 | 空                                                                                                                         |
-| REDIS_URL                           | redis 连接 url           | 连接 url                 | 空                                                                                                                         |
-| UPSTASH_URL                         | upstash redis 连接 url   | 连接 url                 | 空                                                                                                                         |
-| UPSTASH_TOKEN                       | upstash redis 连接 token | 连接 token               | 空                                                                                                                         |
-| NEXT_PUBLIC_SEARCH_MAX_PAGE         | 搜索接口可拉取的最大页数 | 1-50                     | 5                                                                                                                          |
-| NEXT_PUBLIC_DOUBAN_PROXY_TYPE       | 豆瓣数据源请求方式       | 见下方                   | direct                                                                                                                     |
-| NEXT_PUBLIC_DOUBAN_PROXY            | 自定义豆瓣数据代理 URL   | url prefix               | (空)                                                                                                                       |
-| NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE | 豆瓣图片代理类型         | 见下方                   | direct                                                                                                                     |
-| NEXT_PUBLIC_DOUBAN_IMAGE_PROXY      | 自定义豆瓣图片代理 URL   | url prefix               | (空)                                                                                                                       |
-| NEXT_PUBLIC_DISABLE_YELLOW_FILTER   | 关闭色情内容过滤         | true/false               | false                                                                                                                      |
-| NEXT_PUBLIC_FLUID_SEARCH            | 是否开启搜索接口流式输出 | true/ false              | true                                                                                                                       |
+## 🔄 自动更新
 
-NEXT_PUBLIC_DOUBAN_PROXY_TYPE 选项解释：
+### 使用 Watchtower
 
-- direct: 由服务器直接请求豆瓣源站
-- cors-proxy-zwei: 浏览器向 cors proxy 请求豆瓣数据，该 cors proxy 由 [Zwei](https://github.com/bestzwei) 搭建
-- cmliussss-cdn-tencent: 浏览器向豆瓣 CDN 请求数据，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由腾讯云 cdn 提供加速
-- cmliussss-cdn-ali: 浏览器向豆瓣 CDN 请求数据，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由阿里云 cdn 提供加速
-- custom: 用户自定义 proxy，由 NEXT_PUBLIC_DOUBAN_PROXY 定义
+```bash
+docker run -d \
+  --name watchtower \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  containrrr/watchtower \
+  --cleanup \
+  --interval 86400
+```
 
-NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE 选项解释：
+### Docker Compose UI
 
-- direct：由浏览器直接请求豆瓣分配的默认图片域名
-- server：由服务器代理请求豆瓣分配的默认图片域名
-- img3：由浏览器请求豆瓣官方的精品 cdn（阿里云）
-- cmliussss-cdn-tencent：由浏览器请求豆瓣 CDN，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由腾讯云 cdn 提供加速
-- cmliussss-cdn-ali：由浏览器请求豆瓣 CDN，该 CDN 由 [CMLiussss](https://github.com/cmliu) 搭建，并由阿里云 cdn 提供加速
-- custom: 用户自定义 proxy，由 NEXT_PUBLIC_DOUBAN_IMAGE_PROXY 定义
+支持 Dockge、Portainer、Komodo 等主流 Docker 管理界面的自动更新功能
 
-## AndroidTV 使用
-1.  利用Edge手机浏览器打开镜像网站，浏览器右下角三横里边Add to phone安装app应用到手机。
-    <details>
-      <summary>点击查看截图</summary>
-      <img src="public/android.png" alt="项目截图" style="max-width:600px">
-    </details>
-2.  配合 OrionTV [<sup>1</sup>](https://github.com/zimplexing/OrionTV) 在 Android TV 上使用，可以直接作为 OrionTV 后端。
-以上方式均已实现播放记录和网页端同步
+---
 
-## 安全与隐私提醒
+## 🌐 环境变量配置
 
-### 请设置密码保护并关闭公网注册
+### 📋 完整变量列表
 
-为了您的安全和避免潜在的法律风险，我们要求在部署时**强烈建议关闭公网注册**：
+<div style="margin: 20px 0; overflow-x: auto;">
 
-### 部署要求
+| 变量名 | 说明 | 可选值 | 默认值 |
+|--------|------|--------|--------|
+| **基础配置** ||||
+| `USERNAME` | 管理员用户名 | 任意字符串 | 必填 |
+| `PASSWORD` | 管理员密码 | 任意字符串 | 必填 |
+| `SITE_BASE` | 站点根域名 | `https://example.com` | 空 |
+| `NEXT_PUBLIC_SITE_NAME` | 站点显示名称 | 任意字符串 | `ShiYuTV` |
+| `ANNOUNCEMENT` | 站点公告 | 任意字符串 | 默认免责声明 |
+| **存储配置** ||||
+| `NEXT_PUBLIC_STORAGE_TYPE` | 存储类型 | `redis` `kvrocks` `upstash` | 必填 |
+| `KVROCKS_URL` | Kvrocks 连接地址 | Redis URL | 空 |
+| `REDIS_URL` | Redis 连接地址 | Redis URL | 空 |
+| `UPSTASH_URL` | Upstash 连接地址 | HTTPS URL | 空 |
+| `UPSTASH_TOKEN` | Upstash 访问令牌 | Token 字符串 | 空 |
+| **功能配置** ||||
+| `NEXT_PUBLIC_SEARCH_MAX_PAGE` | 搜索最大页数 | `1-50` | `5` |
+| `NEXT_PUBLIC_FLUID_SEARCH` | 流式搜索输出 | `true` `false` | `true` |
+| `NEXT_PUBLIC_DISABLE_YELLOW_FILTER` | 关闭内容过滤 | `true` `false` | `false` |
+| **豆瓣配置** ||||
+| `NEXT_PUBLIC_DOUBAN_PROXY_TYPE` | 豆瓣数据代理 | 见下方说明 | `direct` |
+| `NEXT_PUBLIC_DOUBAN_PROXY` | 自定义代理地址 | URL 前缀 | 空 |
+| `NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE` | 豆瓣图片代理 | 见下方说明 | `direct` |
+| `NEXT_PUBLIC_DOUBAN_IMAGE_PROXY` | 自定义图片代理 | URL 前缀 | 空 |
 
-1. **设置环境变量 `PASSWORD`**：为您的实例设置一个强密码
-2. **仅供个人使用**：请勿将您的实例链接公开分享或传播
-3. **遵守当地法律**：请确保您的使用行为符合当地法律法规
+</div>
 
-### 重要声明
+### 🔗 豆瓣代理配置详解
 
-- 本项目仅供学习和个人使用
-- 请勿将部署的实例用于商业用途或公开服务
-- 如因公开分享导致的任何法律问题，用户需自行承担责任
-- 项目开发者不对用户的使用行为承担任何法律责任
-- 本项目不在中国大陆地区提供服务。如有该项目在向中国大陆地区提供服务，属个人行为。在该地区使用所产生的法律风险及责任，属于用户个人行为，与本项目无关，须自行承担全部责任。特此声明
+**数据代理类型 (`DOUBAN_PROXY_TYPE`)**
+- `direct`: 服务器直连豆瓣官方
+- `cors-proxy-zwei`: 使用 Zwei 提供的 CORS 代理
+- `cmliussss-cdn-tencent`: CMLiussss 腾讯云 CDN
+- `cmliussss-cdn-ali`: CMLiussss 阿里云 CDN  
+- `custom`: 自定义代理地址
 
-## License
+**图片代理类型 (`DOUBAN_IMAGE_PROXY_TYPE`)**
+- `direct`: 浏览器直连豆瓣图片
+- `server`: 服务器代理请求
+- `img3`: 豆瓣官方阿里云 CDN
+- `cmliussss-cdn-tencent`: CMLiussss 腾讯云 CDN
+- `cmliussss-cdn-ali`: CMLiussss 阿里云 CDN
+- `custom`: 自定义图片代理
 
-[MIT](LICENSE) © 2025 ShiYuTv & Contributors
+---
 
-## 致谢
+## 📱 Android TV 支持
 
-- [ts-nextjs-tailwind-starter](https://github.com/theodorusclarence/ts-nextjs-tailwind-starter) — 项目最初基于该脚手架。
-- [LibreTV](https://github.com/LibreSpark/LibreTV) — 由此启发，站在巨人的肩膀上。
-- [MoonTv](https://github.com/MoonTechLab/LunaTV) — 已完项目基础上完善。
-- [MoonTv二改](https://github.com/puyujian/LunaTV) — 对ShiYuTv进行二次改造。
-- [MoonTv二改](https://github.com/katelya77/KatelyaTV) — 对ShiYuTv进行二次改造。
-- [ArtPlayer](https://github.com/zhw2590582/ArtPlayer) — 提供强大的网页视频播放器。
-- [HLS.js](https://github.com/video-dev/hls.js) — 实现 HLS 流媒体在浏览器中的播放支持。
-- [Zwei](https://github.com/bestzwei) — 提供获取豆瓣数据的 cors proxy
-- [CMLiussss](https://github.com/cmliu) — 提供豆瓣 CDN 服务
-- 感谢所有提供免费影视接口的站点。
+### 方法一：Edge 浏览器安装
 
+1. 使用 Edge 手机浏览器访问应用
+2. 点击右下角菜单中的"添加到手机"
+3. 安装 PWA 应用到设备
 
-## Star History
+<details>
+<summary>📸 <strong>安装截图演示</strong></summary>
 
-[![Star History Chart](https://api.star-history.com/svg?repos=swhesong/ShiYuTv&type=Date)](https://www.star-history.com/#swhesong/ShiYuTv&Date)
+<div style="margin: 16px 0;">
+  <img src="public/android.png" alt="Android 安装演示" style="max-width: 400px; border-radius: 8px; box-shadow: 0 2px 12px rgba(0,0,0,0.1);">
+</div>
+
+</details>
+
+### 方法二：OrionTV 集成
+
+配合 [OrionTV](https://github.com/zimplexing/OrionTV) 在 Android TV 上使用，可直接作为 OrionTV 的后端数据源。
+
+**✅ 两种方式均支持播放记录与网页端同步**
+
+---
+
+## 🔒 安全与隐私
+
+### ⚠️ 重要安全提醒
+
+<div style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px; border-left: 4px solid #f59e0b; margin: 24px 0;">
+
+**🛡️ 请务必设置强密码并关闭公网注册**
+
+为确保您的数据安全并避免潜在的法律风险，请严格按照以下要求操作：
+
+</div>
+
+### 📋 部署安全检查清单
+
+- [ ] ✅ 设置复杂的管理员密码 (`PASSWORD` 环境变量)
+- [ ] 🔒 仅供个人或家庭内部使用
+- [ ] 🚫 禁止公开分享实例链接
+- [ ] ⚖️ 确保使用行为符合当地法律法规
+- [ ] 🔐 定期更新容器镜像版本
+
+### 📜 免责声明
+
+<div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin: 20px 0;">
+
+- 本项目仅供**学习研究**和**个人使用**
+- 请勿用于**商业用途**或**公共服务**
+- 项目开发者不对用户使用行为承担任何法律责任
+- 本项目不在中国大陆地区提供服务
+- 用户需自行承担使用过程中的所有法律风险和责任
+
+</div>
+
+---
+
+## 📜 开源许可
+
+本项目基于 [MIT License](LICENSE) 开源协议发布
+
+---
+
+## 🙏 致谢与贡献
+
+### 🏆 特别感谢
+
+<div style="margin: 24px 0;">
+
+- **[ts-nextjs-tailwind-starter](https://github.com/theodorusclarence/ts-nextjs-tailwind-starter)** - 项目脚手架基础
+- **[LibreTV](https://github.com/LibreSpark/LibreTV)** - 项目灵感来源
+- **[MoonTV](https://github.com/MoonTechLab/LunaTV)** - 功能参考与完善
+- **[ArtPlayer](https://github.com/zhw2590582/ArtPlayer)** - 强大的网页播放器
+- **[HLS.js](https://github.com/video-dev/hls.js)** - HLS 流媒体支持
+- **[Zwei](https://github.com/bestzwei)** - 豆瓣数据 CORS 代理服务
+- **[CMLiussss](https://github.com/cmliu)** - 豆瓣 CDN 加速服务
+
+</div>
+
+### 🌟 社区贡献
+
+感谢所有为项目提供免费影视接口的站点维护者，以及每一位贡献代码和建议的开发者。
+
+### 📈 项目热度
+
+<div align="center" style="margin: 32px 0;">
+  <a href="https://star-history.com/#swhesong/ShiYuTv&Date">
+    <img src="https://api.star-history.com/svg?repos=swhesong/ShiYuTv&type=Date" alt="Star History Chart" style="max-width: 100%; border-radius: 8px;">
+  </a>
+</div>
+
+---
+
+<div align="center" style="margin: 48px 0 24px 0; padding: 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white;">
+  <h3 style="margin: 0 0 12px 0; font-weight: 700;">🎬 开始您的观影之旅</h3>
+  <p style="margin: 0; opacity: 0.9;">
+    现在就部署 ShiYuTV，享受无广告、全平台、云同步的观影体验
+  </p>
+</div>
