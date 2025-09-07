@@ -250,14 +250,12 @@ NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE 选项解释：
 - custom: 用户自定义 proxy，由 NEXT_PUBLIC_DOUBAN_IMAGE_PROXY 定义
 
 ## AndroidTV 使用
-1. 利用Edge手机浏览器打开镜像网站，浏览器右下角三横里边Add to phone安装app应用到手机。
-<details>
-  <summary>点击查看截图</summary>
-  <img src="public/android.png" alt="项目截图" style="max-width:600px">
-</details>
-
-2. 配合 OrionTV [<sup>1</sup>](https://github.com/zimplexing/OrionTV)在 Android TV 上使用，可以直接作为 OrionTV 后端
-
+1.  利用Edge手机浏览器打开镜像网站，浏览器右下角三横里边Add to phone安装app应用到手机。
+    <details>
+      <summary>点击查看截图</summary>
+      <img src="public/android.png" alt="项目截图" style="max-width:600px">
+    </details>
+2.  配合 OrionTV [<sup>2</sup>](https://github.com/zimplexing/OrionTV) 在 Android TV 上使用，可以直接作为 OrionTV 后端。
 以上方式均已实现播放记录和网页端同步
 
 ## 安全与隐私提醒
