@@ -13,7 +13,7 @@
     <img src="https://img.shields.io/badge/Next.js-14-000?logo=nextdotjs&logoColor=white&style=for-the-badge" alt="Next.js" style="margin: 4px;">
     <img src="https://img.shields.io/badge/TailwindCSS-3-38bdf8?logo=tailwindcss&logoColor=white&style=for-the-badge" alt="TailwindCSS" style="margin: 4px;">
     <img src="https://img.shields.io/badge/TypeScript-4.x-3178c6?logo=typescript&logoColor=white&style=for-the-badge" alt="TypeScript" style="margin: 4px;">
-    <img src="https://img.shields.io/badge/License-MIT-green&style=for-the-badge" alt="License" style="margin: 4px;">
+    <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License" style="margin: 4px;">
     <img src="https://img.shields.io/badge/Docker-ready-blue?logo=docker&logoColor=white&style=for-the-badge" alt="Docker Ready" style="margin: 4px;">
   </div>
 </div>
