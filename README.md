@@ -410,9 +410,10 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 
 <div align="center" style="margin: 32px 0;">
   <a href="https://star-history.com/#swhesong/ShiYuTv&Date">
-    <img src="https://api.star-history.com/svg?repos=swhesong/ShiYuTv&type=Date" alt="Star History Chart" style="border-radius: 8px; max-width: 100%;">
+    <img src="https://api.star-history.com/svg?repos=swhesong/ShiYuTv,swhesong/ShiYuTV&type=Date" alt="Star History Chart" style="border-radius: 8px; max-width: 100%;">
   </a>
 </div>
+
 
 ---
 
