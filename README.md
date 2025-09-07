@@ -223,7 +223,7 @@ services:
 完成部署后为空壳应用，无播放源，需要站长在管理后台的配置文件设置中填写配置文件（后续会支持订阅）
 </div>
 
-[配置订阅URL](https://raw.githubusercontent.com/swhesong/ShiYuTV/refs/heads/main/iptv/config.json?token=GHSAT0AAAAAADJ2DWYOSGAAWX37GZTPQR242F5GQPA)
+[配置订阅URL](https://raw.githubusercontent.com/swhesong/ShiYuTV/refs/heads/main/iptv/config.json?token=GHSAT0AAAAAADJ2DWYPVXLMAZDSYCAYELUW2F5GWPQ)
 
 配置文件示例如下：
 
