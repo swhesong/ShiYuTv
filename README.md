@@ -343,7 +343,7 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
     </details>
 
 ### 方法二：OrionTV 集成
-2. 配合 OrionTV [<sup>1</sup>](https://github.com/zimplexing/OrionTV) 在 Android TV 上使用，可以直接作为 OrionTV 后端。
+2. 配合 [OrionTV](https://github.com/zimplexing/OrionTV) 在 Android TV 上使用，可以直接作为 OrionTV 后端。
 
 <div style="background: #d1fae5; padding: 16px; border-radius: 8px; border-left: 4px solid #10b981; margin: 16px 0;">
 
