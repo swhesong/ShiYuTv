@@ -255,7 +255,9 @@ NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE 选项解释：
   <summary>点击查看截图</summary>
   <img src="public/android.png" alt="项目截图" style="max-width:600px">
 </details>
-2. 配合 [OrionTV](https://github.com/zimplexing/OrionTV) 在 Android TV 上使用，可以直接作为 OrionTV 后端
+
+2. 配合 OrionTV [<sup>1</sup>](https://github.com/zimplexing/OrionTV)在 Android TV 上使用，可以直接作为 OrionTV 后端
+
 以上方式均已实现播放记录和网页端同步
 
 ## 安全与隐私提醒
