@@ -148,7 +148,7 @@ jobs:
 
       - name: 🔐 Parallel Registry Login (修复认证问题)
         run: |
-        echo "Token Fingerprint: ${{ secrets.DOCKERHUB_TOKEN }}" | cut -c 1-25
+          echo "Token Fingerprint: ${{ secrets.DOCKERHUB_TOKEN }}" | cut -c 1-25
           # 并行登录到两个注册中心 - 修复Docker Hub权限问题
           {
             # 使用正确的Docker Hub认证方式
