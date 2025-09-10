@@ -83,12 +83,12 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            # 手动触发时，使用输入的 tag，如果为空则默认为 'latest'
-            type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable=${{ github.event_name == 'workflow_dispatch' }}
-            # 当推送到 main 或 master 分支时，自动打上 'latest' 标签
-            type=ref,event=branch,pattern=main,value=latest
-            type=ref,event=branch,pattern=master,value=latest
-            # 为每一次构建都生成一个基于 commit SHA 的唯一标签，如 sha-7d1a7a2
+            # 方式一：手动触发时，使用输入的 tag，如果为空则默认为 'latest'
+            type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable=${{ github.event_name == 'workflow_dispatch' }}         
+            # 方式二：当推送到【默认分支】(无论是 main 还是 master)时，强制打上 'latest' 标签。
+            # 这是最关键的修正，它比之前的方法更可靠。
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', github.event.repository.default_branch) }}
+            # 方式三：为每一次构建都生成一个基于 commit SHA 的唯一标签
             type=sha,prefix=sha-,format=short
 
       # 核心构建 - 统一原子操作，增强缓存策略
