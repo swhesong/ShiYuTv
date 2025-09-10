@@ -251,7 +251,7 @@ export function exportData(data: Source[], format: 'json' | 'csv' | 'text') {
   let fileExtension: string;
 
   switch (format) {
-    case 'csv':
+    case 'csv': {
       const header = 'name,key,api,detail,disabled\n';
       const rows = data.map(s => 
         `"${s.name}","${s.key}","${s.api}","${s.detail || ''}","${s.disabled}"`
@@ -260,6 +260,7 @@ export function exportData(data: Source[], format: 'json' | 'csv' | 'text') {
       mimeType = 'text/csv;charset=utf-8;';
       fileExtension = 'csv';
       break;
+    }
 
     case 'text':
       content = data.map(s => s.api).join('\n');
