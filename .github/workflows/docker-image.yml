@@ -8,6 +8,11 @@ on:
         required: false
         default: 'latest'
         type: string
+      force_rebuild:
+        description: 'Force rebuild without using cache'
+        required: false
+        default: false
+        type: boolean
   push:
     branches: [ main, master ]
   pull_request:
