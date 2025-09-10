@@ -1,3 +1,17 @@
+export type SourceCheckStatus =
+  | 'untested'
+  | 'valid'
+  | 'invalid'
+  | 'timeout'
+  | 'no_results'
+  | 'unreachable';
+
+export interface SourceLastCheck {
+  status: SourceCheckStatus;
+  latency: number; // in milliseconds, -1 if not applicable
+  timestamp: number; // Unix timestamp of the check
+}
+
 export interface AdminConfig {
   ConfigSubscribtion: {
     URL: string;
@@ -45,6 +59,7 @@ export interface AdminConfig {
     detail?: string;
     from: 'config' | 'custom';
     disabled?: boolean;
+    lastCheck?: SourceLastCheck;
   }[];
   CustomCategories: {
     name?: string;
