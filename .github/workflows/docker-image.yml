@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Docker Tag'
+        description: 'Docker Tag (e.g., latest, v1.2.3)'
         required: false
         default: 'latest'
         type: string
@@ -26,79 +26,82 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+
 permissions:
-  contents: write
-  actions: write
+  contents: write # 'write' 权限对于某些 metadata-action 功能（如git tag）是必要的
+  actions: write # 用于清理旧的 workflow runs
+  packages: write # 'write' 权限是推送镜像到 GHCR 所需，对于 Docker Hub 也是推荐的最佳实践
 
 jobs:
   build-and-push:
-    name: Build & Push Multi-Platform Image
+    name: 🚀 Build & Push Multi-Platform Image
     runs-on: ubuntu-latest
     
     steps:
-      - name: Maximize build space
+      - name: ⚡ Maximize build space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt-get clean
           df -h
 
-      - name: Checkout source code
+      - name: 📥 Checkout source code
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
       # Node.js 构建环境
-      - name: Setup Node.js
+      - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Setup pnpm
+      - name: 📦 Setup pnpm
         uses: pnpm/action-setup@v4
-
-      - name: Install dependencies
+      - name: 📦 Install dependencies
         run: pnpm install
-
-      - name: Generate version and changelog
+      - name: 📜 Generate version and changelog
         run: node scripts/convert-changelog.js
 
       # Docker 环境
-      - name: Setup QEMU
+      - name: 🎯 Setup QEMU for multi-platform builds
         uses: docker/setup-qemu-action@v3
 
-      - name: Setup Docker Buildx
+      - name: 🔧 Setup Docker Buildx for advanced features
         uses: docker/setup-buildx-action@v3
         with:
           driver-opts: |
             image=moby/buildkit:buildx-stable-1
             network=host
 
-      - name: Login to Docker Hub
+      - name: 🔐 Login to Docker Hub
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Extract metadata
+      # --- 极大地增强了 metadata-action 功能 ---
+      - name: 🏷️ Extract intelligent Docker metadata
         id: meta
         uses: docker/metadata-action@v5
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ github.event.inputs.tag || 'latest' }}
-          labels: |
-            maintainer=${{ github.actor }}
-            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            # 手动触发时，使用输入的 tag，如果为空则默认为 'latest'
+            type=raw,value=${{ github.event.inputs.tag || 'latest' }},enable=${{ github.event_name == 'workflow_dispatch' }}
+            # 当推送到 main 或 master 分支时，自动打上 'latest' 标签
+            type=ref,event=branch,pattern=main,value=latest
+            type=ref,event=branch,pattern=master,value=latest
+            # 为每一次构建都生成一个基于 commit SHA 的唯一标签，如 sha-7d1a7a2
+            type=sha,prefix=sha-,format=short
 
       # 核心构建 - 统一原子操作，增强缓存策略
-      - name: Build and push multi-platform image
+      - name: 🚀 Build and push multi-platform image
         uses: docker/build-push-action@v5
         with:
           context: .
           file: ./Dockerfile
           platforms: linux/amd64,linux/arm64
-          push: true
+          # 只在非 pull_request 事件时推送
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           # 增强缓存策略 - 多架构特定缓存
@@ -115,8 +118,8 @@ jobs:
           sbom: false
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-          # 优化输出
-          outputs: type=registry,push=true
+          # --- 移除了冗余的 outputs 字段 ---
+          # 'push: true' 已包含此功能，无需重复声明
 
   # 清理任务
   cleanup:
@@ -124,10 +127,11 @@ jobs:
     needs: [build-and-push]
     if: always()
     steps:
-      - name: Cleanup workflow runs
+      - name: 🧹 Cleanup workflow runs
         uses: Mattraks/delete-workflow-runs@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          retain_days: 0
-          keep_minimum_runs: 2
+          # --- 稍微放宽清理策略，更安全 ---
+          retain_days: 2
+          keep_minimum_runs: 3
