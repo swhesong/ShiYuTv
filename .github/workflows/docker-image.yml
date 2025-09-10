@@ -1,4 +1,4 @@
-name: Build & Push Docker image to Docker Hub (Enhanced)
+name: Build & Push Docker image to Docker Hub
 
 on:
   workflow_dispatch:
@@ -8,11 +8,6 @@ on:
         required: false
         default: 'latest'
         type: string
-      force_rebuild:
-        description: 'Force rebuild without cache'
-        required: false
-        default: false
-        type: boolean
   push:
     branches: [ main, master ]
   pull_request:
@@ -31,229 +26,92 @@ permissions:
   actions: write
 
 jobs:
-  # 预清理任务 - 避免冲突
-  pre-cleanup:
-    name: 🧹 Pre-build Cleanup
-    runs-on: ubuntu-latest
-    if: github.event.inputs.force_rebuild == 'true'
-    steps:
-      - name: 🔐 Login to Docker Hub
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: 🗑️ Clean conflicting tags
-        run: |
-          TAG=${{ github.event.inputs.tag || 'latest' }}
-          echo "🧹 Attempting to clean potentially conflicting tags..."
-          
-          # 尝试删除可能存在的损坏标签 (忽略错误)
-          docker buildx imagetools inspect "${{ env.IMAGE_NAME }}:${TAG}" >/dev/null 2>&1 && \
-            echo "ℹ️ Existing tag found, will overwrite" || \
-            echo "ℹ️ No existing tag found"
-
-  # 主构建任务
   build-and-push:
-    name: 🚀 Build & Push Multi-Platform Image
+    name: Build & Push Multi-Platform Image
     runs-on: ubuntu-latest
-    needs: [pre-cleanup]
-    if: always() && (needs.pre-cleanup.result == 'success' || needs.pre-cleanup.result == 'skipped')
+    
     steps:
-      - name: ⚡ Maximize build space
+      - name: Maximize build space
         run: |
           sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
           sudo apt-get clean
           df -h
 
-      - name: 📥 Checkout source code
+      - name: Checkout source code
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      # Node.js 环境设置
-      - name: ⚙️ Setup Node.js
+      # Node.js 构建环境
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: 📦 Setup pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: 📦 Install dependencies
+      - name: Install dependencies
         run: pnpm install
 
-      - name: 📜 Generate version and changelog
+      - name: Generate version and changelog
         run: node scripts/convert-changelog.js
 
-      # Docker 环境设置 - 增强版
-      - name: 🎯 Setup QEMU (Enhanced)
+      # Docker 环境
+      - name: Setup QEMU
         uses: docker/setup-qemu-action@v3
-        with:
-          platforms: linux/amd64,linux/arm64
-          image: tonistiigi/binfmt:qemu-v7.0.0
 
-      - name: 🔧 Setup Docker Buildx (Enhanced)
+      - name: Setup Docker Buildx
         uses: docker/setup-buildx-action@v3
         with:
-          driver: docker-container
           driver-opts: |
             image=moby/buildkit:buildx-stable-1
             network=host
-          use: true
 
-      - name: 🔐 Login to Docker Hub
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-          logout: false
 
-      # 生成唯一标签避免冲突
-      - name: 🏷️ Generate unique tags
-        id: tags
-        run: |
-          TAG=${{ github.event.inputs.tag || 'latest' }}
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
-          COMMIT_SHA=${GITHUB_SHA::8}
-          
-          # 主标签
-          MAIN_TAG="${TAG}"
-          # 备份标签（时间戳）
-          BACKUP_TAG="${TAG}-${TIMESTAMP}"
-          # 提交标签
-          COMMIT_TAG="${TAG}-${COMMIT_SHA}"
-          
-          echo "main_tag=${MAIN_TAG}" >> $GITHUB_OUTPUT
-          echo "backup_tag=${BACKUP_TAG}" >> $GITHUB_OUTPUT
-          echo "commit_tag=${COMMIT_TAG}" >> $GITHUB_OUTPUT
-          echo "all_tags=${MAIN_TAG},${BACKUP_TAG},${COMMIT_TAG}" >> $GITHUB_OUTPUT
-
-      # 强化构建步骤 - 避免 manifest 问题
-      - name: 🚀 Build and push (Anti-corruption)
-        id: build
-        uses: nick-fields/retry@v3
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
         with:
-          timeout_minutes: 60
-          max_attempts: 3
-          retry_wait_seconds: 60
-          command: |
-            # 清理本地 buildx 缓存以避免损坏
-            docker buildx prune -f || true
-            
-            # 使用强化参数构建
-            docker buildx build \
-              --context . \
-              --file ./Dockerfile \
-              --platform linux/amd64,linux/arm64 \
-              --push \
-              --tags ${{ steps.tags.outputs.all_tags }} \
-              --cache-from type=gha,scope=${{ github.workflow }}-${{ github.ref_name }} \
-              --cache-to type=gha,mode=max,scope=${{ github.workflow }}-${{ github.ref_name }} \
-              --provenance=false \
-              --sbom=false \
-              --build-arg BUILDKIT_INLINE_CACHE=1 \
-              --metadata-file /tmp/metadata.json \
-              --progress=plain
+          images: ${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=${{ github.event.inputs.tag || 'latest' }}
+          labels: |
+            maintainer=${{ github.actor }}
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
 
-      # 关键：验证和修复 manifest
-      - name: 🔍 Verify and fix manifest
-        run: |
-          MAIN_TAG="${{ steps.tags.outputs.main_tag }}"
-          echo "🔍 Comprehensive manifest verification..."
-          
-          # 等待 Docker Hub 传播
-          echo "⏳ Waiting for Docker Hub propagation..."
-          sleep 15
-          
-          # 验证函数
-          verify_image() {
-            local tag=$1
-            local max_attempts=5
-            local wait_time=10
-            
-            for attempt in $(seq 1 $max_attempts); do
-              echo "🔍 Verifying $tag (attempt $attempt/$max_attempts)..."
-              
-              if docker buildx imagetools inspect "${{ env.IMAGE_NAME }}:${tag}" >/dev/null 2>&1; then
-                echo "✅ $tag verified successfully"
-                
-                # 详细检查 manifest
-                MANIFEST_INFO=$(docker buildx imagetools inspect "${{ env.IMAGE_NAME }}:${tag}" --format '{{json .}}' 2>/dev/null || echo "")
-                if [[ -n "$MANIFEST_INFO" && "$MANIFEST_INFO" != *"error"* ]]; then
-                  echo "✅ Manifest is healthy"
-                  docker buildx imagetools inspect "${{ env.IMAGE_NAME }}:${tag}"
-                  return 0
-                else
-                  echo "⚠️ Manifest may be corrupted"
-                fi
-              fi
-              
-              if [ $attempt -lt $max_attempts ]; then
-                echo "⏳ Verification failed, waiting ${wait_time}s..."
-                sleep $wait_time
-                wait_time=$((wait_time + 5))
-              fi
-            done
-            
-            echo "❌ Verification failed for $tag"
-            return 1
-          }
-          
-          # 验证主标签
-          if verify_image "$MAIN_TAG"; then
-            echo "🎉 Main tag verified successfully!"
-          else
-            echo "❌ Main tag verification failed"
-            echo "🔧 Attempting manifest recreation..."
-            
-            # 尝试重新创建 manifest (使用备份标签)
-            BACKUP_TAG="${{ steps.tags.outputs.backup_tag }}"
-            if verify_image "$BACKUP_TAG"; then
-              echo "📋 Recreating manifest from backup..."
-              docker buildx imagetools create \
-                --tag "${{ env.IMAGE_NAME }}:${MAIN_TAG}" \
-                "${{ env.IMAGE_NAME }}:${BACKUP_TAG}" || echo "⚠️ Manual manifest recreation failed"
-            fi
-            
-            # 最终验证
-            sleep 10
-            if ! verify_image "$MAIN_TAG"; then
-              echo "❌ Critical: Unable to create valid manifest"
-              exit 1
-            fi
-          fi
-
-      # 健康检查
-      - name: 🏥 Health check
-        run: |
-          echo "🏥 Performing health check..."
-          TAG="${{ steps.tags.outputs.main_tag }}"
-          
-          # 检查镜像是否可以被拉取
-          echo "🔄 Testing image pull..."
-          if docker pull "${{ env.IMAGE_NAME }}:${TAG}" >/dev/null 2>&1; then
-            echo "✅ Image can be pulled successfully"
-          else
-            echo "⚠️ Image pull test failed (may be temporary)"
-          fi
-          
-          # 显示最终状态
-          echo "📊 Final image status:"
-          docker buildx imagetools inspect "${{ env.IMAGE_NAME }}:${TAG}" || echo "⚠️ Unable to inspect"
-
-      # 成功报告
-      - name: 📊 Success report
-        run: |
-          echo "🎉 Build completed successfully!"
-          echo "✅ Tags pushed: ${{ steps.tags.outputs.all_tags }}"
-          echo "✅ Platforms: linux/amd64, linux/arm64"
-          echo "✅ Anti-corruption measures applied"
-          echo "✅ Manifest verification passed"
-          echo ""
-          echo "🔗 Docker Hub: https://hub.docker.com/r/${{ env.IMAGE_NAME }}"
+      # 核心构建 - 统一原子操作，增强缓存策略
+      - name: Build and push multi-platform image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # 增强缓存策略 - 多架构特定缓存
+          cache-from: |
+            type=gha,scope=multiarch-${{ github.workflow }}
+            type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-multiarch
+          cache-to: |
+            type=gha,mode=max,scope=multiarch-${{ github.workflow }}
+            type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-multiarch,mode=max
+          # force_rebuild 时禁用缓存
+          no-cache: ${{ github.event.inputs.force_rebuild == 'true' }}
+          # 性能优化配置
+          provenance: false
+          sbom: false
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+          # 优化输出
+          outputs: type=registry,push=true
 
   # 清理任务
   cleanup:
@@ -261,10 +119,10 @@ jobs:
     needs: [build-and-push]
     if: always()
     steps:
-      - name: 🧹 Cleanup workflow runs
+      - name: Cleanup workflow runs
         uses: Mattraks/delete-workflow-runs@main
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          retain_days: 2
-          keep_minimum_runs: 3
+          retain_days: 0
+          keep_minimum_runs: 2
