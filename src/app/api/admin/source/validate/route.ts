@@ -81,10 +81,13 @@ export async function GET(request: NextRequest) {
           const timeoutId = setTimeout(() => controller.abort(), 10000);
 
           try {
+            const startTime = performance.now();
             const response = await fetch(searchUrl, {
               headers: API_CONFIG.search.headers,
               signal: controller.signal,
             });
+            const endTime = performance.now();
+            const latency = Math.round(endTime - startTime);
 
             clearTimeout(timeoutId);
 
@@ -127,6 +130,7 @@ export async function GET(request: NextRequest) {
                 type: 'source_result',
                 source: site.key,
                 status,
+                latency,
               })}\n\n`;
 
               if (!safeEnqueue(encoder.encode(sourceEvent))) {
@@ -148,6 +152,7 @@ export async function GET(request: NextRequest) {
               type: 'source_error',
               source: site.key,
               status: 'invalid',
+              latency: -1,
             })}\n\n`;
 
             if (!safeEnqueue(encoder.encode(errorEvent))) {
@@ -156,7 +161,7 @@ export async function GET(request: NextRequest) {
             }
           }
         }
-
+        
         // 检查是否所有源都已完成
         if (completedSources === apiSites.length) {
           if (!streamClosed) {
