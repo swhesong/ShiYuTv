@@ -19,7 +19,8 @@ type Action =
   | 'batch_enable'
   | 'batch_delete'
   | 'update_check_results'
-  | 'batch_delete_invalid';
+  | 'batch_delete_invalid'
+  | 'batch_import';
 
 interface BaseBody {
   action?: Action;
@@ -58,6 +59,7 @@ export async function POST(request: NextRequest) {
       'batch_delete',
       'update_check_results',
       'batch_delete_invalid',
+      'batch_import',
     ];
     if (!username || !action || !ACTIONS.includes(action)) {
       return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
@@ -293,6 +295,52 @@ export async function POST(request: NextRequest) {
           return !(isCustom && isInvalid);
         });
         break;
+      }
+      case 'batch_import': {
+        const { sources: sourcesToImport } = body;
+        if (!Array.isArray(sourcesToImport) || sourcesToImport.length === 0) {
+          return NextResponse.json({ error: '导入的数据无效' }, { status: 400 });
+        }
+
+        const existingKeys = new Set(adminConfig.SourceConfig.map(s => s.key));
+        let addedCount = 0;
+        let skippedCount = 0;
+
+        for (const source of sourcesToImport) {
+          if (
+            !source.key ||
+            !source.name ||
+            !source.api ||
+            typeof source.key !== 'string' ||
+            typeof source.name !== 'string' ||
+            typeof source.api !== 'string'
+          ) {
+            skippedCount++;
+            continue; // 跳过格式不正确的数据
+          }
+
+          if (existingKeys.has(source.key)) {
+            skippedCount++;
+            continue; // 跳过重复的 Key
+          }
+
+          adminConfig.SourceConfig.push({
+            name: source.name,
+            key: source.key,
+            api: source.api,
+            detail: source.detail || '',
+            from: 'custom',
+            disabled: source.disabled || false,
+          });
+          existingKeys.add(source.key);
+          addedCount++;
+        }
+        
+        // 此处直接保存并返回，不走 switch 后的统一保存
+        await db.saveAdminConfig(adminConfig);
+        return NextResponse.json({ 
+          message: `导入完成！成功添加 ${addedCount} 个源，跳过 ${skippedCount} 个（重复或格式错误）。`
+        });
       }
       default:
         return NextResponse.json({ error: '未知操作' }, { status: 400 });
