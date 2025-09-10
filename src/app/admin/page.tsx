@@ -302,16 +302,6 @@ interface SiteConfig {
   FluidSearch: boolean;
 }
 
-// 视频源数据类型
-interface DataSource {
-  name: string;
-  key: string;
-  api: string;
-  detail?: string;
-  disabled?: boolean;
-  from: 'config' | 'custom';
-}
-
 // 直播源数据类型
 interface LiveDataSource {
   name: string;
@@ -3085,16 +3075,15 @@ const VideoSourceConfig = ({
 }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
   const { isLoading, withLoading } = useLoadingState();
-  const [sources, setSources] = useState<DataSource[]>([]);
+  const [sources, setSources] = useState<AdminConfig['SourceConfig']>([]); // 使用导入的类型
   const [showAddForm, setShowAddForm] = useState(false);
   const [orderChanged, setOrderChanged] = useState(false);
-  const [newSource, setNewSource] = useState<DataSource>({
+  const [newSource, setNewSource] = useState<Omit<AdminConfig['SourceConfig'][0], 'from'>>({ // 使用 Omit 简化
     name: '',
     key: '',
     api: '',
     detail: '',
     disabled: false,
-    from: 'config',
   });
 
   // 批量操作相关状态
@@ -3126,13 +3115,13 @@ const VideoSourceConfig = ({
   const [showValidationModal, setShowValidationModal] = useState(false);
   const [searchKeyword, setSearchKeyword] = useState('');
   const [isValidating, setIsValidating] = useState(false);
-  const [validationResults, setValidationResults] = useState<
+  const [validationResults, setValidationResults] = useState< // 更新类型以包含 latency
     Array<{
       key: string;
       name: string;
       status: 'valid' | 'no_results' | 'invalid' | 'validating';
       message: string;
-      resultCount: number;
+      latency: number;
     }>
   >([]);
 
@@ -3262,21 +3251,13 @@ const VideoSourceConfig = ({
 
     await withLoading('validateSources', async () => {
       setIsValidating(true);
-      setValidationResults([]); // 清空之前的结果
-      setShowValidationModal(false); // 立即关闭弹窗
+      setValidationResults([]);
+      setShowValidationModal(false);
 
-      // 初始化所有视频源为检测中状态
-      const initialResults = sources.map((source) => ({
-        key: source.key,
-        name: source.name,
-        status: 'validating' as const,
-        message: '检测中...',
-        resultCount: 0,
-      }));
-      setValidationResults(initialResults);
+      // 用于收集所有源的最终结果
+      const collectedResults: { key: string; status: any; latency: number }[] = [];
 
       try {
-        // 使用EventSource接收流式数据
         const eventSource = new EventSource(
           `/api/admin/source/validate?q=${encodeURIComponent(
             searchKeyword.trim()
@@ -3294,47 +3275,11 @@ const VideoSourceConfig = ({
 
               case 'source_result':
               case 'source_error':
-                // 更新验证结果
-                setValidationResults((prev) => {
-                  const existing = prev.find((r) => r.key === data.source);
-                  if (existing) {
-                    return prev.map((r) =>
-                      r.key === data.source
-                        ? {
-                            key: data.source,
-                            name:
-                              sources.find((s) => s.key === data.source)
-                                ?.name || data.source,
-                            status: data.status,
-                            message:
-                              data.status === 'valid'
-                                ? '搜索正常'
-                                : data.status === 'no_results'
-                                ? '无法搜索到结果'
-                                : '连接失败',
-                            resultCount: data.status === 'valid' ? 1 : 0,
-                          }
-                        : r
-                    );
-                  } else {
-                    return [
-                      ...prev,
-                      {
-                        key: data.source,
-                        name:
-                          sources.find((s) => s.key === data.source)?.name ||
-                          data.source,
-                        status: data.status,
-                        message:
-                          data.status === 'valid'
-                            ? '搜索正常'
-                            : data.status === 'no_results'
-                            ? '无法搜索到结果'
-                            : '连接失败',
-                        resultCount: data.status === 'valid' ? 1 : 0,
-                      },
-                    ];
-                  }
+                // 收集结果用于最后提交
+                collectedResults.push({
+                  key: data.source,
+                  status: data.status,
+                  latency: data.latency,
                 });
                 break;
 
@@ -3344,6 +3289,25 @@ const VideoSourceConfig = ({
                 );
                 eventSource.close();
                 setIsValidating(false);
+
+                // 检测完成，将所有结果一次性提交到后端保存
+                fetch('/api/admin/source', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'update_check_results',
+                    results: collectedResults,
+                  }),
+                })
+                  .then((res) => {
+                    if (!res.ok) throw new Error('保存检测结果失败');
+                    showSuccess('检测完成，结果已保存', showAlert);
+                    // 刷新配置以获取最新数据
+                    refreshConfig();
+                  })
+                  .catch((err) => {
+                    showError(err.message, showAlert);
+                  });
                 break;
             }
           } catch (error) {
@@ -3370,8 +3334,19 @@ const VideoSourceConfig = ({
             showAlert({
               type: 'warning',
               title: '验证超时',
-              message: '检测超时，请重试',
+              message: '部分源检测超时，结果可能不完整',
             });
+            // 即使超时，也尝试保存已收到的结果
+            if (collectedResults.length > 0) {
+              fetch('/api/admin/source', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'update_check_results',
+                  results: collectedResults,
+                }),
+              }).then(() => refreshConfig());
+            }
           }
         }, 60000); // 60秒超时
       } catch (error) {
@@ -3387,50 +3362,36 @@ const VideoSourceConfig = ({
   };
 
   // 获取有效性状态显示
-  const getValidationStatus = (sourceKey: string) => {
-    const result = validationResults.find((r) => r.key === sourceKey);
-    if (!result) return null;
+  const getValidationStatus = (source: AdminConfig['SourceConfig'][0]) => {
+    // 优先显示实时检测状态
+    if (isValidating) {
+      const liveResult = validationResults.find((r) => r.key === source.key);
+      if (liveResult?.status === 'validating') {
+        return { text: '检测中', className: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300', icon: '⟳' };
+      }
+    }
+    
+    const check = source.lastCheck;
+    if (!check || check.status === 'untested') {
+      return { text: '未检测', className: 'bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400', icon: '?' };
+    }
 
-    switch (result.status) {
-      case 'validating':
-        return {
-          text: '检测中',
-          className:
-            'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300',
-          icon: '⟳',
-          message: result.message,
-        };
+    switch (check.status) {
       case 'valid':
-        return {
-          text: '有效',
-          className:
-            'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300',
-          icon: '✓',
-          message: result.message,
-        };
+        return { text: '有效', className: 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300', icon: '✓' };
       case 'no_results':
-        return {
-          text: '无法搜索',
-          className:
-            'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300',
-          icon: '⚠',
-          message: result.message,
-        };
+        return { text: '无法搜索', className: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300', icon: '⚠' };
       case 'invalid':
-        return {
-          text: '无效',
-          className:
-            'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300',
-          icon: '✗',
-          message: result.message,
-        };
+      case 'timeout':
+      case 'unreachable':
+        return { text: '无效', className: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300', icon: '✗' };
       default:
-        return null;
+        return { text: '未知', className: 'bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400', icon: '?' };
     }
   };
 
   // 可拖拽行封装 (dnd-kit)
-  const DraggableRow = ({ source }: { source: DataSource }) => {
+  const DraggableRow = ({ source }: { source: AdminConfig['SourceConfig'][0] }) => {
     const { attributes, listeners, setNodeRef, transform, transition } =
       useSortable({ id: source.key });
 
@@ -3492,22 +3453,29 @@ const VideoSourceConfig = ({
         </td>
         <td className='px-6 py-4 whitespace-nowrap max-w-[1rem]'>
           {(() => {
-            const status = getValidationStatus(source.key);
-            if (!status) {
-              return (
-                <span className='px-2 py-1 text-xs rounded-full bg-gray-100 dark:bg-gray-900/20 text-gray-600 dark:text-gray-400'>
-                  未检测
-                </span>
-              );
-            }
+            const status = getValidationStatus(source);
             return (
               <span
                 className={`px-2 py-1 text-xs rounded-full ${status.className}`}
-                title={status.message}
               >
                 {status.icon} {status.text}
               </span>
             );
+          })()}
+        </td>
+        <td className='px-6 py-4 whitespace-nowrap text-sm'>
+          {(() => {
+            const latency = source.lastCheck?.latency;
+            if (typeof latency !== 'number' || latency < 0) {
+              return <span className='text-gray-500 dark:text-gray-400'>-</span>;
+            }
+            const colorClass =
+              latency < 200
+                ? 'text-green-600 dark:text-green-400'
+                : latency < 1000
+                ? 'text-yellow-600 dark:text-yellow-400'
+                : 'text-red-600 dark:text-red-400';
+            return <span className={colorClass}>{latency}ms</span>;
           })()}
         </td>
         <td className='px-6 py-4 whitespace-nowrap text-right text-sm font-medium space-x-2'>
@@ -3843,6 +3811,9 @@ const VideoSourceConfig = ({
               </th>
               <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                 有效性
+              </th>
+              <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
+                延迟
               </th>
               <th className='px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider'>
                 操作
