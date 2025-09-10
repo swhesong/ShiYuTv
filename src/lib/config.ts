@@ -2,13 +2,15 @@
 
 import { db } from '@/lib/db';
 
-import { AdminConfig } from './admin.types';
+import { AdminConfig, SourceLastCheck } from './admin.types';
 
 export interface ApiSite {
   key: string;
   api: string;
   name: string;
   detail?: string;
+  disabled?: boolean;
+  lastCheck?: SourceLastCheck;
 }
 
 export interface LiveCfg {
@@ -482,14 +484,7 @@ export async function getAvailableApiSites(user?: string): Promise<ApiSite[]> {
   // 优先根据用户自己的 enabledApis 配置查找
   if (userConfig.enabledApis && userConfig.enabledApis.length > 0) {
     const userApiSitesSet = new Set(userConfig.enabledApis);
-    return allApiSites
-      .filter((s) => userApiSitesSet.has(s.key))
-      .map((s) => ({
-        key: s.key,
-        name: s.name,
-        api: s.api,
-        detail: s.detail,
-      }));
+    return allApiSites.filter((s) => userApiSitesSet.has(s.key));
   }
 
   // 如果没有 enabledApis 配置，则根据 tags 查找
@@ -507,14 +502,7 @@ export async function getAvailableApiSites(user?: string): Promise<ApiSite[]> {
     });
 
     if (enabledApisFromTags.size > 0) {
-      return allApiSites
-        .filter((s) => enabledApisFromTags.has(s.key))
-        .map((s) => ({
-          key: s.key,
-          name: s.name,
-          api: s.api,
-          detail: s.detail,
-        }));
+      return allApiSites.filter((s) => enabledApisFromTags.has(s.key));
     }
   }
 
