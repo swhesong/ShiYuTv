@@ -34,7 +34,47 @@ export async function GET(request: NextRequest) {
   }
 
   const config = await getConfig();
-  const apiSites = await getAvailableApiSites(authInfo.username);
+  let apiSites = await getAvailableApiSites(authInfo.username);
+  
+  // 过滤掉被管理员手动禁用的源
+  apiSites = apiSites.filter(site => !site.disabled);
+  
+  // 采纳建议：不直接过滤，而是进行智能排序
+  apiSites.sort((a, b) => {
+    const getPriority = (site: typeof a) => {
+      if (!site.lastCheck || site.lastCheck.status === 'untested') {
+        return 1; // 未测试的源，优先级中等
+      }
+      switch (site.lastCheck.status) {
+        case 'valid':
+          return 0; // 健康的源，优先级最高
+        case 'no_results':
+          return 1; // 能通但搜不到结果，优先级中等
+        case 'invalid':
+        case 'timeout':
+        case 'unreachable':
+          return 2; // 不健康的源，优先级最低
+        default:
+          return 1; // 其他情况默认为中等
+      }
+    };
+    
+    const priorityA = getPriority(a);
+    const priorityB = getPriority(b);
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB; // 按优先级分组
+    }
+    
+    // 如果优先级相同（都是健康源），则按延迟排序
+    if (priorityA === 0) {
+      const latencyA = a.lastCheck?.latency ?? Infinity;
+      const latencyB = b.lastCheck?.latency ?? Infinity;
+      return latencyA - latencyB;
+    }
+    
+    return 0; // 其他同级不改变顺序
+  });
 
   // 添加超时控制和错误处理，避免慢接口拖累整体响应
   const searchPromises = apiSites.map((site) =>
