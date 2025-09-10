@@ -3208,7 +3208,6 @@ const VideoSourceConfig = ({
         api: '',
         detail: '',
         disabled: false,
-        from: 'custom',
       });
       setShowAddForm(false);
     }).catch(() => {
