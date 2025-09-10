@@ -129,7 +129,7 @@
 ```yml
 services:
   ShiYuTv-core:
-    image: devinglaw/shiyutv:latest
+    image: swhesong/shiyutv:latest
     container_name: ShiYuTv-core
     restart: on-failure
     ports:
@@ -163,7 +163,7 @@ volumes:
 ```yml
 services:
   ShiYuTv-core:
-    image: devinglaw/shiyutv:latest
+    image: swhesong/shiyutv:latest
     container_name: ShiYuTv-core
     restart: on-failure
     ports:
@@ -203,7 +203,7 @@ networks:
 ```yml
 services:
   ShiYuTv-core:
-    image: devinglaw/shiyutv:latest
+    image: swhesong/shiyutv:latest
     container_name: ShiYuTv-core
     restart: on-failure
     ports:
