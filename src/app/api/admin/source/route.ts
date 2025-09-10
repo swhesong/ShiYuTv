@@ -290,7 +290,9 @@ export async function POST(request: NextRequest) {
           const isInvalid =
             entry.lastCheck &&
             (entry.lastCheck.status === 'invalid' ||
-              entry.lastCheck.status === 'timeout');
+              entry.lastCheck.status === 'timeout' ||
+              entry.lastCheck.status === 'unreachable');
+          
           // 仅当是自定义源且无效时才删除
           return !(isCustom && isInvalid);
         });
