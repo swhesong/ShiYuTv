@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 import he from 'he';
 import Hls from 'hls.js';
-import { AdminConfig } from "@/types/config";
+import { AdminConfig } from '@/lib/admin.types';
 
 function getDoubanImageProxyConfig(): {
   proxyType:
