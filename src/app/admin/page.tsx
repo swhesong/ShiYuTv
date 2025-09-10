@@ -3069,95 +3069,39 @@ const RegistrationConfig = ({
   );
 };
 
-// 视频源配置组件
-const VideoSourceConfig = ({
-  config,
-  refreshConfig,
-}: {
-  config: AdminConfig | null;
-  refreshConfig: () => Promise<void>;
-}) => {
-  const { alertModal, showAlert, hideAlert } = useAlertModal();
-  const { isLoading, withLoading } = useLoadingState();
-  const [sources, setSources] = useState<AdminConfig['SourceConfig']>([]); // 使用导入的类型
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [orderChanged, setOrderChanged] = useState(false);
-  const [newSource, setNewSource] = useState<Omit<AdminConfig['SourceConfig'][0], 'from'>>({ // 使用 Omit 简化
-    name: '',
-    key: '',
-    api: '',
-    detail: '',
-    disabled: false,
-  });
+  // 【新增】筛选状态
+  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [filterValidity, setFilterValidity] = useState<'all' | 'valid' | 'invalid' | 'no_results' | 'untested'>('all');
 
-  // 批量操作相关状态
-  const [selectedSources, setSelectedSources] = useState<Set<string>>(
-    new Set()
-  );
+  // 创建筛选后的视频源列表
+  const filteredSources = useMemo(() => {
+    return sources.filter(source => {
+      // 状态筛选
+      if (filterStatus === 'enabled' && source.disabled) return false;
+      if (filterStatus === 'disabled' && !source.disabled) return false;
 
-  // 【新增】导入导出模态框状态
-  const [showExportModal, setShowExportModal] = useState(false);
-  const [showImportModal, setShowImportModal] = useState(false);
+      // 有效性筛选
+      const validity = source.lastCheck?.status || 'untested';
+      if (filterValidity !== 'all') {
+        if (filterValidity === 'invalid') {
+          if (!['invalid', 'timeout', 'unreachable'].includes(validity)) return false;
+        } else if (validity !== filterValidity) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [sources, filterStatus, filterValidity]);
   
-  // 使用 useMemo 计算全选状态，避免每次渲染都重新计算
-  const selectAll = useMemo(() => {
-    return selectedSources.size === sources.length && selectedSources.size > 0;
-  }, [selectedSources.size, sources.length]);
+  // 使用 useMemo 计算全选状态，依赖筛选后的列表
+    if (filteredSources.length === 0) return false;
+    return filteredSources.every(s => selectedSources.has(s.key));
+  }, [selectedSources, filteredSources]);
 
-  // 确认弹窗状态
-  const [confirmModal, setConfirmModal] = useState<{
-    isOpen: boolean;
-    title: string;
-    message: string;
-    onConfirm: () => void;
-    onCancel: () => void;
-  }>({
-    isOpen: false,
-    title: '',
-    message: '',
-    onConfirm: () => {},
-    onCancel: () => {},
-  });
-
-  // 有效性检测相关状态
-  const [showValidationModal, setShowValidationModal] = useState(false);
-  const [searchKeyword, setSearchKeyword] = useState('');
-  const [isValidating, setIsValidating] = useState(false);
-  const [validationResults, setValidationResults] = useState< // 更新类型以包含 latency
-    Array<{
-      key: string;
-      name: string;
-      status: 'valid' | 'no_results' | 'invalid' | 'validating';
-      message: string;
-      latency: number;
-    }>
-  >([]);
-
-  // dnd-kit 传感器
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 5, // 轻微位移即可触发
-      },
-    }),
-    useSensor(TouchSensor, {
-      activationConstraint: {
-        delay: 150, // 长按 150ms 后触发，避免与滚动冲突
-        tolerance: 5,
-      },
-    })
-  );
-
-  // 初始化
+  // 【新增】筛选条件变化时，清空选择，避免操作不在视图内的项
   useEffect(() => {
-    if (config?.SourceConfig) {
-      setSources(config.SourceConfig);
-      // 进入时重置 orderChanged
-      setOrderChanged(false);
-      // 重置选择状态
-      setSelectedSources(new Set());
-    }
-  }, [config]);
+    setSelectedSources(new Set());
+  }, [filterStatus, filterValidity]);
 
   // 通用 API 请求
   const callSourceApi = async (body: Record<string, any>) => {
@@ -3520,17 +3464,20 @@ const VideoSourceConfig = ({
   };
 
   // 全选/取消全选
-  const handleSelectAll = useCallback(
-    (checked: boolean) => {
+  const handleSelectAll = useCallback((checked: boolean) => {
+      const filteredKeys = new Set(filteredSources.map((s) => s.key));
       if (checked) {
-        const allKeys = sources.map((s) => s.key);
-        setSelectedSources(new Set(allKeys));
+        setSelectedSources(prev => new Set([...prev, ...filteredKeys]));
       } else {
-        setSelectedSources(new Set());
+        setSelectedSources(prev => {
+            const next = new Set(prev);
+            for (const key of filteredKeys) {
+                next.delete(key);
+            }
+            return next;
+        });
       }
-    },
-    [sources]
-  );
+  }, [filteredSources]);
 
   // 单个选择
   const handleSelectSource = useCallback((key: string, checked: boolean) => {
@@ -3546,34 +3493,34 @@ const VideoSourceConfig = ({
   }, []);
 
   // 批量操作
-  const handleBatchOperation = async (
-    action: 'batch_enable' | 'batch_disable' | 'batch_delete'
-  ) => {
-    if (selectedSources.size === 0) {
-      showAlert({
-        type: 'warning',
-        title: '请先选择要操作的视频源',
-        message: '请选择至少一个视频源',
-      });
+
+  const handleBatchOperation = async (action: 'batch_enable' | 'batch_disable' | 'batch_delete' | 'batch_delete_invalid') => {
+    const keys = action === 'batch_delete_invalid' ? [] : Array.from(selectedSources);
+    if (action !== 'batch_delete_invalid' && keys.length === 0) {
+      showAlert({ type: 'warning', title: '请先选择要操作的视频源' });
+
       return;
     }
 
-    const keys = Array.from(selectedSources);
+
     let confirmMessage = '';
     let actionName = '';
 
     switch (action) {
-      case 'batch_enable':
-        confirmMessage = `确定要启用选中的 ${keys.length} 个视频源吗？`;
-        actionName = '批量启用';
-        break;
-      case 'batch_disable':
-        confirmMessage = `确定要禁用选中的 ${keys.length} 个视频源吗？`;
-        actionName = '批量禁用';
-        break;
-      case 'batch_delete':
-        confirmMessage = `确定要删除选中的 ${keys.length} 个视频源吗？此操作不可恢复！`;
-        actionName = '批量删除';
+
+      case 'batch_enable': confirmMessage = `确定要启用选中的 ${keys.length} 个视频源吗？`; actionName = '批量启用'; break;
+      case 'batch_disable': confirmMessage = `确定要禁用选中的 ${keys.length} 个视频源吗？`; actionName = '批量禁用'; break;
+      case 'batch_delete': confirmMessage = `确定要删除选中的 ${keys.length} 个视频源吗？此操作不可恢复！`; actionName = '批量删除'; break;
+      case 'batch_delete_invalid':
+        {
+          const invalidCount = sources.filter(s => s.from === 'custom' && s.lastCheck && ['invalid', 'timeout', 'unreachable'].includes(s.lastCheck.status)).length;
+          if (invalidCount === 0) {
+            showAlert({ type: 'info', title: '没有可清理的无效源' });
+            return;
+          }
+          confirmMessage = `检测到 ${invalidCount} 个可清理的自定义无效源，确定要删除它们吗？`;
+          actionName = '一键清理无效源';
+        }
         break;
     }
 
@@ -3622,11 +3569,14 @@ const VideoSourceConfig = ({
     });
   };
 
-  // 【新增】处理导出操作
-  const handleExport = (format: 'json' | 'csv' | 'text', scope: 'all' | 'selected') => {
-    const dataToExport = scope === 'all'
-      ? sources
-      : sources.filter(s => selectedSources.has(s.key));
+  // 【修改】处理导出操作，增加按筛选结果导出
+  const handleExport = (format: 'json' | 'csv' | 'text', scope: 'all' | 'selected' | 'filtered') => {
+    let dataToExport: AdminConfig['SourceConfig'];
+    switch(scope) {
+        case 'selected': dataToExport = sources.filter(s => selectedSources.has(s.key)); break;
+        case 'filtered': dataToExport = filteredSources; break;
+        default: dataToExport = sources; break;
+    }
 
     if (dataToExport.length === 0) {
       showAlert({ type: 'warning', title: '没有可导出的数据' });
@@ -3822,97 +3772,50 @@ const VideoSourceConfig = ({
 
   return (
     <div className='space-y-6'>
-      {/* 添加视频源表单 */}
       <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-        <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
-          视频源列表
-        </h4>
-        <div className='flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-2'>
-          {/* 批量操作按钮 - 移动端显示在下一行，PC端显示在左侧 */}
-          {selectedSources.size > 0 && (
-            <>
-              <div className='flex flex-wrap items-center gap-3 order-2 sm:order-1'>
-                <span className='text-sm text-gray-600 dark:text-gray-400'>
-                  <span className='sm:hidden'>已选 {selectedSources.size}</span>
-                  <span className='hidden sm:inline'>
-                    已选择 {selectedSources.size} 个视频源
-                  </span>
-                </span>
-                <button
-                  onClick={() => handleBatchOperation('batch_enable')}
-                  disabled={isLoading('batchSource_batch_enable')}
-                  className={`px-3 py-1 text-sm ${
-                    isLoading('batchSource_batch_enable')
-                      ? buttonStyles.disabled
-                      : buttonStyles.success
-                  }`}
-                >
-                  {isLoading('batchSource_batch_enable')
-                    ? '启用中...'
-                    : '批量启用'}
-                </button>
-                <button
-                  onClick={() => handleBatchOperation('batch_disable')}
-                  disabled={isLoading('batchSource_batch_disable')}
-                  className={`px-3 py-1 text-sm ${
-                    isLoading('batchSource_batch_disable')
-                      ? buttonStyles.disabled
-                      : buttonStyles.warning
-                  }`}
-                >
-                  {isLoading('batchSource_batch_disable')
-                    ? '禁用中...'
-                    : '批量禁用'}
-                </button>
-                <button
-                  onClick={() => handleBatchOperation('batch_delete')}
-                  disabled={isLoading('batchSource_batch_delete')}
-                  className={`px-3 py-1 text-sm ${
-                    isLoading('batchSource_batch_delete')
-                      ? buttonStyles.disabled
-                      : buttonStyles.danger
-                  }`}
-                >
-                  {isLoading('batchSource_batch_delete')
-                    ? '删除中...'
-                    : '批量删除'}
-                </button>
-              </div>
-              <div className='hidden sm:block w-px h-6 bg-gray-300 dark:bg-gray-600 order-2'></div>
-            </>
-          )}
-          <div className='flex items-center gap-2 order-1 sm:order-2'>
-            <button onClick={() => setShowImportModal(true)} className={buttonStyles.primary}>
-              导入
+        <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>视频源列表 ({sources.length})</h4>
+        <div className='flex items-center flex-wrap gap-2'>
+            <button onClick={() => setShowImportModal(true)} className={buttonStyles.primary}>导入</button>
+            <button onClick={() => setShowExportModal(true)} className={buttonStyles.primary}>导出</button>
+            <button onClick={() => handleBatchOperation('batch_delete_invalid')} className={buttonStyles.danger}>一键清理无效源</button>
+            <button onClick={() => setShowValidationModal(true)} disabled={isValidating} className={`flex items-center gap-1 ${isValidating ? buttonStyles.disabled : buttonStyles.primary}`}>
+              {isValidating && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
+              {isValidating ? '检测中...' : '有效性检测'}
             </button>
-            <button onClick={() => setShowExportModal(true)} className={buttonStyles.primary}>
-              导出
-            </button>
-            <button
-              onClick={() => setShowValidationModal(true)}
-              disabled={isValidating}
-              className={`px-3 py-1 text-sm rounded-lg transition-colors flex items-center space-x-1 ${
-                isValidating ? buttonStyles.disabled : buttonStyles.primary
-              }`}
-            >
-              {isValidating ? (
-                <>
-                  <div className='w-3 h-3 border border-white border-t-transparent rounded-full animate-spin'></div>
-                  <span>检测中...</span>
-                </>
-              ) : (
-                '有效性检测'
-              )}
-            </button>
-            <button
-              onClick={() => setShowAddForm(!showAddForm)}
-              className={
-                showAddForm ? buttonStyles.secondary : buttonStyles.success
-              }
-            >
+            <button onClick={() => setShowAddForm(!showAddForm)} className={showAddForm ? buttonStyles.secondary : buttonStyles.success}>
               {showAddForm ? '取消' : '添加视频源'}
             </button>
-          </div>
+        </div>
+      </div>
+      
+       {/* 【新增】筛选和批量操作栏 */}
+      <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4 border dark:border-gray-700">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+            <div>
+                <label className="text-xs mr-2 text-gray-600 dark:text-gray-400">状态:</label>
+                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all">全部</option>
+                    <option value="enabled">启用中</option>
+                    <option value="disabled">已禁用</option>
+                </select>
+            </div>
+            <div>
+                <label className="text-xs mr-2 text-gray-600 dark:text-gray-400">有效性:</label>
+                <select value={filterValidity} onChange={e => setFilterValidity(e.target.value as any)} className="text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500">
+                    <option value="all">全部</option>
+                    <option value="valid">有效</option>
+                    <option value="no_results">无法搜索</option>
+                    <option value="invalid">无效</option>
+                    <option value="untested">未检测</option>
+                </select>
+            </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+            <span className="text-sm text-gray-600 dark:text-gray-400">已选择 {selectedSources.size} / {filteredSources.length} 项</span>
+            <button onClick={() => handleBatchOperation('batch_enable')} disabled={isLoading('batchSource_batch_enable') || selectedSources.size === 0} className={buttonStyles.successSmall}>批量启用</button>
+            <button onClick={() => handleBatchOperation('batch_disable')} disabled={isLoading('batchSource_batch_disable') || selectedSources.size === 0} className={buttonStyles.warningSmall}>批量禁用</button>
+            <button onClick={() => handleBatchOperation('batch_delete')} disabled={isLoading('batchSource_batch_delete') || selectedSources.size === 0} className={buttonStyles.dangerSmall}>批量删除</button>
         </div>
       </div>
 
@@ -4035,7 +3938,7 @@ const VideoSourceConfig = ({
               strategy={verticalListSortingStrategy}
             >
               <tbody className='divide-y divide-gray-200 dark:divide-gray-700'>
-                {sources.map((source) => (
+                {filteredSources.map((source) => (
                   <DraggableRow key={source.key} source={source} />
                 ))}
               </tbody>
