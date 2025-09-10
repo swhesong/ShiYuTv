@@ -32,6 +32,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: '无效的API来源' }, { status: 400 });
     }
 
+    // 增加健康状态检查
+    if (apiSite.disabled) {
+      return NextResponse.json({ error: '该视频源已被禁用' }, { status: 403 });
+    }
+    
+    if (apiSite.lastCheck) {
+      const { status } = apiSite.lastCheck;
+      if (status === 'invalid' || status === 'timeout' || status === 'unreachable') {
+        return NextResponse.json({ error: '该视频源当前不可用' }, { status: 503 });
+      }
+    }
+
     const result = await getDetailFromApi(apiSite, id);
     const cacheTime = await getCacheTime();
 
