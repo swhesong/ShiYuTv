@@ -3069,40 +3069,6 @@ const RegistrationConfig = ({
   );
 };
 
-  // 【新增】筛选状态
-  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
-  const [filterValidity, setFilterValidity] = useState<'all' | 'valid' | 'invalid' | 'no_results' | 'untested'>('all');
-
-  // 创建筛选后的视频源列表
-  const filteredSources = useMemo(() => {
-    return sources.filter(source => {
-      // 状态筛选
-      if (filterStatus === 'enabled' && source.disabled) return false;
-      if (filterStatus === 'disabled' && !source.disabled) return false;
-
-      // 有效性筛选
-      const validity = source.lastCheck?.status || 'untested';
-      if (filterValidity !== 'all') {
-        if (filterValidity === 'invalid') {
-          if (!['invalid', 'timeout', 'unreachable'].includes(validity)) return false;
-        } else if (validity !== filterValidity) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [sources, filterStatus, filterValidity]);
-  
-  // 使用 useMemo 计算全选状态，依赖筛选后的列表
-    if (filteredSources.length === 0) return false;
-    return filteredSources.every(s => selectedSources.has(s.key));
-  }, [selectedSources, filteredSources]);
-
-  // 【新增】筛选条件变化时，清空选择，避免操作不在视图内的项
-  useEffect(() => {
-    setSelectedSources(new Set());
-  }, [filterStatus, filterValidity]);
-
   // 通用 API 请求
   const callSourceApi = async (body: Record<string, any>) => {
     try {
@@ -4157,6 +4123,39 @@ const CategoryConfig = ({
       setOrderChanged(false);
     }
   }, [config]);
+  // 【新增】筛选状态
+  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [filterValidity, setFilterValidity] = useState<'all' | 'valid' | 'invalid' | 'no_results' | 'untested'>('all');
+
+  // 创建筛选后的视频源列表
+  const filteredSources = useMemo(() => {
+    return sources.filter(source => {
+      // 状态筛选
+      if (filterStatus === 'enabled' && source.disabled) return false;
+      if (filterStatus === 'disabled' && !source.disabled) return false;
+
+      // 有效性筛选
+      const validity = source.lastCheck?.status || 'untested';
+      if (filterValidity !== 'all') {
+        if (filterValidity === 'invalid') {
+          if (!['invalid', 'timeout', 'unreachable'].includes(validity)) return false;
+        } else if (validity !== filterValidity) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [sources, filterStatus, filterValidity]);
+  
+  // 使用 useMemo 计算全选状态，依赖筛选后的列表
+    if (filteredSources.length === 0) return false;
+    return filteredSources.every(s => selectedSources.has(s.key));
+  }, [selectedSources, filteredSources]);
+
+  // 【新增】筛选条件变化时，清空选择，避免操作不在视图内的项
+  useEffect(() => {
+    setSelectedSources(new Set());
+  }, [filterStatus, filterValidity]);
 
   // 通用 API 请求
   const callCategoryApi = async (body: Record<string, any>) => {
