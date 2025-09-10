@@ -3069,6 +3069,105 @@ const RegistrationConfig = ({
   );
 };
 
+// 视频源配置组件
+const VideoSourceConfig = ({
+  config,
+  refreshConfig,
+}: {
+  config: AdminConfig | null;
+  refreshConfig: () => Promise<void>;
+}) => {
+  const { alertModal, showAlert, hideAlert } = useAlertModal();
+  const { isLoading, withLoading } = useLoadingState();
+  const [sources, setSources] = useState<AdminConfig['SourceConfig']>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [orderChanged, setOrderChanged] = useState(false);
+  const [newSource, setNewSource] = useState({
+    name: '',
+    key: '',
+    api: '',
+    detail: '',
+    disabled: false,
+  });
+  const [selectedSources, setSelectedSources] = useState<Set<string>>(
+    new Set()
+  );
+  const [showValidationModal, setShowValidationModal] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [validationResults, setValidationResults] = useState<any[]>([]);
+  const [searchKeyword, setSearchKeyword] = useState('周杰伦');
+  const [showImportModal, setShowImportModal] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => {},
+    onCancel: () => {},
+  });
+
+  // dnd-kit 传感器
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 5, // 轻微位移即可触发
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150, // 长按 150ms 后触发，避免与滚动冲突
+        tolerance: 5,
+      },
+    })
+  );
+
+  // 初始化
+  useEffect(() => {
+    if (config?.SourceConfig) {
+      setSources(config.SourceConfig);
+      setOrderChanged(false); // 进入时重置 orderChanged
+    }
+  }, [config]);
+
+  // 筛选状态
+  const [filterStatus, setFilterStatus] = useState<
+    'all' | 'enabled' | 'disabled'
+  >('all');
+  const [filterValidity, setFilterValidity] = useState<
+    'all' | 'valid' | 'invalid' | 'no_results' | 'untested'
+  >('all');
+
+  // 创建筛选后的视频源列表
+  const filteredSources = useMemo(() => {
+    return sources.filter((source) => {
+      // 状态筛选
+      if (filterStatus === 'enabled' && source.disabled) return false;
+      if (filterStatus === 'disabled' && !source.disabled) return false;
+
+      // 有效性筛选
+      const validity = source.lastCheck?.status || 'untested';
+      if (filterValidity !== 'all') {
+        if (filterValidity === 'invalid') {
+          if (!['invalid', 'timeout', 'unreachable'].includes(validity))
+            return false;
+        } else if (validity !== filterValidity) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [sources, filterStatus, filterValidity]);
+
+  // 使用 useMemo 计算全选状态，依赖筛选后的列表
+  const selectAll = useMemo(() => {
+    if (filteredSources.length === 0) return false;
+    return filteredSources.every((s) => selectedSources.has(s.key));
+  }, [selectedSources, filteredSources]);
+
+  // 筛选条件变化时，清空选择，避免操作不在视图内的项
+  useEffect(() => {
+    setSelectedSources(new Set());
+  }, [filterStatus, filterValidity]);
   // 通用 API 请求
   const callSourceApi = async (body: Record<string, any>) => {
     try {
@@ -3172,7 +3271,8 @@ const RegistrationConfig = ({
       setShowValidationModal(false);
 
       // 用于收集所有源的最终结果
-      const collectedResults: { key: string; status: any; latency: number }[] = [];
+      const collectedResults: { key: string; status: any; latency: number }[] =
+        [];
 
       try {
         const eventSource = new EventSource(
@@ -3284,31 +3384,65 @@ const RegistrationConfig = ({
     if (isValidating) {
       const liveResult = validationResults.find((r) => r.key === source.key);
       if (liveResult?.status === 'validating') {
-        return { text: '检测中', className: 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300', icon: '⟳' };
+        return {
+          text: '检测中',
+          className:
+            'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300',
+          icon: '⟳',
+        };
       }
     }
-    
+
     const check = source.lastCheck;
     if (!check || check.status === 'untested') {
-      return { text: '未检测', className: 'bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400', icon: '?' };
+      return {
+        text: '未检测',
+        className:
+          'bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400',
+        icon: '?',
+      };
     }
 
     switch (check.status) {
       case 'valid':
-        return { text: '有效', className: 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300', icon: '✓' };
+        return {
+          text: '有效',
+          className:
+            'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300',
+          icon: '✓',
+        };
       case 'no_results':
-        return { text: '无法搜索', className: 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300', icon: '⚠' };
+        return {
+          text: '无法搜索',
+          className:
+            'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300',
+          icon: '⚠',
+        };
       case 'invalid':
       case 'timeout':
       case 'unreachable':
-        return { text: '无效', className: 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300', icon: '✗' };
+        return {
+          text: '无效',
+          className:
+            'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-300',
+          icon: '✗',
+        };
       default:
-        return { text: '未知', className: 'bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400', icon: '?' };
+        return {
+          text: '未知',
+          className:
+            'bg-gray-100 dark:bg-gray-700/60 text-gray-600 dark:text-gray-400',
+          icon: '?',
+        };
     }
   };
 
   // 可拖拽行封装 (dnd-kit)
-  const DraggableRow = ({ source }: { source: AdminConfig['SourceConfig'][0] }) => {
+  const DraggableRow = ({
+    source,
+  }: {
+    source: AdminConfig['SourceConfig'][0];
+  }) => {
     const { attributes, listeners, setNodeRef, transform, transition } =
       useSortable({ id: source.key });
 
@@ -3384,7 +3518,9 @@ const RegistrationConfig = ({
           {(() => {
             const latency = source.lastCheck?.latency;
             if (typeof latency !== 'number' || latency < 0) {
-              return <span className='text-gray-500 dark:text-gray-400'>-</span>;
+              return (
+                <span className='text-gray-500 dark:text-gray-400'>-</span>
+              );
             }
             const colorClass =
               latency < 200
@@ -3430,20 +3566,23 @@ const RegistrationConfig = ({
   };
 
   // 全选/取消全选
-  const handleSelectAll = useCallback((checked: boolean) => {
+  const handleSelectAll = useCallback(
+    (checked: boolean) => {
       const filteredKeys = new Set(filteredSources.map((s) => s.key));
       if (checked) {
-        setSelectedSources(prev => new Set([...prev, ...filteredKeys]));
+        setSelectedSources((prev) => new Set([...prev, ...filteredKeys]));
       } else {
-        setSelectedSources(prev => {
-            const next = new Set(prev);
-            for (const key of filteredKeys) {
-                next.delete(key);
-            }
-            return next;
+        setSelectedSources((prev) => {
+          const next = new Set(prev);
+          for (const key of filteredKeys) {
+            next.delete(key);
+          }
+          return next;
         });
       }
-  }, [filteredSources]);
+    },
+    [filteredSources]
+  );
 
   // 单个选择
   const handleSelectSource = useCallback((key: string, checked: boolean) => {
@@ -3459,27 +3598,45 @@ const RegistrationConfig = ({
   }, []);
 
   // 批量操作
-
-  const handleBatchOperation = async (action: 'batch_enable' | 'batch_disable' | 'batch_delete' | 'batch_delete_invalid') => {
-    const keys = action === 'batch_delete_invalid' ? [] : Array.from(selectedSources);
+  const handleBatchOperation = async (
+    action:
+      | 'batch_enable'
+      | 'batch_disable'
+      | 'batch_delete'
+      | 'batch_delete_invalid'
+  ) => {
+    const keys =
+      action === 'batch_delete_invalid' ? [] : Array.from(selectedSources);
     if (action !== 'batch_delete_invalid' && keys.length === 0) {
       showAlert({ type: 'warning', title: '请先选择要操作的视频源' });
 
       return;
     }
 
-
     let confirmMessage = '';
     let actionName = '';
 
     switch (action) {
-
-      case 'batch_enable': confirmMessage = `确定要启用选中的 ${keys.length} 个视频源吗？`; actionName = '批量启用'; break;
-      case 'batch_disable': confirmMessage = `确定要禁用选中的 ${keys.length} 个视频源吗？`; actionName = '批量禁用'; break;
-      case 'batch_delete': confirmMessage = `确定要删除选中的 ${keys.length} 个视频源吗？此操作不可恢复！`; actionName = '批量删除'; break;
+      case 'batch_enable':
+        confirmMessage = `确定要启用选中的 ${keys.length} 个视频源吗？`;
+        actionName = '批量启用';
+        break;
+      case 'batch_disable':
+        confirmMessage = `确定要禁用选中的 ${keys.length} 个视频源吗？`;
+        actionName = '批量禁用';
+        break;
+      case 'batch_delete':
+        confirmMessage = `确定要删除选中的 ${keys.length} 个视频源吗？此操作不可恢复！`;
+        actionName = '批量删除';
+        break;
       case 'batch_delete_invalid':
         {
-          const invalidCount = sources.filter(s => s.from === 'custom' && s.lastCheck && ['invalid', 'timeout', 'unreachable'].includes(s.lastCheck.status)).length;
+          const invalidCount = sources.filter(
+            (s) =>
+              s.from === 'custom' &&
+              s.lastCheck &&
+              ['invalid', 'timeout', 'unreachable'].includes(s.lastCheck.status)
+          ).length;
           if (invalidCount === 0) {
             showAlert({ type: 'info', title: '没有可清理的无效源' });
             return;
@@ -3536,12 +3693,21 @@ const RegistrationConfig = ({
   };
 
   // 【修改】处理导出操作，增加按筛选结果导出
-  const handleExport = (format: 'json' | 'csv' | 'text', scope: 'all' | 'selected' | 'filtered') => {
+  const handleExport = (
+    format: 'json' | 'csv' | 'text',
+    scope: 'all' | 'selected' | 'filtered'
+  ) => {
     let dataToExport: AdminConfig['SourceConfig'];
-    switch(scope) {
-        case 'selected': dataToExport = sources.filter(s => selectedSources.has(s.key)); break;
-        case 'filtered': dataToExport = filteredSources; break;
-        default: dataToExport = sources; break;
+    switch (scope) {
+      case 'selected':
+        dataToExport = sources.filter((s) => selectedSources.has(s.key));
+        break;
+      case 'filtered':
+        dataToExport = filteredSources;
+        break;
+      default:
+        dataToExport = sources;
+        break;
     }
 
     if (dataToExport.length === 0) {
@@ -3561,7 +3727,11 @@ const RegistrationConfig = ({
   const ImportModal = () => {
     const [rawText, setRawText] = useState('');
     const [file, setFile] = useState<File | null>(null);
-    const [preview, setPreview] = useState<{ data: any[]; format: string; errors: string[] } | null>(null);
+    const [preview, setPreview] = useState<{
+      data: any[];
+      format: string;
+      errors: string[];
+    } | null>(null);
     const [isImporting, setIsImporting] = useState(false);
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -3575,13 +3745,13 @@ const RegistrationConfig = ({
         reader.readAsText(f);
       }
     };
-    
+
     const handlePreview = () => {
       if (!rawText.trim()) {
         showAlert({ type: 'warning', title: '请输入或上传数据' });
         return;
       }
-      const existingKeys = new Set(sources.map(s => s.key));
+      const existingKeys = new Set(sources.map((s) => s.key));
       const result = parseImportData(rawText, existingKeys);
       setPreview(result);
     };
@@ -3592,12 +3762,18 @@ const RegistrationConfig = ({
         return;
       }
       if (preview.errors.length > 0) {
-        showAlert({ type: 'warning', title: '数据存在问题', message: '请处理所有错误后再导入' });
+        showAlert({
+          type: 'warning',
+          title: '数据存在问题',
+          message: '请处理所有错误后再导入',
+        });
         return;
       }
       setIsImporting(true);
       try {
-        const result = await withLoading('batchImport', () => callSourceApi({ action: 'batch_import', sources: preview.data }));
+        const result = await withLoading('batchImport', () =>
+          callSourceApi({ action: 'batch_import', sources: preview.data })
+        );
         showSuccess(result.message || '导入成功', showAlert);
         setShowImportModal(false);
       } catch (err) {
@@ -3617,7 +3793,9 @@ const RegistrationConfig = ({
             <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
               {/* Left: Input */}
               <div className='space-y-3'>
-                <label className='block text-sm font-medium'>粘贴文本内容</label>
+                <label className='block text-sm font-medium'>
+                  粘贴文本内容
+                </label>
                 <textarea
                   value={rawText}
                   onChange={(e) => setRawText(e.target.value)}
@@ -3625,53 +3803,123 @@ const RegistrationConfig = ({
                   className='w-full h-40 p-2 border rounded-md dark:bg-gray-700 dark:border-gray-600'
                 />
                 <div className='flex items-center justify-center w-full'>
-                  <label htmlFor="dropzone-file" className="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      <Upload className="w-8 h-8 mb-2 text-gray-500" />
-                      <p className="mb-1 text-sm text-gray-500"><span className="font-semibold">点击上传</span> 或拖拽文件</p>
-                      <p className="text-xs text-gray-500">{file ? file.name : 'JSON, CSV, or TXT'}</p>
+                  <label
+                    htmlFor='dropzone-file'
+                    className='flex flex-col items-center justify-center w-full h-24 border-2 border-dashed rounded-lg cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700'
+                  >
+                    <div className='flex flex-col items-center justify-center pt-5 pb-6'>
+                      <Upload className='w-8 h-8 mb-2 text-gray-500' />
+                      <p className='mb-1 text-sm text-gray-500'>
+                        <span className='font-semibold'>点击上传</span>{' '}
+                        或拖拽文件
+                      </p>
+                      <p className='text-xs text-gray-500'>
+                        {file ? file.name : 'JSON, CSV, or TXT'}
+                      </p>
                     </div>
-                    <input id="dropzone-file" type="file" className="hidden" onChange={handleFileChange} accept=".json,.csv,.txt" />
+                    <input
+                      id='dropzone-file'
+                      type='file'
+                      className='hidden'
+                      onChange={handleFileChange}
+                      accept='.json,.csv,.txt'
+                    />
                   </label>
                 </div>
-                <button onClick={handlePreview} className={`${buttonStyles.primary} w-full`}>预览和校验数据</button>
+                <button
+                  onClick={handlePreview}
+                  className={`${buttonStyles.primary} w-full`}
+                >
+                  预览和校验数据
+                </button>
               </div>
 
               {/* Right: Preview */}
               <div className='space-y-3'>
-                <label className='block text-sm font-medium'>数据预览与校验</label>
-                {!preview && <div className='h-full flex items-center justify-center text-gray-500 bg-gray-50 dark:bg-gray-700/50 rounded-md'>点击预览按钮后显示结果</div>}
+                <label className='block text-sm font-medium'>
+                  数据预览与校验
+                </label>
+                {!preview && (
+                  <div className='h-full flex items-center justify-center text-gray-500 bg-gray-50 dark:bg-gray-700/50 rounded-md'>
+                    点击预览按钮后显示结果
+                  </div>
+                )}
                 {preview && (
                   <div className='space-y-2'>
                     <div className='flex items-center gap-2 p-2 bg-gray-100 dark:bg-gray-700 rounded'>
-                      {preview.errors.length === 0 ? <CheckCircle className='text-green-500' /> : <AlertCircle className='text-red-500' />}
+                      {preview.errors.length === 0 ? (
+                        <CheckCircle className='text-green-500' />
+                      ) : (
+                        <AlertCircle className='text-red-500' />
+                      )}
                       <p className='text-sm'>
-                        检测到 <span className='font-bold'>{preview.format.toUpperCase()}</span> 格式, 
-                        共 <span className='font-bold'>{preview.data.length}</span> 条有效记录, 
-                        发现 <span className={`font-bold ${preview.errors.length > 0 ? 'text-red-500' : 'text-green-500'}`}>{preview.errors.length}</span> 个问题。
+                        检测到{' '}
+                        <span className='font-bold'>
+                          {preview.format.toUpperCase()}
+                        </span>{' '}
+                        格式, 共{' '}
+                        <span className='font-bold'>
+                          {preview.data.length}
+                        </span>{' '}
+                        条有效记录, 发现{' '}
+                        <span
+                          className={`font-bold ${
+                            preview.errors.length > 0
+                              ? 'text-red-500'
+                              : 'text-green-500'
+                          }`}
+                        >
+                          {preview.errors.length}
+                        </span>{' '}
+                        个问题。
                       </p>
                     </div>
                     {preview.errors.length > 0 && (
                       <div className='p-2 border border-red-500/50 bg-red-50 dark:bg-red-900/20 rounded-md max-h-24 overflow-y-auto text-sm'>
                         <ul className='list-disc list-inside'>
-                          {preview.errors.slice(0, 5).map((err, i) => <li key={i} className='text-red-600 dark:text-red-400'>{err}</li>)}
-                          {preview.errors.length > 5 && <li>...还有 {preview.errors.length - 5} 个问题</li>}
+                          {preview.errors.slice(0, 5).map((err, i) => (
+                            <li
+                              key={i}
+                              className='text-red-600 dark:text-red-400'
+                            >
+                              {err}
+                            </li>
+                          ))}
+                          {preview.errors.length > 5 && (
+                            <li>
+                              ...还有 {preview.errors.length - 5} 个问题
+                            </li>
+                          )}
                         </ul>
                       </div>
                     )}
                     <div className='border rounded-md max-h-48 overflow-y-auto'>
-                       <table className='w-full text-sm text-left'>
-                         <thead className='bg-gray-50 dark:bg-gray-900 sticky top-0'><tr><th className='p-2'>Name</th><th className='p-2'>Key</th><th className='p-2'>API</th></tr></thead>
-                         <tbody>
-                           {preview.data.map((item, i) => (
-                             <tr key={i} className='border-t dark:border-gray-700'>
-                               <td className='p-2 truncate'>{item.name}</td>
-                               <td className='p-2 truncate'>{item.key}</td>
-                               <td className='p-2 truncate' title={item.api}>{item.api}</td>
-                             </tr>
-                           ))}
-                         </tbody>
-                       </table>
+                      <table className='w-full text-sm text-left'>
+                        <thead className='bg-gray-50 dark:bg-gray-900 sticky top-0'>
+                          <tr>
+                            <th className='p-2'>Name</th>
+                            <th className='p-2'>Key</th>
+                            <th className='p-2'>API</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {preview.data.map((item, i) => (
+                            <tr
+                              key={i}
+                              className='border-t dark:border-gray-700'
+                            >
+                              <td className='p-2 truncate'>{item.name}</td>
+                              <td className='p-2 truncate'>{item.key}</td>
+                              <td
+                                className='p-2 truncate'
+                                title={item.api}
+                              >
+                                {item.api}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
                     </div>
                   </div>
                 )}
@@ -3679,8 +3927,22 @@ const RegistrationConfig = ({
             </div>
           </div>
           <div className='p-4 flex justify-end gap-2 border-t dark:border-gray-700'>
-            <button onClick={() => setShowImportModal(false)} className={buttonStyles.secondary}>取消</button>
-            <button onClick={handleConfirmImport} className={buttonStyles.success} disabled={isImporting || !preview || preview.errors.length > 0 || preview.data.length === 0}>
+            <button
+              onClick={() => setShowImportModal(false)}
+              className={buttonStyles.secondary}
+            >
+              取消
+            </button>
+            <button
+              onClick={handleConfirmImport}
+              className={buttonStyles.success}
+              disabled={
+                isImporting ||
+                !preview ||
+                preview.errors.length > 0 ||
+                preview.data.length === 0
+              }
+            >
               {isImporting ? '导入中...' : '确认导入'}
             </button>
           </div>
@@ -3699,35 +3961,101 @@ const RegistrationConfig = ({
     return createPortal(
       <div className='fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4'>
         <div className='bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md'>
-          <div className='p-4 border-b dark:border-gray-700'><h3 className='text-lg font-semibold'>导出视频源</h3></div>
+          <div className='p-4 border-b dark:border-gray-700'>
+            <h3 className='text-lg font-semibold'>导出视频源</h3>
+          </div>
           <div className='p-6 space-y-6'>
             <div>
               <label className='text-sm font-medium'>导出范围</label>
               <div className='mt-2 flex gap-4'>
-                <label className='flex items-center gap-2'><input type='radio' name='scope' value='all' checked={scope === 'all'} onChange={() => setScope('all')} /> 全部 ({sources.length}项)</label>
-                <label className='flex items-center gap-2'><input type='radio' name='scope' value='selected' checked={scope === 'selected'} onChange={() => setScope('selected')} disabled={selectedCount === 0} /> 选中项 ({selectedCount}项)</label>
+                <label className='flex items-center gap-2'>
+                  <input
+                    type='radio'
+                    name='scope'
+                    value='all'
+                    checked={scope === 'all'}
+                    onChange={() => setScope('all')}
+                  />{' '}
+                  全部 ({sources.length}项)
+                </label>
+                <label className='flex items-center gap-2'>
+                  <input
+                    type='radio'
+                    name='scope'
+                    value='selected'
+                    checked={scope === 'selected'}
+                    onChange={() => setScope('selected')}
+                    disabled={selectedCount === 0}
+                  />{' '}
+                  选中项 ({selectedCount}项)
+                </label>
               </div>
             </div>
             <div>
               <label className='text-sm font-medium'>导出格式</label>
               <div className='mt-2 grid grid-cols-3 gap-2'>
-                <button onClick={() => setFormat('json')} className={`${buttonStyles.primary} flex items-center justify-center ${format !== 'json' ? '!bg-gray-200 !text-gray-800 dark:!bg-gray-700 dark:!text-gray-200' : ''}`}><FileJson size={16} className='mr-1' /> JSON</button>
-                <button onClick={() => setFormat('csv')} className={`${buttonStyles.primary} flex items-center justify-center ${format !== 'csv' ? '!bg-gray-200 !text-gray-800 dark:!bg-gray-700 dark:!text-gray-200' : ''}`}><Sheet size={16} className='mr-1' /> CSV</button>
-                <button onClick={() => setFormat('text')} className={`${buttonStyles.primary} flex items-center justify-center ${format !== 'text' ? '!bg-gray-200 !text-gray-800 dark:!bg-gray-700 dark:!text-gray-200' : ''}`}><FileText size={16} className='mr-1' /> 纯文本</button>
+                <button
+                  onClick={() => setFormat('json')}
+                  className={`${
+                    buttonStyles.primary
+                  } flex items-center justify-center ${
+                    format !== 'json'
+                      ? '!bg-gray-200 !text-gray-800 dark:!bg-gray-700 dark:!text-gray-200'
+                      : ''
+                  }`}
+                >
+                  <FileJson size={16} className='mr-1' /> JSON
+                </button>
+                <button
+                  onClick={() => setFormat('csv')}
+                  className={`${
+                    buttonStyles.primary
+                  } flex items-center justify-center ${
+                    format !== 'csv'
+                      ? '!bg-gray-200 !text-gray-800 dark:!bg-gray-700 dark:!text-gray-200'
+                      : ''
+                  }`}
+                >
+                  <Sheet size={16} className='mr-1' /> CSV
+                </button>
+                <button
+                  onClick={() => setFormat('text')}
+                  className={`${
+                    buttonStyles.primary
+                  } flex items-center justify-center ${
+                    format !== 'text'
+                      ? '!bg-gray-200 !text-gray-800 dark:!bg-gray-700 dark:!text-gray-200'
+                      : ''
+                  }`}
+                >
+                  <FileText size={16} className='mr-1' /> 纯文本
+                </button>
               </div>
-              <p className='text-xs text-gray-500 mt-2'>纯文本格式仅导出API地址。</p>
+              <p className='text-xs text-gray-500 mt-2'>
+                纯文本格式仅导出API地址。
+              </p>
             </div>
           </div>
           <div className='p-4 flex justify-end gap-2 border-t dark:border-gray-700'>
-            <button onClick={() => setShowExportModal(false)} className={buttonStyles.secondary}>取消</button>
-            <button onClick={() => handleExport(format, scope)} className={buttonStyles.success}>导出</button>
+            <button
+              onClick={() => setShowExportModal(false)}
+              className={buttonStyles.secondary}
+            >
+              取消
+            </button>
+            <button
+              onClick={() => handleExport(format, scope)}
+              className={buttonStyles.success}
+            >
+              导出
+            </button>
           </div>
         </div>
       </div>,
       document.body
     );
   };
-  
+
   if (!config) {
     return (
       <div className='text-center text-gray-500 dark:text-gray-400'>
@@ -3739,49 +4067,118 @@ const RegistrationConfig = ({
   return (
     <div className='space-y-6'>
       <div className='flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4'>
-        <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>视频源列表 ({sources.length})</h4>
+        <h4 className='text-sm font-medium text-gray-700 dark:text-gray-300'>
+          视频源列表 ({sources.length})
+        </h4>
         <div className='flex items-center flex-wrap gap-2'>
-            <button onClick={() => setShowImportModal(true)} className={buttonStyles.primary}>导入</button>
-            <button onClick={() => setShowExportModal(true)} className={buttonStyles.primary}>导出</button>
-            <button onClick={() => handleBatchOperation('batch_delete_invalid')} className={buttonStyles.danger}>一键清理无效源</button>
-            <button onClick={() => setShowValidationModal(true)} disabled={isValidating} className={`flex items-center gap-1 ${isValidating ? buttonStyles.disabled : buttonStyles.primary}`}>
-              {isValidating && <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>}
-              {isValidating ? '检测中...' : '有效性检测'}
-            </button>
-            <button onClick={() => setShowAddForm(!showAddForm)} className={showAddForm ? buttonStyles.secondary : buttonStyles.success}>
-              {showAddForm ? '取消' : '添加视频源'}
-            </button>
+          <button
+            onClick={() => setShowImportModal(true)}
+            className={buttonStyles.primary}
+          >
+            导入
+          </button>
+          <button
+            onClick={() => setShowExportModal(true)}
+            className={buttonStyles.primary}
+          >
+            导出
+          </button>
+          <button
+            onClick={() => handleBatchOperation('batch_delete_invalid')}
+            className={buttonStyles.danger}
+          >
+            一键清理无效源
+          </button>
+          <button
+            onClick={() => setShowValidationModal(true)}
+            disabled={isValidating}
+            className={`flex items-center gap-1 ${
+              isValidating ? buttonStyles.disabled : buttonStyles.primary
+            }`}
+          >
+            {isValidating && (
+              <div className='w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin'></div>
+            )}
+            {isValidating ? '检测中...' : '有效性检测'}
+          </button>
+          <button
+            onClick={() => setShowAddForm(!showAddForm)}
+            className={
+              showAddForm ? buttonStyles.secondary : buttonStyles.success
+            }
+          >
+            {showAddForm ? '取消' : '添加视频源'}
+          </button>
         </div>
       </div>
-      
-       {/* 【新增】筛选和批量操作栏 */}
-      <div className="bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4 border dark:border-gray-700">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <div>
-                <label className="text-xs mr-2 text-gray-600 dark:text-gray-400">状态:</label>
-                <select value={filterStatus} onChange={e => setFilterStatus(e.target.value as any)} className="text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="all">全部</option>
-                    <option value="enabled">启用中</option>
-                    <option value="disabled">已禁用</option>
-                </select>
-            </div>
-            <div>
-                <label className="text-xs mr-2 text-gray-600 dark:text-gray-400">有效性:</label>
-                <select value={filterValidity} onChange={e => setFilterValidity(e.target.value as any)} className="text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500">
-                    <option value="all">全部</option>
-                    <option value="valid">有效</option>
-                    <option value="no_results">无法搜索</option>
-                    <option value="invalid">无效</option>
-                    <option value="untested">未检测</option>
-                </select>
-            </div>
+
+      {/* 【新增】筛选和批量操作栏 */}
+      <div className='bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4 border dark:border-gray-700'>
+        <div className='flex flex-wrap items-center gap-x-4 gap-y-2'>
+          <div>
+            <label className='text-xs mr-2 text-gray-600 dark:text-gray-400'>
+              状态:
+            </label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as any)}
+              className='text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500'
+            >
+              <option value='all'>全部</option>
+              <option value='enabled'>启用中</option>
+              <option value='disabled'>已禁用</option>
+            </select>
+          </div>
+          <div>
+            <label className='text-xs mr-2 text-gray-600 dark:text-gray-400'>
+              有效性:
+            </label>
+            <select
+              value={filterValidity}
+              onChange={(e) => setFilterValidity(e.target.value as any)}
+              className='text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500'
+            >
+              <option value='all'>全部</option>
+              <option value='valid'>有效</option>
+              <option value='no_results'>无法搜索</option>
+              <option value='invalid'>无效</option>
+              <option value='untested'>未检测</option>
+            </select>
+          </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-            <span className="text-sm text-gray-600 dark:text-gray-400">已选择 {selectedSources.size} / {filteredSources.length} 项</span>
-            <button onClick={() => handleBatchOperation('batch_enable')} disabled={isLoading('batchSource_batch_enable') || selectedSources.size === 0} className={buttonStyles.successSmall}>批量启用</button>
-            <button onClick={() => handleBatchOperation('batch_disable')} disabled={isLoading('batchSource_batch_disable') || selectedSources.size === 0} className={buttonStyles.warningSmall}>批量禁用</button>
-            <button onClick={() => handleBatchOperation('batch_delete')} disabled={isLoading('batchSource_batch_delete') || selectedSources.size === 0} className={buttonStyles.dangerSmall}>批量删除</button>
+        <div className='flex flex-wrap items-center gap-2'>
+          <span className='text-sm text-gray-600 dark:text-gray-400'>
+            已选择 {selectedSources.size} / {filteredSources.length} 项
+          </span>
+          <button
+            onClick={() => handleBatchOperation('batch_enable')}
+            disabled={
+              isLoading('batchSource_batch_enable') || selectedSources.size === 0
+            }
+            className={buttonStyles.successSmall}
+          >
+            批量启用
+          </button>
+          <button
+            onClick={() => handleBatchOperation('batch_disable')}
+            disabled={
+              isLoading('batchSource_batch_disable') ||
+              selectedSources.size === 0
+            }
+            className={buttonStyles.warningSmall}
+          >
+            批量禁用
+          </button>
+          <button
+            onClick={() => handleBatchOperation('batch_delete')}
+            disabled={
+              isLoading('batchSource_batch_delete') || selectedSources.size === 0
+            }
+            className={buttonStyles.dangerSmall}
+          >
+            批量删除
+          </button>
         </div>
       </div>
 
@@ -3986,7 +4383,7 @@ const RegistrationConfig = ({
       {/* 【新增】渲染模态框 */}
       {showImportModal && <ImportModal />}
       {showExportModal && <ExportModal />}
-      
+
       {/* 通用弹窗组件 */}
       <AlertModal
         isOpen={alertModal.isOpen}
@@ -4123,39 +4520,6 @@ const CategoryConfig = ({
       setOrderChanged(false);
     }
   }, [config]);
-  // 【新增】筛选状态
-  const [filterStatus, setFilterStatus] = useState<'all' | 'enabled' | 'disabled'>('all');
-  const [filterValidity, setFilterValidity] = useState<'all' | 'valid' | 'invalid' | 'no_results' | 'untested'>('all');
-
-  // 创建筛选后的视频源列表
-  const filteredSources = useMemo(() => {
-    return sources.filter(source => {
-      // 状态筛选
-      if (filterStatus === 'enabled' && source.disabled) return false;
-      if (filterStatus === 'disabled' && !source.disabled) return false;
-
-      // 有效性筛选
-      const validity = source.lastCheck?.status || 'untested';
-      if (filterValidity !== 'all') {
-        if (filterValidity === 'invalid') {
-          if (!['invalid', 'timeout', 'unreachable'].includes(validity)) return false;
-        } else if (validity !== filterValidity) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [sources, filterStatus, filterValidity]);
-  
-  // 使用 useMemo 计算全选状态，依赖筛选后的列表
-    if (filteredSources.length === 0) return false;
-    return filteredSources.every(s => selectedSources.has(s.key));
-  }, [selectedSources, filteredSources]);
-
-  // 【新增】筛选条件变化时，清空选择，避免操作不在视图内的项
-  useEffect(() => {
-    setSelectedSources(new Set());
-  }, [filterStatus, filterValidity]);
 
   // 通用 API 请求
   const callCategoryApi = async (body: Record<string, any>) => {
