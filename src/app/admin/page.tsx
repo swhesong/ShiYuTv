@@ -123,7 +123,7 @@ const buttonStyles = {
 interface AlertModalProps {
   isOpen: boolean;
   onClose: () => void;
-  type: 'success' | 'error' | 'warning';
+  type: 'success' | 'error' | 'warning' | 'info';
   title: string;
   message?: string;
   timer?: number;
@@ -164,6 +164,8 @@ const AlertModal = ({
         return <AlertCircle className='w-8 h-8 text-red-500' />;
       case 'warning':
         return <AlertTriangle className='w-8 h-8 text-yellow-500' />;
+      case 'info':
+        return <AlertCircle className='w-8 h-8 text-blue-500' />;
       default:
         return null;
     }
@@ -177,6 +179,8 @@ const AlertModal = ({
         return 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800';
       case 'warning':
         return 'bg-yellow-50 dark:bg-yellow-900/20 border-yellow-200 dark:border-yellow-800';
+      case 'info':
+        return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';      
       default:
         return 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800';
     }
@@ -223,7 +227,7 @@ const AlertModal = ({
 const useAlertModal = () => {
   const [alertModal, setAlertModal] = useState<{
     isOpen: boolean;
-    type: 'success' | 'error' | 'warning';
+    type: 'success' | 'error' | 'warning' | 'info';
     title: string;
     message?: string;
     timer?: number;
