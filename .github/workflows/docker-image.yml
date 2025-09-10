@@ -26,11 +26,10 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-
 permissions:
-  contents: write # 'write' 权限对于某些 metadata-action 功能（如git tag）是必要的
-  actions: write # 用于清理旧的 workflow runs
-  packages: write # 'write' 权限是推送镜像到 GHCR 所需，对于 Docker Hub 也是推荐的最佳实践
+  contents: write
+  actions: write
+  packages: write
 
 jobs:
   build-and-push:
@@ -78,7 +77,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # --- 极大地增强了 metadata-action 功能 ---
       - name: 🏷️ Extract intelligent Docker metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -104,13 +102,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          # 增强缓存策略 - 多架构特定缓存
-          cache-from: |
-            type=gha,scope=multiarch-${{ github.workflow }}
-            type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-multiarch
-          cache-to: |
-            type=gha,mode=max,scope=multiarch-${{ github.workflow }}
-            type=registry,ref=${{ env.IMAGE_NAME }}:buildcache-multiarch,mode=max
+          # 只使用 GitHub Actions 自带的缓存 (GHA Cache)。
+          cache-from: type=gha,scope=multiarch-${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=multiarch-${{ github.workflow }}
           # force_rebuild 时禁用缓存
           no-cache: ${{ github.event.inputs.force_rebuild == 'true' }}
           # 性能优化配置
@@ -118,8 +112,6 @@ jobs:
           sbom: false
           build-args: |
             BUILDKIT_INLINE_CACHE=1
-          # --- 移除了冗余的 outputs 字段 ---
-          # 'push: true' 已包含此功能，无需重复声明
 
   # 清理任务
   cleanup:
@@ -132,6 +124,5 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           repository: ${{ github.repository }}
-          # --- 稍微放宽清理策略，更安全 ---
           retain_days: 2
           keep_minimum_runs: 3
