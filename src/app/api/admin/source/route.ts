@@ -17,7 +17,9 @@ type Action =
   | 'sort'
   | 'batch_disable'
   | 'batch_enable'
-  | 'batch_delete';
+  | 'batch_delete'
+  | 'update_check_results'
+  | 'batch_delete_invalid';
 
 interface BaseBody {
   action?: Action;
@@ -54,6 +56,8 @@ export async function POST(request: NextRequest) {
       'batch_disable',
       'batch_enable',
       'batch_delete',
+      'update_check_results',
+      'batch_delete_invalid',
     ];
     if (!username || !action || !ACTIONS.includes(action)) {
       return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
@@ -247,6 +251,47 @@ export async function POST(request: NextRequest) {
           if (map.has(item.key)) newList.push(item);
         });
         adminConfig.SourceConfig = newList;
+        break;
+      }
+      case 'update_check_results': {
+        const { results } = body as {
+          results?: {
+            key: string;
+            status: any;
+            latency: number;
+          }[];
+        };
+        if (!Array.isArray(results)) {
+          return NextResponse.json(
+            { error: '缺少 results 参数' },
+            { status: 400 }
+          );
+        }
+        const timestamp = Date.now();
+        results.forEach((result) => {
+          const entry = adminConfig.SourceConfig.find(
+            (s) => s.key === result.key
+          );
+          if (entry) {
+            entry.lastCheck = {
+              status: result.status,
+              latency: result.latency,
+              timestamp,
+            };
+          }
+        });
+        break;
+      }
+      case 'batch_delete_invalid': {
+        adminConfig.SourceConfig = adminConfig.SourceConfig.filter((entry) => {
+          const isCustom = entry.from === 'custom';
+          const isInvalid =
+            entry.lastCheck &&
+            (entry.lastCheck.status === 'invalid' ||
+              entry.lastCheck.status === 'timeout');
+          // 仅当是自定义源且无效时才删除
+          return !(isCustom && isInvalid);
+        });
         break;
       }
       default:
