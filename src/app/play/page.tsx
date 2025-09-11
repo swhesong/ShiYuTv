@@ -248,17 +248,19 @@ function PlayPageClient() {
       initialPriorityMap.set(sourceKey, index);
     });
   
+    type TestResultType = {
+      quality: string;
+      loadSpeed: string;
+      pingTime: number;
+      hasError?: boolean;
+      isPartialFailure?: boolean; // 新增：部分失败标记
+    };
+
     // 将播放源分为两批，并发测速各批，避免一次性过多请求
     const batchSize = Math.ceil(sources.length / 2);
     const allResults: Array<{
       source: SearchResult;
-      testResult: {
-        quality: string;
-        loadSpeed: string;
-        pingTime: number;
-        hasError?: boolean;
-        isPartialFailure?: boolean; // 新增：部分失败标记
-      };
+      testResult: TestResultType;
     }> = [];
   
     for (let start = 0; start < sources.length; start += batchSize) {
@@ -356,7 +358,7 @@ function PlayPageClient() {
     const maxPing = validPings.length > 0 ? Math.max(...validPings) : 1000;
   
     // 辅助函数：获取源状态等级（数值越小优先级越高）
-    const getStatusValue = (testResult) => {
+    const getStatusValue = (testResult: TestResultType) => {
       if (testResult.hasError) return 2;  // 完全失败
       if (testResult.isPartialFailure) return 1;  // 部分失败
       return 0;  // 正常
