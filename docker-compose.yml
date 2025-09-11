@@ -1,34 +1,34 @@
 version: '3.8'
 
 services:
-  shihyutv-core:
-    image: swhesong/shihyutv:latest
-    container_name: shihyutv-core
+  shihyütv-core:
+    image: swhesong/shihyütv:latest
+    container_name: shihyütv-core
     restart: unless-stopped
     ports:
       - '3133:3000'
     environment:
       - USERNAME=root
-      - PASSWORD=<您的shihyutv强密码>  # <--- 必须修改
+      - PASSWORD=<您的shihyütv强密码>  # <--- 必须修改
       - NEXT_PUBLIC_STORAGE_TYPE=kvrocks
-      - KVROCKS_URL=redis://shihyutv-kvrocks:6666
+      - KVROCKS_URL=redis://shihyütv-kvrocks:6666
       - NEXT_PUBLIC_ENABLE_REGISTER=true
-      - NEXT_PUBLIC_SITE_NAME=ShihYuTV
+      - NEXT_PUBLIC_SITE_NAME=shihyütv
     networks:
-      - shihyutv-network
+      - shihyütv-network
     depends_on:
-      - shihyutv-kvrocks
+      - shihyütv-kvrocks
     # 如需自定义配置，可挂载文件
     # volumes:
       # - ./route.js:/app/.next/server/app/api/admin/user/route.js
-  shihyutv-kvrocks:
+  shihyütv-kvrocks:
     image: apache/kvrocks
-    container_name: shihyutv-kvrocks
+    container_name: shihyütv-kvrocks
     restart: unless-stopped
     volumes:
       - kvrocks-data:/var/lib/kvrocks
     networks:
-      - shihyutv-network
+      - shihyütv-network
 
 
   m3u-editor:
@@ -109,5 +109,5 @@ volumes:
   pgdata: {}
 
 networks:
-  shihyutv-network:
+  shihyütv-network:
     driver: bridge
