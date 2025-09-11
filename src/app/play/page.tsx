@@ -355,6 +355,13 @@ function PlayPageClient() {
     const minPing = validPings.length > 0 ? Math.min(...validPings) : 50;
     const maxPing = validPings.length > 0 ? Math.max(...validPings) : 1000;
   
+    // 辅助函数：获取源状态等级（数值越小优先级越高）
+    const getStatusValue = (testResult) => {
+      if (testResult.hasError) return 2;  // 完全失败
+      if (testResult.isPartialFailure) return 1;  // 部分失败
+      return 0;  // 正常
+    };
+
     // 核心排序逻辑
     allResults.sort((a, b) => {
       const aKey = `${a.source.source}-${a.source.id}`;
@@ -362,33 +369,26 @@ function PlayPageClient() {
       const priorityA = initialPriorityMap.get(aKey) ?? Infinity;
       const priorityB = initialPriorityMap.get(bKey) ?? Infinity;
 
-      // 1. 完全失败的源排在最后
-      const aCompleteFailure = a.testResult.hasError;
-      const bCompleteFailure = b.testResult.hasError;
-      if (aCompleteFailure && !bCompleteFailure) return 1;
-      if (!aCompleteFailure && bCompleteFailure) return -1;
+      // 1. 按健康状态绝对排序：正常 > 部分失败 > 完全失败
+      const aStatus = getStatusValue(a.testResult);
+      const bStatus = getStatusValue(b.testResult);
+      if (aStatus !== bStatus) {
+        return aStatus - bStatus;
+      }
 
-      // --- 到此，a和b的状态必然相同（要么都有效，要么都失败） ---
-
-      // 2. 如果都失败了，按原始顺序排
-      if (aCompleteFailure && bCompleteFailure) {
+      // 2. 对于不健康的源（部分失败或完全失败），直接按原始顺序排列
+      if (aStatus > 0) {
         return priorityA - priorityB;
       }
-  
-      // 3. 分辨率排序：由高到低
+
+      // 3. 对于健康的源，按分辨率排序：由高到低
       const aResValue = resolutionToValue(a.testResult.quality);
       const bResValue = resolutionToValue(b.testResult.quality);
       if (aResValue !== bResValue) {
         return bResValue - aResValue;
       }
 
-      // 4. 相同分辨率下，优先选择非部分失败的源
-      const aPartialFailure = a.testResult.isPartialFailure;
-      const bPartialFailure = b.testResult.isPartialFailure;
-      if (aPartialFailure && !bPartialFailure) return 1;
-      if (!aPartialFailure && bPartialFailure) return -1;
-  
-      // 5. 智能评分-决胜局：分辨率相同时，按综合得分排序
+      // 4. 健康源且相同分辨率下，按综合得分排序
       const aScore = calculateSourceScore(
         a.testResult,
         maxSpeed,
@@ -404,8 +404,8 @@ function PlayPageClient() {
       if (aScore !== bScore) {
         return bScore - aScore;
       }
-  
-      // 6. 最终备用排序：按后端原始顺序
+
+      // 5. 最终备用排序：按后端原始顺序
       return priorityA - priorityB;
     });
   
