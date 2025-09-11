@@ -448,11 +448,10 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 ## ⭐ Star History
 
 <div align="center" style="margin: 32px 0;">
-  <a href="https://star-history.com/#swhesong/ShihIüTV&Date">
-    <img src="https://api.star-history.com/svg?repos=swhesong/ShihIüTV,swhesong/ShihIüTV&type=Date" alt="Star History Chart" style="border-radius: 8px; max-width: 100%;">
+  <a href="https://www.star-history.com/#Kulapichia/shihy-shihpin&Date">
+    <img src="https://api.star-history.com/svg?repos=Kulapichia/shihy-shihpin&type=Date" alt="Star History Chart" style="border-radius: 8px; max-width: 100%;">
   </a>
 </div>
-
 
 ---
 
