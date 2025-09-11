@@ -205,12 +205,17 @@ export async function GET(request: NextRequest) {
               if (!config.SiteConfig.DisableYellowFilter) {
                 filteredResults = results.filter((result) => {
                   const typeName = result.type_name || '';
-                  return !yellowWords.some((word: string) =>
-                    typeName.includes(word)
+                  const title = result.title || ''; // 新增：获取标题
+
+                  // 检查标题或分类名是否包含不良词汇
+                  const isYellow = yellowWords.some((word: string) => 
+                    typeName.includes(word) || title.includes(word)
                   );
+                  
+                  return !isYellow; // 如果不是不良内容，则保留
                 });
               }
-              
+           
               // Apply advanced relevance scoring and intelligent filtering (consistent with standard API)
               const scoredResults = filteredResults
                 .map(item => ({
