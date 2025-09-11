@@ -333,23 +333,22 @@ function PlayPageClient() {
   
     // 核心排序逻辑
     allResults.sort((a, b) => {
-      const aKey = `${a.source.source}-${a.source.id}`;
-      const bKey = `${b.source.source}-${b.source.id}`;
-  
-      // 1. 优先按后端返回的健康顺序分组
-      const priorityA = initialPriorityMap.get(aKey) ?? Infinity;
-      const priorityB = initialPriorityMap.get(bKey) ?? Infinity;
-      if (priorityA !== priorityB) {
-        // return priorityA - priorityB; // 此处逻辑可以更精细
-      }
-  
+      // 1. 状态排序 (最高优先级)：将有效源和失败源彻底分开
       const aFailed = a.testResult.hasError;
       const bFailed = b.testResult.hasError;
-  
-      // 2. 状态排序：有效(未失败)的排在前面
       if (aFailed && !bFailed) return 1;
       if (!aFailed && bFailed) return -1;
-      if (aFailed && bFailed) return priorityA - priorityB; // 如果都失败了，按原始顺序排
+
+      // --- 到此，a和b的状态必然相同（要么都有效，要么都失败） ---
+      const aKey = `${a.source.source}-${a.source.id}`;
+      const bKey = `${b.source.source}-${b.source.id}`;
+      const priorityA = initialPriorityMap.get(aKey) ?? Infinity;
+      const priorityB = initialPriorityMap.get(bKey) ?? Infinity;
+
+      // 2. 如果都失败了，按原始顺序排
+      if (aFailed && bFailed) {
+        return priorityA - priorityB;
+      }
   
       // 3. 分辨率排序：由高到低
       const aResValue = resolutionToValue(a.testResult.quality);
