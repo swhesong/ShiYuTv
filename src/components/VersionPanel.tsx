@@ -80,9 +80,7 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
   // 获取远程变更日志
   const fetchRemoteChangelog = async () => {
     try {
-      const response = await fetch(
-        'https://git.chiangma.com/Kulapichia/shihy-shihpin/main/CHANGELOG'
-      );
+      const response = await fetch('/api/changelog');
       if (response.ok) {
         const content = await response.text();
         const parsed = parseChangelog(content);
