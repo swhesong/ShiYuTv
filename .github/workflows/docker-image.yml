@@ -19,7 +19,7 @@ on:
     branches: [ main, master ]
 
 env:
-  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/shihyutv
+  IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/${{ secrets.DOCKERHUB_REPO_NAME }}
   REGISTRY: docker.io
 
 concurrency:
