@@ -239,7 +239,7 @@ function PlayPageClient() {
       return { bestSource: sources[0], sortedSources: sources };
     }
   
-    // 关键改动：为每个源分配一个初始的“健康优先级”
+    // 关键改动：为每个源分配一个初始的"健康优先级"
     // 这个优先级是基于后端返回的顺序，后端已经按健康度排过序了
     // 越靠前，优先级越高（数值越小）
     const initialPriorityMap = new Map<string, number>();
@@ -248,7 +248,7 @@ function PlayPageClient() {
       initialPriorityMap.set(sourceKey, index);
     });
   
-    // 将播放源均分为两批，并发测速各批，避免一次性过多请求
+    // 将播放源分为两批，并发测速各批，避免一次性过多请求
     const batchSize = Math.ceil(sources.length / 2);
     const allResults: Array<{
       source: SearchResult;
@@ -257,6 +257,7 @@ function PlayPageClient() {
         loadSpeed: string;
         pingTime: number;
         hasError?: boolean;
+        isPartialFailure?: boolean; // 新增：部分失败标记
       };
     }> = [];
   
@@ -282,16 +283,39 @@ function PlayPageClient() {
             testResult,
           };
         } catch (error) {
-          // 关键改动：不返回null，而是返回一个带错误标记的对象
-          return {
-            source,
-            testResult: {
-              quality: '检测失败',
-              loadSpeed: '',
-              pingTime: Infinity,
-              hasError: true,
-            },
-          };
+          // 改进：区分不同类型的错误
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          
+          // 网络相关错误给予更宽松的处理
+          const isNetworkError = errorMessage.includes('fetch') || 
+                                errorMessage.includes('timeout') ||
+                                errorMessage.includes('CORS') ||
+                                errorMessage.includes('NetworkError');
+          
+          if (isNetworkError) {
+            // 网络错误：给予默认分辨率但不完全排除
+            return {
+              source,
+              testResult: {
+                quality: '1080p', // 假设为1080p，避免因网络问题被误判
+                loadSpeed: '未知',
+                pingTime: 500, // 给一个中等延迟值
+                hasError: false,
+                isPartialFailure: true,
+              },
+            };
+          } else {
+            // 真正的源问题：标记为完全失败
+            return {
+              source,
+              testResult: {
+                quality: '检测失败',
+                loadSpeed: '',
+                pingTime: Infinity,
+                hasError: true,
+              },
+            };
+          }
         }
       });
       // Wait for all promises in the batch to settle
@@ -333,20 +357,21 @@ function PlayPageClient() {
   
     // 核心排序逻辑
     allResults.sort((a, b) => {
-      // 1. 状态排序 (最高优先级)：将有效源和失败源彻底分开
-      const aFailed = a.testResult.hasError;
-      const bFailed = b.testResult.hasError;
-      if (aFailed && !bFailed) return 1;
-      if (!aFailed && bFailed) return -1;
-
-      // --- 到此，a和b的状态必然相同（要么都有效，要么都失败） ---
       const aKey = `${a.source.source}-${a.source.id}`;
       const bKey = `${b.source.source}-${b.source.id}`;
       const priorityA = initialPriorityMap.get(aKey) ?? Infinity;
       const priorityB = initialPriorityMap.get(bKey) ?? Infinity;
 
+      // 1. 完全失败的源排在最后
+      const aCompleteFailure = a.testResult.hasError;
+      const bCompleteFailure = b.testResult.hasError;
+      if (aCompleteFailure && !bCompleteFailure) return 1;
+      if (!aCompleteFailure && bCompleteFailure) return -1;
+
+      // --- 到此，a和b的状态必然相同（要么都有效，要么都失败） ---
+
       // 2. 如果都失败了，按原始顺序排
-      if (aFailed && bFailed) {
+      if (aCompleteFailure && bCompleteFailure) {
         return priorityA - priorityB;
       }
   
@@ -356,8 +381,14 @@ function PlayPageClient() {
       if (aResValue !== bResValue) {
         return bResValue - aResValue;
       }
+
+      // 4. 相同分辨率下，优先选择非部分失败的源
+      const aPartialFailure = a.testResult.isPartialFailure;
+      const bPartialFailure = b.testResult.isPartialFailure;
+      if (aPartialFailure && !bPartialFailure) return 1;
+      if (!aPartialFailure && bPartialFailure) return -1;
   
-      // 4. 智能评分-决胜局：分辨率相同时，按综合得分排序
+      // 5. 智能评分-决胜局：分辨率相同时，按综合得分排序
       const aScore = calculateSourceScore(
         a.testResult,
         maxSpeed,
@@ -374,7 +405,7 @@ function PlayPageClient() {
         return bScore - aScore;
       }
   
-      // 5. 最终备用排序：按后端原始顺序
+      // 6. 最终备用排序：按后端原始顺序
       return priorityA - priorityB;
     });
   
@@ -382,8 +413,13 @@ function PlayPageClient() {
   
     console.log('播放源排序结果:');
     allResults.forEach((result, index) => {
+      const status = result.testResult.hasError 
+        ? '[完全失败]' 
+        : result.testResult.isPartialFailure 
+          ? '[部分失败]' 
+          : '[正常]';
       console.log(
-        `${index + 1}. ${result.source.source_name} - ${
+        `${index + 1}. ${result.source.source_name} ${status} - ${
           result.testResult.quality
         }, ${result.testResult.loadSpeed}, ${result.testResult.pingTime}ms`
       );
