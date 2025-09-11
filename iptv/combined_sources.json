@@ -326,11 +326,6 @@
             "api": "https://jszyapi.com/api.php/provide/vod",
             "detail": "https://jszyapi.com"
         },
-        "api_66": {
-            "name": "快播资源网站",
-            "api": "https://gayapi.com/api.php/provide/vod",
-            "detail": "https://gayapi.com"
-        },
         "api_67": {
             "name": "杏吧资源",
             "api": "https://xingba111.com/api.php/provide/vod",
@@ -460,11 +455,6 @@
             "name": "思古官采",
             "api": "http://zy.sgyun.me/api.php/provide/vod",
             "detail": "http://zy.sgyun.me"
-        },
-        "api_93": {
-            "name": "星一官采",
-            "api": "https://gcku.suboyun.vip/api.php/provide/vod",
-            "detail": "https://gcku.suboyun.vip"
         },
         "api_94": {
             "name": "wabc(腾讯直采)",
@@ -1547,4 +1537,5 @@
             "detail": "http://cj.apiabzy.com"
         }
     }
+
 }
