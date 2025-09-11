@@ -365,9 +365,10 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
                   </div>
                   <a
                     href='https://github.com/Kulapichia/shihy-shihpin'
-                    type="button"
-                    disabled
-                    className='inline-flex items-center justify-center gap-2 px-3 py-2 bg-yellow-600 hover:bg-yellow-700 text-white text-xs sm:text-sm rounded-lg transition-colors shadow-sm w-full'
+                    onClick={(e) => e.preventDefault()}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='inline-flex items-center justify-center gap-2 px-3 py-2 bg-yellow-600 text-white text-xs sm:text-sm rounded-lg transition-colors shadow-sm w-full opacity-50 cursor-not-allowed'
                   >
                     <Download className='w-3 h-3 sm:w-4 sm:h-4' />
                     前往仓库
@@ -395,9 +396,10 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
                   </div>
                   <a
                     href='https://github.com/Kulapichia/shihy-shihpin'
-                    type="button"
-                    disabled
-                    className='inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white text-xs sm:text-sm rounded-lg transition-colors shadow-sm w-full'
+                    onClick={(e) => e.preventDefault()}
+                    target='_blank'
+                    rel='noopener noreferrer'
+                    className='inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white text-xs sm:text-sm rounded-lg transition-colors shadow-sm w-full opacity-50 cursor-not-allowed'
                   >
                     <CheckCircle className='w-3 h-3 sm:w-4 sm:h-4' />
                     前往仓库
