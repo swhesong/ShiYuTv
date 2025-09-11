@@ -314,6 +314,104 @@ function SearchPageClient() {
     return { categoriesAll, categoriesAgg };
   }, [searchResults]);
 
+  // 将后端的强大评分算法引入前端
+  const calculateRelevanceScore = (item: any, searchQuery: string): number => {
+      const query = searchQuery.toLowerCase().trim();
+      const title = (item.title || '').toLowerCase();
+      const typeName = (item.type_name || '').toLowerCase();
+      const director = (item.director || '').toLowerCase();
+      const actor = (item.actor || '').toLowerCase();
+      
+      let score = 0;
+      const queryLength = query.length;
+      const titleLength = title.length;
+      
+      // Advanced exact matching with weight adjustment
+      if (title === query) {
+        score += 1000; // Significantly higher for exact match
+      }
+      // Perfect prefix matching (high priority for user intent)
+      else if (title.startsWith(query)) {
+        score += 800 * (queryLength / titleLength); // Weight by query coverage
+      }
+      // Word boundary exact matches (important for multi-word queries)
+      else if (new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(title)) {
+        score += 600;
+      }
+      // Substring matching with position weighting
+      else if (title.includes(query)) {
+        const position = title.indexOf(query);
+        const positionWeight = 1 - (position / titleLength); // Earlier position gets higher score
+        score += 300 * positionWeight;
+      }
+      
+      // Advanced multi-word query processing
+      const queryWords = query.split(/\s+/).filter((word: string) => word.length > 0);
+      const titleWords = title.split(/[\s-._]+/).filter((word: string) => word.length > 0);
+      
+      if (queryWords.length > 1) {
+        let wordMatchScore = 0;
+        let exactWordMatches = 0;
+        let partialWordMatches = 0;
+        
+        queryWords.forEach(queryWord => {
+          let bestWordScore = 0;
+          titleWords.forEach((titleWord: string) => {
+            if (titleWord === queryWord) {
+              bestWordScore = Math.max(bestWordScore, 50);
+              exactWordMatches++;
+            } else if (titleWord.includes(queryWord) && queryWord.length >= 2) {
+              const coverage = queryWord.length / titleWord.length;
+              bestWordScore = Math.max(bestWordScore, 25 * coverage);
+              partialWordMatches++;
+            } else if (queryWord.includes(titleWord) && titleWord.length >= 2) {
+              const coverage = titleWord.length / queryWord.length;
+              bestWordScore = Math.max(bestWordScore, 20 * coverage);
+            }
+          });
+          wordMatchScore += bestWordScore;
+        });
+        
+        // Bonus for matching all query words
+        if (exactWordMatches === queryWords.length) {
+          wordMatchScore *= 2;
+        }
+        
+        // Bonus for high match ratio
+        const matchRatio = (exactWordMatches + partialWordMatches * 0.5) / queryWords.length;
+        wordMatchScore *= (0.5 + matchRatio);
+        
+        score += wordMatchScore;
+      }
+      
+      // Enhanced metadata matching
+      let metadataScore = 0;
+      if (typeName.includes(query)) {
+        metadataScore += 40;
+      }
+      if (director.includes(query)) {
+        metadataScore += 60; // Director matches are quite relevant
+      }
+      if (actor.includes(query)) {
+        metadataScore += 50; // Actor matches are also relevant
+      }
+      score += metadataScore;
+      
+      // Content quality and recency weighting
+      const currentYear = new Date().getFullYear();
+      const itemYear = parseInt(item.year) || 0;
+      
+      if (itemYear >= currentYear - 1) {
+        score += 30; // Very recent content
+      } else if (itemYear >= currentYear - 3) {
+        score += 20; // Recent content
+      } else if (itemYear >= currentYear - 10) {
+        score += 10; // Moderately recent
+      }
+      
+      return Math.max(0, Math.round(score));
+    };
+
   // 非聚合：应用筛选与排序
   const filteredAllResults = useMemo(() => {
     const { source, title, year, yearOrder } = filterAll;
@@ -324,29 +422,60 @@ function SearchPageClient() {
       return true;
     });
 
-    // 如果是无排序状态，直接返回过滤后的原始顺序
+    // 如果没有指定年份排序，则完全按后端传入的 relevanceScore 或前端计算的评分排序
     if (yearOrder === 'none') {
-      return filtered;
+        // 后端已经提供了 relevanceScore，直接使用；否则前端计算
+        return filtered.sort((a, b) => (b as any).relevanceScore - (a as any).relevanceScore);
     }
-
-    // 简化排序：1. 年份排序，2. 年份相同时精确匹配在前，3. 标题排序
+    
+    // 如果指定了年份排序，则年份优先，相关性评分为次要排序标准
     return filtered.sort((a, b) => {
-      // 首先按年份排序
-      const yearComp = compareYear(a.year, b.year, yearOrder);
-      if (yearComp !== 0) return yearComp;
-
-      // 年份相同时，精确匹配在前
-      const aExactMatch = a.title === searchQuery.trim();
-      const bExactMatch = b.title === searchQuery.trim();
-      if (aExactMatch && !bExactMatch) return -1;
-      if (!aExactMatch && bExactMatch) return 1;
-
-      // 最后按标题排序，正序时字母序，倒序时反字母序
-      return yearOrder === 'asc'
-        ? a.title.localeCompare(b.title)
-        : b.title.localeCompare(a.title);
+        const yearComp = compareYear(a.year, b.year, yearOrder);
+        if (yearComp !== 0) return yearComp;
+        
+        // 年份相同时，按相关性评分排序
+        const scoreA = (a as any).relevanceScore || calculateRelevanceScore(a, searchQuery);
+        const scoreB = (b as any).relevanceScore || calculateRelevanceScore(b, searchQuery);
+        return scoreB - scoreA;
     });
   }, [searchResults, filterAll, searchQuery]);
+
+  // 聚合：应用筛选与排序
+  const filteredAggResults = useMemo(() => {
+    const { source, title, year, yearOrder } = filterAgg as any;
+    const filtered = aggregatedResults.filter(([_, group]) => {
+      const gTitle = group[0]?.title ?? '';
+      const gYear = group[0]?.year ?? 'unknown';
+      const hasSource =
+        source === 'all' ? true : group.some((item) => item.source === source);
+      if (!hasSource) return false;
+      if (title !== 'all' && gTitle !== title) return false;
+      if (year !== 'all' && gYear !== year) return false;
+      return true;
+    });
+
+    // 如果没有指定年份排序，则按组内最高相关性评分排序
+    if (yearOrder === 'none') {
+      return filtered.sort((a, b) => {
+        const scoreA = Math.max(...a[1].map(item => (item as any).relevanceScore || 0));
+        const scoreB = Math.max(...b[1].map(item => (item as any).relevanceScore || 0));
+        return scoreB - scoreA;
+      });
+    }
+
+    // 如果指定了年份排序，则年份优先，相关性评分为次要排序标准
+    return filtered.sort((a, b) => {
+        const aYear = a[1][0].year;
+        const bYear = b[1][0].year;
+        const yearComp = compareYear(aYear, bYear, yearOrder);
+        if (yearComp !== 0) return yearComp;
+        
+        // 年份相同时，按组内最高相关性评分排序
+        const scoreA = Math.max(...a[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
+        const scoreB = Math.max(...b[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
+        return scoreB - scoreA;
+    });
+  }, [aggregatedResults, filterAgg, searchQuery]);
 
   // 聚合：应用筛选与排序
   const filteredAggResults = useMemo(() => {
