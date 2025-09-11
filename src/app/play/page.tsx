@@ -777,36 +777,38 @@ function PlayPageClient() {
         return;
       }
 
-      let detailData: SearchResult = sourcesInfo[0];
-      // 指定源和id且无需优选
-      if (currentSource && currentId && !needPreferRef.current) {
-        const target = sourcesInfo.find(
-          (source) => source.source === currentSource && source.id === currentId
-        );
-        if (target) {
-          detailData = target;
-        } else {
-          setError('未找到匹配结果');
-          setLoading(false);
-          return;
-        }
-      }
+      let finalSources = sourcesInfo;
+      let detailData: SearchResult | undefined;
 
-      // 未指定源和 id 或需要优选，且开启优选开关
-      if (
-        (!currentSource || !currentId || needPreferRef.current) &&
-        optimizationEnabled
-      ) {
+      // 只要开启了优选开关，就对所有源进行测速和排序
+      if (optimizationEnabled && sourcesInfo.length > 0) {
         setLoadingStage('preferring');
         setLoadingMessage('⚡ 正在优选最佳播放源...');
-        const { bestSource, sortedSources } = await preferBestSource(
-          sourcesInfo
+        const { sortedSources } = await preferBestSource(sourcesInfo);
+        finalSources = sortedSources;
+      }
+      
+      // 关键：无论是否优选，都将最终的列表（可能是排序后的）设置为换源列表
+      setAvailableSources(finalSources);
+
+      // 决定首次播放哪个源
+      if (currentSource && currentId && !needPreferRef.current) {
+        // 如果URL指定了源，则在最终列表里找到它
+        const target = finalSources.find(
+          (s) => s.source === currentSource && s.id === currentId
         );
-        detailData = bestSource;
-        // 使用排序后的列表更新UI
-        setAvailableSources(sortedSources);
+        // 如果找到了就用它，如果因为过滤等原因找不到了，就用列表里最好的那个
+        detailData = target || finalSources[0];
+      } else {
+        // 如果URL没指定，或者明确要求优选，就直接用列表里最好的那个
+        detailData = finalSources[0];
       }
 
+      if (!detailData) {
+        setError('未能确定有效的播放源');
+        setLoading(false);
+        return;
+      }
 
       console.log(detailData.source, detailData.id);
 
