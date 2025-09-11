@@ -4131,7 +4131,7 @@ const VideoSourceConfig = ({
             <select
               value={filterStatus}
               onChange={(e) => setFilterStatus(e.target.value as any)}
-              className='text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500'
+              className='text-xs pl-2 pr-7 py-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500'
             >
               <option value='all'>全部</option>
               <option value='enabled'>启用中</option>
@@ -4145,7 +4145,7 @@ const VideoSourceConfig = ({
             <select
               value={filterValidity}
               onChange={(e) => setFilterValidity(e.target.value as any)}
-              className='text-xs p-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500'
+              className='text-xs pl-2 pr-7 py-1 rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-blue-500 focus:border-blue-500'
             >
               <option value='all'>全部</option>
               <option value='valid'>有效</option>
