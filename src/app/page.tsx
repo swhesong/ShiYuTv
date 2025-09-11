@@ -474,7 +474,7 @@ function HomeClient() {
           }}
         >
           <div
-            className='w-full max-w-lg mx-4 transform transition-all duration-300 ease-out'
+            className='w-full max-w-2xl mx-4 transform transition-all duration-300 ease-out'
             onTouchMove={(e) => {
               e.stopPropagation();
             }}
@@ -483,7 +483,7 @@ function HomeClient() {
             }}
           >
             {/* 公告卡片 */}
-            <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden'>
+            <div className='bg-white dark:bg-gray-900 rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden flex flex-col'>
               {/* 顶部装饰条 */}
               <div className='h-2 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500'></div>
 
@@ -541,7 +541,7 @@ function HomeClient() {
               </div>
 
               {/* 公告内容 */}
-              <div className='px-6 py-6'>
+              <div className='px-6 py-6 max-h-[60vh] overflow-y-auto'>
                 <div className='relative'>
                   {/* 内容区域 */}
                   <div className='bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-700'>
