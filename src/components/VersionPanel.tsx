@@ -363,9 +363,12 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
                   </div>
                   <a
                     href='https://tv.chiangma.com'
-                    onClick={(e) => e.preventDefault()}
+                    // onClick={(e) => e.preventDefault()} // 您现有的代码是这样写的，这很好
                     target='_blank'
                     rel='noopener noreferrer'
+                    // - 移除了 'disabled' 属性
+                    // + 添加了 aria-disabled 和相应的样式类
+                    aria-disabled={true} 
                     className='inline-flex items-center justify-center gap-2 px-3 py-2 bg-yellow-600 text-white text-xs sm:text-sm rounded-lg transition-colors shadow-sm w-full opacity-50 cursor-not-allowed'
                   >
                     <Download className='w-3 h-3 sm:w-4 sm:h-4' />
@@ -394,9 +397,12 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
                   </div>
                   <a
                     href='https://tv.chiangma.com'
-                    onClick={(e) => e.preventDefault()}
+                    // onClick={(e) => e.preventDefault()} // 您现有的代码是这样写的，这很好
                     target='_blank'
                     rel='noopener noreferrer'
+                    // - 移除了 'disabled' 属性
+                    // + 添加了 aria-disabled 和相应的样式类
+                    aria-disabled={true}
                     className='inline-flex items-center justify-center gap-2 px-3 py-2 bg-green-600 text-white text-xs sm:text-sm rounded-lg transition-colors shadow-sm w-full opacity-50 cursor-not-allowed'
                   >
                     <CheckCircle className='w-3 h-3 sm:w-4 sm:h-4' />
