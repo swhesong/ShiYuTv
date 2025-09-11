@@ -81,7 +81,7 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
   const fetchRemoteChangelog = async () => {
     try {
       const response = await fetch(
-        'https://raw.githubusercontent.com/Kulapichia/shihy-shihpin/main/CHANGELOG'
+        'https://git.chiangma.com/Kulapichia/shihy-shihpin/main/CHANGELOG'
       );
       if (response.ok) {
         const content = await response.text();
@@ -364,7 +364,7 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
                     </div>
                   </div>
                   <a
-                    href='https://github.com/Kulapichia/shihy-shihpin'
+                    href='https://tv.chiangma.com'
                     onClick={(e) => e.preventDefault()}
                     target='_blank'
                     rel='noopener noreferrer'
@@ -395,7 +395,7 @@ export const VersionPanel: React.FC<VersionPanelProps> = ({
                     </div>
                   </div>
                   <a
-                    href='https://github.com/Kulapichia/shihy-shihpin'
+                    href='https://tv.chiangma.com'
                     onClick={(e) => e.preventDefault()}
                     target='_blank'
                     rel='noopener noreferrer'
