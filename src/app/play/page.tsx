@@ -238,7 +238,16 @@ function PlayPageClient() {
     if (sources.length === 1) {
       return { bestSource: sources[0], sortedSources: sources };
     }
-
+  
+    // 关键改动：为每个源分配一个初始的“健康优先级”
+    // 这个优先级是基于后端返回的顺序，后端已经按健康度排过序了
+    // 越靠前，优先级越高（数值越小）
+    const initialPriorityMap = new Map<string, number>();
+    sources.forEach((source, index) => {
+      const sourceKey = `${source.source}-${source.id}`;
+      initialPriorityMap.set(sourceKey, index);
+    });
+  
     // 将播放源均分为两批，并发测速各批，避免一次性过多请求
     const batchSize = Math.ceil(sources.length / 2);
     const allResults: Array<{
@@ -250,7 +259,7 @@ function PlayPageClient() {
         hasError?: boolean;
       };
     }> = [];
-
+  
     for (let start = 0; start < sources.length; start += batchSize) {
       const batchSources = sources.slice(start, start + batchSize);
       // Use map to create an array of promises
@@ -261,13 +270,13 @@ function PlayPageClient() {
             console.warn(`播放源 ${source.source_name} 没有可用的播放地址`);
             throw new Error('No episodes available');
           }
-
+  
           const episodeUrl =
             source.episodes.length > 1
               ? source.episodes[1]
               : source.episodes[0];
           const testResult = await getVideoResolutionFromM3u8(episodeUrl);
-
+  
           return {
             source,
             testResult,
@@ -289,7 +298,7 @@ function PlayPageClient() {
       const batchResults = await Promise.all(batchPromises);
       allResults.push(...batchResults);
     }
-
+  
     // 保存所有测速结果到 precomputedVideoInfo，供 EpisodeSelector 使用
     const newVideoInfoMap = new Map<
       string,
@@ -306,7 +315,7 @@ function PlayPageClient() {
       newVideoInfoMap.set(sourceKey, result.testResult);
     });
     setPrecomputedVideoInfo(newVideoInfoMap);
-
+  
     // 计算评分所需的基准值
     const successfulResults = allResults.filter(
       (res) => !res.testResult.hasError
@@ -321,25 +330,35 @@ function PlayPageClient() {
     );
     const minPing = validPings.length > 0 ? Math.min(...validPings) : 50;
     const maxPing = validPings.length > 0 ? Math.max(...validPings) : 1000;
-
+  
     // 核心排序逻辑
     allResults.sort((a, b) => {
+      const aKey = `${a.source.source}-${a.source.id}`;
+      const bKey = `${b.source.source}-${b.source.id}`;
+  
+      // 1. 优先按后端返回的健康顺序分组
+      const priorityA = initialPriorityMap.get(aKey) ?? Infinity;
+      const priorityB = initialPriorityMap.get(bKey) ?? Infinity;
+      if (priorityA !== priorityB) {
+        // return priorityA - priorityB; // 此处逻辑可以更精细
+      }
+  
       const aFailed = a.testResult.hasError;
       const bFailed = b.testResult.hasError;
-
-      // 1. 状态排序：有效(未失败)的排在前面
+  
+      // 2. 状态排序：有效(未失败)的排在前面
       if (aFailed && !bFailed) return 1;
       if (!aFailed && bFailed) return -1;
-      if (aFailed && bFailed) return 0;
-
-      // 2. 分辨率排序：由高到低
+      if (aFailed && bFailed) return priorityA - priorityB; // 如果都失败了，按原始顺序排
+  
+      // 3. 分辨率排序：由高到低
       const aResValue = resolutionToValue(a.testResult.quality);
       const bResValue = resolutionToValue(b.testResult.quality);
       if (aResValue !== bResValue) {
         return bResValue - aResValue;
       }
-
-      // 3. 智能评分-决胜局：分辨率相同时，按综合得分排序
+  
+      // 4. 智能评分-决胜局：分辨率相同时，按综合得分排序
       const aScore = calculateSourceScore(
         a.testResult,
         maxSpeed,
@@ -355,13 +374,13 @@ function PlayPageClient() {
       if (aScore !== bScore) {
         return bScore - aScore;
       }
-
-      // 4. 最终备用排序：延迟由低到高
-      return a.testResult.pingTime - b.testResult.pingTime;
+  
+      // 5. 最终备用排序：按后端原始顺序
+      return priorityA - priorityB;
     });
-
+  
     const sortedSources = allResults.map((res) => res.source);
-
+  
     console.log('播放源排序结果:');
     allResults.forEach((result, index) => {
       console.log(
@@ -370,12 +389,12 @@ function PlayPageClient() {
         }, ${result.testResult.loadSpeed}, ${result.testResult.pingTime}ms`
       );
     });
-
+  
     const bestSource = sortedSources.length > 0 ? sortedSources[0] : sources[0];
-
+  
     return { bestSource, sortedSources };
   };
-  
+ 
   // 计算播放源综合评分
   const calculateSourceScore = (
     testResult: {
