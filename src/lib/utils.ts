@@ -235,7 +235,7 @@ export function cleanHtmlTags(text: string): string {
 
 
 // ========================================================================
-// 【新增】导入/导出功能所需的函数
+// 导入/导出功能所需的函数
 // ========================================================================
 
 type Source = AdminConfig['SourceConfig'][0];
@@ -244,18 +244,29 @@ type Source = AdminConfig['SourceConfig'][0];
  * 导出数据为文件
  * @param data - 要导出的视频源数组
  * @param format - 格式 'json', 'csv', 'text'
+ * @param cacheTime - 仅在导出json时需要，用于构建config.json结构
  */
-export function exportData(data: Source[], format: 'json' | 'csv' | 'text') {
+export function exportData(
+  data: Source[],
+  format: 'json' | 'csv' | 'text',
+  cacheTime?: number
+) {
   let content: string;
   let mimeType: string;
   let fileExtension: string;
+  let fileName: string; //用于自定义文件名
 
   switch (format) {
     case 'csv': {
       const header = 'name,key,api,detail,disabled\n';
-      const rows = data.map(s => 
-        `"${s.name}","${s.key}","${s.api}","${s.detail || ''}","${s.disabled}"`
-      ).join('\n');
+      const rows = data
+        .map(
+          (s) =>
+            `"${s.name}","${s.key}","${s.api}","${s.detail || ''}","${
+              s.disabled
+            }"`
+        )
+        .join('\n');
       content = header + rows;
       mimeType = 'text/csv;charset=utf-8;';
       fileExtension = 'csv';
@@ -263,23 +274,53 @@ export function exportData(data: Source[], format: 'json' | 'csv' | 'text') {
     }
 
     case 'text':
-      content = data.map(s => s.api).join('\n');
+      content = data.map((s) => s.api).join('\n');
       mimeType = 'text/plain;charset=utf-8;';
       fileExtension = 'txt';
       break;
 
     case 'json':
-    default:
-      content = JSON.stringify(data.map(({name, key, api, detail, disabled}) => ({name, key, api, detail, disabled})), null, 2);
+    default: {
+      // 将数组转换为 "api_site" 对象结构
+      const api_site = data.reduce(
+        (acc, source) => {
+          // 只导出需要的字段
+          acc[source.key] = {
+            name: source.name,
+            api: source.api,
+            detail: source.detail || '',
+          };
+          return acc;
+        },
+        {} as Record<string, { name: string; api: string; detail: string }>
+      );
+
+      const exportObject = {
+        cache_time: cacheTime || 7200, // 使用传入的cacheTime或默认值
+        api_site,
+      };
+
+      // 使用4个空格缩进以匹配格式
+      content = JSON.stringify(exportObject, null, 4);
       mimeType = 'application/json;charset=utf-8;';
       fileExtension = 'json';
       break;
+    }
+  }
+
+  // 根据格式决定文件名
+  if (format === 'json') {
+    fileName = 'config.json';
+  } else {
+    fileName = `video_sources_${new Date()
+      .toISOString()
+      .slice(0, 10)}.${fileExtension}`;
   }
 
   const blob = new Blob([content], { type: mimeType });
   const link = document.createElement('a');
   link.href = URL.createObjectURL(blob);
-  link.download = `video_sources_${new Date().toISOString().slice(0, 10)}.${fileExtension}`;
+  link.download = fileName; //使用新的文件名变量
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
