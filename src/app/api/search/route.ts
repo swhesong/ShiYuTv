@@ -216,6 +216,22 @@ export async function GET(request: NextRequest) {
         });
       }
       
+      // Create a map for quick lookup of site health status
+      const siteStatusMap = new Map(apiSites.map(site => {
+        const getPriority = (s: typeof site) => {
+          if (!s.lastCheck || s.lastCheck.status === 'untested') return 1;
+          switch (s.lastCheck.status) {
+            case 'valid': return 0;
+            case 'no_results': return 1;
+            case 'invalid':
+            case 'timeout':
+            case 'unreachable': return 2;
+            default: return 1;
+          }
+        };
+        return [site.key, getPriority(site)];
+      }));
+
       // Apply advanced relevance scoring and intelligent filtering
       const scoredResults = flattenedResults
         .map(item => ({
@@ -228,10 +244,17 @@ export async function GET(request: NextRequest) {
           return item.relevanceScore >= minThreshold;
         })
         .sort((a, b) => {
-          // Multi-tier sorting for optimal relevance
+          // 1. Primary Sort: By source health status
+          const priorityA = siteStatusMap.get(a.source) ?? 2; // Default to lowest priority
+          const priorityB = siteStatusMap.get(b.source) ?? 2;
+          if (priorityA !== priorityB) {
+            return priorityA - priorityB;
+          }
+
+          // 2. Secondary Sort: By relevance score
           const scoreDiff = b.relevanceScore - a.relevanceScore;
           
-          // If scores are very close (within 10%), consider secondary factors
+          // If scores are very close (within 10%), consider tertiary factors
           if (Math.abs(scoreDiff) <= Math.max(a.relevanceScore, b.relevanceScore) * 0.1) {
             // Prefer exact year matches if query contains year
             const yearMatch = query.match(/\b(19|20)\d{2}\b/);
