@@ -299,7 +299,7 @@ function PlayPageClient() {
             return {
               source,
               testResult: {
-                quality: '1080p', // 假设为1080p，避免因网络问题被误判
+                quality: '720p', // 假设为720p，避免因网络问题被误判
                 loadSpeed: '未知',
                 pingTime: 500, // 给一个中等延迟值
                 hasError: false,
