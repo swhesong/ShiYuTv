@@ -1,7 +1,7 @@
-# 🎬 ShiYuTV
+# 🎬 ShihYuTV
 
 <div align="center">
-  <img src="public/logo.png" alt="ShiYuTv Logo" width="160" style="border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);">
+  <img src="public/logo.png" alt="ShihYuTV Logo" width="160" style="border-radius: 24px; box-shadow: 0 8px 32px rgba(0,0,0,0.12);">
   
   <h3 style="margin: 24px 0 8px 0; color: #1a1a1a; font-weight: 700;">开箱即用的跨平台影视聚合播放器</h3>
   <p style="color: #6b7280; font-size: 16px; margin: 0 0 32px 0; max-width: 600px;">
@@ -128,9 +128,9 @@
 
 ```yml
 services:
-  ShiYuTv-core:
-    image: swhesong/shiyutv:latest
-    container_name: ShiYuTv-core
+  ShihYuTV-core:
+    image: swhesong/ShihYuTV:latest
+    container_name: ShihYuTV-core
     restart: on-failure
     ports:
       - '3000:3000'
@@ -138,21 +138,21 @@ services:
       - USERNAME=admin
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=kvrocks
-      - KVROCKS_URL=redis://ShiYuTv-kvrocks:6666
+      - KVROCKS_URL=redis://ShihYuTV-kvrocks:6666
     networks:
-      - ShiYuTv-network
+      - ShihYuTV-network
     depends_on:
-      - ShiYuTv-kvrocks
-  ShiYuTv-kvrocks:
+      - ShihYuTV-kvrocks
+  ShihYuTV-kvrocks:
     image: apache/kvrocks
-    container_name: ShiYuTv-kvrocks
+    container_name: ShihYuTV-kvrocks
     restart: unless-stopped
     volumes:
       - kvrocks-data:/var/lib/kvrocks
     networks:
-      - ShiYuTv-network
+      - ShihYuTV-network
 networks:
-  ShiYuTv-network:
+  ShihYuTV-network:
     driver: bridge
 volumes:
   kvrocks-data:
@@ -162,9 +162,9 @@ volumes:
 
 ```yml
 services:
-  ShiYuTv-core:
-    image: swhesong/shiyutv:latest
-    container_name: ShiYuTv-core
+  ShihYuTV-core:
+    image: swhesong/ShihYuTV:latest
+    container_name: ShihYuTV-core
     restart: on-failure
     ports:
       - '3000:3000'
@@ -172,22 +172,22 @@ services:
       - USERNAME=admin
       - PASSWORD=admin_password
       - NEXT_PUBLIC_STORAGE_TYPE=redis
-      - REDIS_URL=redis://ShiYuTv-redis:6379
+      - REDIS_URL=redis://ShihYuTV-redis:6379
     networks:
-      - ShiYuTv-network
+      - ShihYuTV-network
     depends_on:
-      - ShiYuTv-redis
-  ShiYuTv-redis:
+      - ShihYuTV-redis
+  ShihYuTV-redis:
     image: redis:alpine
-    container_name: ShiYuTv-redis
+    container_name: ShihYuTV-redis
     restart: unless-stopped
     networks:
-      - ShiYuTv-network
+      - ShihYuTV-network
     # 请开启持久化，否则升级/重启后数据丢失
     volumes:
       - ./data:/data
 networks:
-  ShiYuTv-network:
+  ShihYuTV-network:
     driver: bridge
 ```
 
@@ -202,9 +202,9 @@ networks:
 
 ```yml
 services:
-  ShiYuTv-core:
-    image: swhesong/shiyutv:latest
-    container_name: ShiYuTv-core
+  ShihYuTV-core:
+    image: swhesong/ShihYuTV:latest
+    container_name: ShihYuTV-core
     restart: on-failure
     ports:
       - '3000:3000'
@@ -309,7 +309,7 @@ services:
 
 <div style="background: #dbeafe; padding: 16px; border-radius: 8px; border-left: 4px solid #3b82f6; margin: 16px 0;">
 
-### 📺 ShiYuTv 支持标准的苹果 CMS V10 API 格式。
+### 📺 ShihYuTV 支持标准的苹果 CMS V10 API 格式。
 </div>
 
 ## 🔄 自动更新
@@ -328,7 +328,7 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 | USERNAME                            | 站长账号                 | 任意字符串               | 无默认，必填字段                                                                                                           |
 | PASSWORD                            | 站长密码                 | 任意字符串               | 无默认，必填字段                                                                                                           |
 | SITE_BASE                           | 站点 url                 | 形如 https://example.com | 空                                                                                                                         |
-| NEXT_PUBLIC_SITE_NAME               | 站点名称                 | 任意字符串               | ShiYuTv                                                                                                                     |
+| NEXT_PUBLIC_SITE_NAME               | 站点名称                 | 任意字符串               | ShihYuTV                                                                                                                     |
 | ANNOUNCEMENT                        | 站点公告                 | 任意字符串               | 本网站仅提供影视信息搜索服务，所有内容均来自第三方网站。本站不存储任何视频资源，不对任何内容的准确性、合法性、完整性负责。 |
 | **存储配置** ||||
 | NEXT_PUBLIC_STORAGE_TYPE            | 播放记录/收藏的存储方式  | redis、kvrocks、upstash  | 无默认，必填字段                                                                                                           |
@@ -426,7 +426,7 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 
 <div align="center" style="margin: 20px 0;">
 
-[MIT](LICENSE) © 2025 ShiYuTv & Contributors
+[MIT](LICENSE) © 2025 ShihYuTV & Contributors
 </div>
 
 ## 🙏 致谢
@@ -436,8 +436,8 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 - **[ts-nextjs-tailwind-starter](https://github.com/theodorusclarence/ts-nextjs-tailwind-starter)** — 项目最初基于该脚手架。
 - **[LibreTV](https://github.com/LibreSpark/LibreTV)** — 由此启发，站在巨人的肩膀上。
 - **[MoonTv](https://github.com/MoonTechLab/LunaTV)** — 已完项目基础上完善。
-- **[MoonTv二改](https://github.com/puyujian/LunaTV)** — 对ShiYuTv进行二次改造。
-- **[MoonTv二改](https://github.com/katelya77/KatelyaTV)** — 对ShiYuTv进行二次改造。
+- **[MoonTv二改](https://github.com/puyujian/LunaTV)** — 对ShihYuTV进行二次改造。
+- **[MoonTv二改](https://github.com/katelya77/KatelyaTV)** — 对ShihYuTV进行二次改造。
 - **[ArtPlayer](https://github.com/zhw2590582/ArtPlayer)** — 提供强大的网页视频播放器。
 - **[HLS.js](https://github.com/video-dev/hls.js)** — 实现 HLS 流媒体在浏览器中的播放支持。
 - **[Zwei](https://github.com/bestzwei)** — 提供获取豆瓣数据的 cors proxy
@@ -448,8 +448,8 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 ## ⭐ Star History
 
 <div align="center" style="margin: 32px 0;">
-  <a href="https://star-history.com/#swhesong/ShiYuTv&Date">
-    <img src="https://api.star-history.com/svg?repos=swhesong/ShiYuTv,swhesong/ShiYuTV&type=Date" alt="Star History Chart" style="border-radius: 8px; max-width: 100%;">
+  <a href="https://star-history.com/#swhesong/ShihYuTV&Date">
+    <img src="https://api.star-history.com/svg?repos=swhesong/ShihYuTV,swhesong/ShihYuTV&type=Date" alt="Star History Chart" style="border-radius: 8px; max-width: 100%;">
   </a>
 </div>
 
@@ -459,6 +459,6 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 <div align="center" style="margin: 48px 0 24px 0; padding: 24px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 16px; color: white;">
   <h3 style="margin: 0 0 12px 0; font-weight: 700;">🎬 开始您的观影之旅</h3>
   <p style="margin: 0; opacity: 0.9;">
-    现在就部署 ShiYuTV，享受无广告、全平台、云同步的观影体验
+    现在就部署 ShihYuTV，享受无广告、全平台、云同步的观影体验
   </p>
 </div>
