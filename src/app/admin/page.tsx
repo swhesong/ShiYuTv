@@ -3696,7 +3696,7 @@ const VideoSourceConfig = ({
     });
   };
 
-  // 【修改】处理导出操作，增加按筛选结果导出
+  // 处理导出操作，增加按筛选结果导出
   const handleExport = (
     format: 'json' | 'csv' | 'text',
     scope: 'all' | 'selected' | 'filtered'
@@ -3720,14 +3720,19 @@ const VideoSourceConfig = ({
     }
 
     try {
-      exportData(dataToExport, format);
+      // 当导出json时，传入cache_time
+      exportData(
+        dataToExport,
+        format,
+        config?.SiteConfig.SiteInterfaceCacheTime
+      );
       setShowExportModal(false);
     } catch (err) {
       showError(err instanceof Error ? err.message : '导出失败', showAlert);
     }
   };
 
-  // 【新增】导入模态框组件
+  // 导入模态框组件
   const ImportModal = () => {
     const [rawText, setRawText] = useState('');
     const [file, setFile] = useState<File | null>(null);
@@ -3956,7 +3961,7 @@ const VideoSourceConfig = ({
     );
   };
 
-  // 【新增】导出模态框组件
+  // 导出模态框组件
   const ExportModal = () => {
     const [format, setFormat] = useState<'json' | 'csv' | 'text'>('json');
     const [scope, setScope] = useState<'all' | 'selected'>('all');
@@ -4116,7 +4121,7 @@ const VideoSourceConfig = ({
         </div>
       </div>
 
-      {/* 【新增】筛选和批量操作栏 */}
+      {/* 筛选和批量操作栏 */}
       <div className='bg-gray-50 dark:bg-gray-800/50 p-3 rounded-lg flex flex-col sm:flex-row justify-between items-center gap-4 border dark:border-gray-700'>
         <div className='flex flex-wrap items-center gap-x-4 gap-y-2'>
           <div>
@@ -4384,7 +4389,7 @@ const VideoSourceConfig = ({
           document.body
         )}
 
-      {/* 【新增】渲染模态框 */}
+      {/* 渲染模态框 */}
       {showImportModal && <ImportModal />}
       {showExportModal && <ExportModal />}
 
