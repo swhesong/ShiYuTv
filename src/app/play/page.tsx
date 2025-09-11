@@ -736,11 +736,11 @@ function PlayPageClient() {
                 (searchType === 'movie' && result.episodes.length === 1)
               : true)
         );
-        setAvailableSources(results);
+        // setAvailableSources(results);
         return results;
       } catch (err) {
         setSourceSearchError(err instanceof Error ? err.message : '搜索失败');
-        setAvailableSources([]);
+        // setAvailableSources([]);
         return [];
       } finally {
         setSourceSearchLoading(false);
