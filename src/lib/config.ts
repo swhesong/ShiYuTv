@@ -222,6 +222,11 @@ async function getInitConfig(
       DisableYellowFilter:
         process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
       FluidSearch: process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false',
+      // 智能内容审核配置
+      IntelligentFilterEnabled: false, // 默认关闭
+      IntelligentFilterApiUrl: '', // 审核API地址
+      IntelligentFilterApiKey: '', // 审核API密钥
+      IntelligentFilterConfidence: 0.85, // 审核结果置信度阈值
       EnableRegistration: process.env.ENABLE_REGISTRATION === 'true',
       RegistrationApproval: process.env.REGISTRATION_APPROVAL !== 'false',
       MaxUsers: process.env.MAX_USERS
