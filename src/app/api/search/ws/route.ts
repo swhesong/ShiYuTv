@@ -215,7 +215,28 @@ export async function GET(request: NextRequest) {
                   return !isYellow; // 如果不是不良内容，则保留
                 });
               }
-           
+
+              // 新增：智能 AI 审核
+              if (config.SiteConfig.IntelligentFilterEnabled) {
+                const moderateImage = async (imageUrl: string, config: any): Promise<boolean> => {
+                  if (!config.SiteConfig.IntelligentFilterEnabled || !config.SiteConfig.IntelligentFilterApiUrl || !imageUrl) return true;
+                  try {
+                    const response = await fetch(config.SiteConfig.IntelligentFilterApiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Api-Key': config.SiteConfig.IntelligentFilterApiKey || '' }, body: JSON.stringify({ image: imageUrl }) });
+                    if (!response.ok) return true;
+                    const result = await response.json();
+                    if (result.is_porn && result.confidence >= config.SiteConfig.IntelligentFilterConfidence) return false;
+                    return true;
+                  } catch (error) { return true; }
+                };
+
+                const moderationPromises = filteredResults.map(async (item) => {
+                  const isSafe = await moderateImage(item.poster, config);
+                  return isSafe ? item : null;
+                });
+                const moderatedResults = await Promise.all(moderationPromises);
+                filteredResults = moderatedResults.filter((item): item is any => item !== null);
+              }
+          
               // Apply advanced relevance scoring and intelligent filtering (consistent with standard API)
               const scoredResults = filteredResults
                 .map(item => ({
