@@ -22,13 +22,15 @@ COPY --from=deps /app/node_modules ./node_modules
 # 复制全部源代码
 COPY . .
 
-# 删除敏感文件和目录，保留运行时必需的文件
+# 删除敏感文件和目录，保留构建所需的配置文件
 RUN rm -rf .git .github docs *.md .gitignore .env.example && \
     find . -name "*.test.js" -delete && \
     find . -name "*.test.ts" -delete && \
     find . -name "*.spec.js" -delete && \
     find . -name "*.spec.ts" -delete && \
-    rm -rf scripts/convert-changelog.js 2>/dev/null || true
+    rm -rf scripts/convert-changelog.js 2>/dev/null || true && \
+    echo "=== Checking critical config files ===" && \
+    ls -la tailwind.config.ts postcss.config.js 2>/dev/null || echo "Config files not found"
 
 # 在构建阶段也显式设置 DOCKER_ENV，
 ENV DOCKER_ENV=true
@@ -56,7 +58,11 @@ RUN echo "=== Running TypeScript Type Check ===" && \
 
 # 4. 执行构建命令，启用Next.js调试输出
 RUN echo "=== Starting Next.js Build with Debug Output ===" && \
-    pnpm run build:debug
+    pnpm run build:debug && \
+    echo "=== Checking build output ===" && \
+    ls -la .next/ && \
+    ls -la .next/static/ || echo "No static directory found" && \
+    ls -la .next/standalone/ || echo "No standalone directory found"
 # ======================================================
 
 # ---- 第 3 阶段：生成运行时镜像 ----
@@ -79,9 +85,13 @@ COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 COPY --from=builder --chown=nextjs:nodejs /app/start.js ./start.js
 # 复制 package.json 以便 start.js 内的脚本可以读取版本等元数据
 COPY --from=builder --chown=nextjs:nodejs /app/package.json ./package.json
-# 从构建器中复制 public 和 .next/static 目录
+# 从构建器中复制 public 和 .next/static 目录，确保静态资源正确复制
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# 检查静态资源是否正确复制
+RUN echo "=== Checking static assets ===" && \
+    ls -la .next/static/ || echo "No static directory" && \
+    ls -la public/ || echo "No public directory"
 
 # 切换到非特权用户
 USER nextjs
