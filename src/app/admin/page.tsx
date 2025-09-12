@@ -5410,9 +5410,8 @@ const SiteConfigComponent = ({
         const resp = await fetch('/api/admin/site', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...siteSettings }),
+          body: JSON.stringify(siteSettings),
         });
-
         if (!resp.ok) {
           const data = await resp.json().catch(() => ({}));
           throw new Error(data.error || `保存失败: ${resp.status}`);
