@@ -357,9 +357,9 @@ function PlayPageClient() {
     const minPing = validPings.length > 0 ? Math.min(...validPings) : 50;
     const maxPing = validPings.length > 0 ? Math.max(...validPings) : 1000;
   
-    // 辅助函数：获取源状态等级（数值越小优先级越高）
+    // 获取源状态等级（数值越小优先级越高）
     const getStatusValue = (testResult: TestResultType) => {
-      if (testResult.hasError) return 2;  // 完全失败
+      if (testResult.hasError && !testResult.isPartialFailure) return 2;  // 完全失败
       if (testResult.isPartialFailure) return 1;  // 部分失败
       return 0;  // 正常
     };
@@ -378,19 +378,31 @@ function PlayPageClient() {
         return aStatus - bStatus;
       }
 
-      // 2. 对于不健康的源（部分失败或完全失败），直接按原始顺序排列
-      if (aStatus > 0) {
+      // 2. 对于完全失败的源，直接按原始顺序排列
+      if (aStatus === 2 && bStatus === 2) {
         return priorityA - priorityB;
       }
 
-      // 3. 对于健康的源，按分辨率排序：由高到低
+      // 3. 对于部分失败的源，在正常源中按性能排序，但排在健康源之后
+      if (aStatus === 1 && bStatus === 1) {
+        // 按分辨率排序
+        const aResValue = resolutionToValue(a.testResult.quality);
+        const bResValue = resolutionToValue(b.testResult.quality);
+        if (aResValue !== bResValue) {
+          return bResValue - aResValue;
+        }
+        // 然后按原始顺序
+        return priorityA - priorityB;
+      }
+
+      // 4. 对于健康的源，按分辨率排序：由高到低
       const aResValue = resolutionToValue(a.testResult.quality);
       const bResValue = resolutionToValue(b.testResult.quality);
       if (aResValue !== bResValue) {
         return bResValue - aResValue;
       }
 
-      // 4. 健康源且相同分辨率下，按综合得分排序
+      // 5. 健康源且相同分辨率下，按综合得分排序
       const aScore = calculateSourceScore(
         a.testResult,
         maxSpeed,
@@ -407,7 +419,7 @@ function PlayPageClient() {
         return bScore - aScore;
       }
 
-      // 5. 最终备用排序：按后端原始顺序
+      // 6. 最终备用排序：按后端原始顺序
       return priorityA - priorityB;
     });
   
