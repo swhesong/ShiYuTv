@@ -5142,7 +5142,7 @@ const SiteConfigComponent = ({
 }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
   const { isLoading, withLoading } = useLoadingState();
-  const [siteSettings, setSiteSettings] = useState<SiteConfig>({
+  const [siteSettings, setSiteSettings] = useState<any>({ // 使用 any 避免初始化时的类型问题
     SiteName: '',
     Announcement: '',
     SearchDownstreamMaxPage: 1,
@@ -5154,10 +5154,15 @@ const SiteConfigComponent = ({
     DisableYellowFilter: false,
     FluidSearch: true,
     // 初始化新增字段
-    IntelligentFilterEnabled: false,
-    IntelligentFilterApiUrl: '',
-    IntelligentFilterApiKey: '',
-    IntelligentFilterConfidence: 0.85,
+    IntelligentFilter: {
+      enabled: false,
+      provider: 'sightengine',
+      confidence: 0.85,
+      options: {
+        sightengine: { apiUrl: '', apiUser: '', apiSecret: '' },
+        custom: { apiUrl: '', apiKeyHeader: '', apiKeyValue: '', jsonBodyTemplate: '', responseScorePath: '' },
+      },
+    },
   });
 
 
