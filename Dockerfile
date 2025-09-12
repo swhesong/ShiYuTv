@@ -30,7 +30,10 @@ RUN rm -rf .git .github docs *.md .gitignore .env.example && \
     find . -name "*.spec.ts" -delete && \
     rm -rf scripts/convert-changelog.js 2>/dev/null || true && \
     echo "=== Checking critical config files ===" && \
-    ls -la tailwind.config.ts postcss.config.js 2>/dev/null || echo "Config files not found"
+    ls -la tailwind.config.* postcss.config.* autoprefixer.* 2>/dev/null || echo "Some config files not found" && \
+    echo "=== Checking source structure ===" && \
+    ls -la src/ && \
+    find src -type f -name "*.css" -o -name "*.scss" | head -10
 
 # 在构建阶段也显式设置 DOCKER_ENV，
 ENV DOCKER_ENV=true
@@ -100,3 +103,11 @@ EXPOSE 3000
 
 # 使用自定义启动脚本，先预加载配置再启动服务器
 CMD ["node", "start.js"]
+
+# 添加健康检查脚本
+RUN echo '#!/bin/sh' > /tmp/health-check.sh && \
+    echo 'curl -f http://localhost:3000/api/health || exit 1' >> /tmp/health-check.sh && \
+    chmod +x /tmp/health-check.sh
+
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+    CMD ["/tmp/health-check.sh"]
