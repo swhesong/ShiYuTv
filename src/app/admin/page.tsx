@@ -308,11 +308,26 @@ interface SiteConfig {
   DoubanImageProxy: string;
   DisableYellowFilter: boolean;
   FluidSearch: boolean;
-  // 新增智能审核字段
-  IntelligentFilterEnabled: boolean;
-  IntelligentFilterApiUrl: string;
-  IntelligentFilterApiKey: string;
-  IntelligentFilterConfidence: number;
+  // 智能审核字段
+  IntelligentFilter: {
+    enabled: boolean;
+    provider: 'sightengine' | 'custom';
+    confidence: number;
+    options: {
+      sightengine?: {
+        apiUrl: string;
+        apiUser: string;
+        apiSecret: string;
+      };
+      custom?: {
+        apiUrl: string;
+        apiKeyHeader: string;
+        apiKeyValue: string;
+        jsonBodyTemplate: string;
+        responseScorePath: string; // 新增
+      };
+    };
+  };
 }
 
 
