@@ -5171,7 +5171,6 @@ const SiteConfigComponent = ({
     message: string;
   } | null>(null);
   const [isApiVerified, setIsApiVerified] = useState(false);
-  const [isApiVerified, setIsApiVerified] = useState(false);
   // 新增：创建更健壮、可复用的状态更新函数
   const handleIntelligentFilterChange = (
     key: keyof SiteConfig['IntelligentFilter'],
