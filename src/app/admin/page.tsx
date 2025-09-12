@@ -5142,7 +5142,7 @@ const SiteConfigComponent = ({
 }) => {
   const { alertModal, showAlert, hideAlert } = useAlertModal();
   const { isLoading, withLoading } = useLoadingState();
-  const [siteSettings, setSiteSettings] = useState<any>({ // 使用 any 避免初始化时的类型问题
+  const [siteSettings, setSiteSettings] = useState<SiteConfig>({ // 使用 any 避免初始化时的类型问题
     SiteName: '',
     Announcement: '',
     SearchDownstreamMaxPage: 1,
@@ -5164,7 +5164,13 @@ const SiteConfigComponent = ({
       },
     },
   });
-
+  // 新增：API测试相关状态
+  const [isApiTesting, setIsApiTesting] = useState(false);
+  const [apiTestResult, setApiTestResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+  const [isApiVerified, setIsApiVerified] = useState(false);
 
   // 豆瓣数据源相关状态
   const [isDoubanDropdownOpen, setIsDoubanDropdownOpen] = useState(false);
@@ -5804,8 +5810,8 @@ const SiteConfigComponent = ({
               </div>
               <div>
                 <label className='block text-sm font-medium'>JSON Body Template</label>
-                <textarea value={siteSettings.IntelligentFilter.options.custom?.jsonBodyTemplate || ''} onChange={(e) => setSiteSettings((prev: any) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, custom: { ...prev.IntelligentFilter.options.custom!, jsonBodyTemplate: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg font-mono text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' rows={3}></textarea>
-                <p className='text-xs text-gray-500 mt-1'>使用 `{{URL}}` 作为图片地址的占位符。</p>
+                <textarea value={siteSettings.IntelligentFilter.options.custom?.jsonBodyTemplate || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, custom: { ...prev.IntelligentFilter.options.custom!, jsonBodyTemplate: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg font-mono text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' rows={3}></textarea>
+                <p className='text-xs text-gray-500 mt-1'>使用 `{'{{URL}}'}` 作为图片地址的占位符。</p>
               </div>
               {/* 新增: 响应分数路径 */}
               <div>
