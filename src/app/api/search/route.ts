@@ -202,39 +202,100 @@ export async function GET(request: NextRequest) {
       return Math.max(0, Math.round(score));
     };
   
-    // 定义AI审核辅助函数
+    // 真正通用化的审核函数
     async function moderateImage(imageUrl: string, config: any): Promise<boolean> {
-      if (!config.SiteConfig.IntelligentFilterEnabled || !config.SiteConfig.IntelligentFilterApiUrl || !imageUrl) {
-        return true; // 如果未启用或缺少配置，则默认通过
-      }
+      const filterConfig = config.SiteConfig.IntelligentFilter;
     
+      if (!filterConfig || !filterConfig.enabled || !imageUrl) {
+        return true;
+      }
+      
+      // 辅助函数：根据路径字符串安全地从对象中获取嵌套值
+      const getNestedValue = (obj: any, path: string): number | null => {
+        if (!path) return null;
+        try {
+          const value = path.split('.').reduce((o, k) => (o || {})[k], obj);
+          const num = parseFloat(value);
+          return isNaN(num) ? null : num;
+        } catch {
+          return null;
+        }
+      };
+    
+      let provider: string = filterConfig.provider;
+      let requestUrl: string = '';
+      let requestOptions: RequestInit = {};
+      let scorePath: string = '';
+    
+      // --- 1. 根据提供商准备请求参数 ---
+      switch (provider) {
+        case 'sightengine': {
+          const opts = filterConfig.options.sightengine;
+          if (!opts || !opts.apiUrl || !opts.apiUser || !opts.apiSecret) {
+            console.warn('[AI Filter] Sightengine is not fully configured.');
+            return true;
+          }
+          requestUrl = opts.apiUrl;
+          const formData = new FormData();
+          formData.append('api_user', opts.apiUser);
+          formData.append('api_secret', opts.apiSecret);
+          formData.append('url', imageUrl);
+          formData.append('models', 'nudity-2.0');
+          requestOptions = { method: 'POST', body: formData };
+          scorePath = 'nudity.raw'; // Sightengine 的分数路径是固定的
+          break;
+        }
+    
+        case 'custom': {
+          const opts = filterConfig.options.custom;
+          if (!opts || !opts.apiUrl || !opts.apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath) {
+            console.warn('[AI Filter] Custom API is not fully configured.');
+            return true;
+          }
+          try {
+            requestUrl = opts.apiUrl;
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            headers[opts.apiKeyHeader] = opts.apiKeyValue;
+            const body = JSON.parse(opts.jsonBodyTemplate.replace('{{URL}}', imageUrl));
+            requestOptions = { method: 'POST', headers, body: JSON.stringify(body) };
+            scorePath = opts.responseScorePath;
+          } catch (error) {
+            console.error('[AI Filter] Failed to construct custom API request:', error);
+            return true;
+          }
+          break;
+        }
+    
+        default:
+          return true; // 未知提供商
+      }
+      
+      // --- 2. 执行 API 请求并解析响应 ---
       try {
-        const response = await fetch(config.SiteConfig.IntelligentFilterApiUrl, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Api-Key': config.SiteConfig.IntelligentFilterApiKey || '',
-          },
-          body: JSON.stringify({ image: imageUrl }),
-        });
+        const response = await fetch(requestUrl, requestOptions);
     
         if (!response.ok) {
-          console.warn(`[AI Filter] API request failed with status ${response.status} for image: ${imageUrl}`);
-          return true; // API失败，为不影响用户体验，默认通过
+          console.warn(`[AI Filter] API request for ${provider} failed with status ${response.status}.`);
+          return true;
         }
     
         const result = await response.json();
-        // 此处需要根据您选择的AI服务API的返回格式进行调整
-        // 假设返回格式为 { "is_porn": boolean, "confidence": number }
-        if (result.is_porn && result.confidence >= config.SiteConfig.IntelligentFilterConfidence) {
-          console.log(`[AI Filter] Blocked image with confidence ${result.confidence}: ${imageUrl}`);
-          return false; // 判定为违规，不通过
+        const score = getNestedValue(result, scorePath);
+        
+        if (score === null) {
+          console.warn(`[AI Filter] Could not find a valid score at path "${scorePath}" for ${provider}.`);
+          return true; // 无法解析分数，默认放行
+        }
+    
+        if (score >= filterConfig.confidence) {
+          console.log(`[AI Filter] Blocked by ${provider}. Score: ${score}, Confidence: ${filterConfig.confidence}. URL: ${imageUrl}`);
+          return false; // 分数超过阈值，屏蔽
         }
     
         return true; // 审核通过
       } catch (error) {
-        console.error('[AI Filter] Error calling moderation API:', error);
-        return true; // 出现异常，默认通过
+        console.error(`[AI Filter] Exception during API call for ${provider}:`, error);
+        return true; // 发生异常，默认放行
       }
     }
 
