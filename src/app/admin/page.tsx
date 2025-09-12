@@ -5843,7 +5843,7 @@ const SiteConfigComponent = ({
                 <input
                   type='text'
                   value={siteSettings.IntelligentFilter.options.sightengine?.apiUrl || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, sightengine: { ...(prev.IntelligentFilter.options?.sightengine ?? {}), apiUrl: e.target.value } } } }))}
+                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, sightengine: { ...prev.IntelligentFilter!.options.sightengine!, apiUrl: e.target.value } } } }))}
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
@@ -5855,7 +5855,7 @@ const SiteConfigComponent = ({
                   type='text'
                   placeholder='请输入 Sightengine API User'
                   value={siteSettings.IntelligentFilter.options.sightengine?.apiUser || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, sightengine: { ...(prev.IntelligentFilter.options?.sightengine ?? {}), apiUser: e.target.value } } } }))}
+                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, sightengine: { ...prev.IntelligentFilter!.options.sightengine!, apiUser: e.target.value } } } }))}
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
@@ -5867,7 +5867,7 @@ const SiteConfigComponent = ({
                   type='password'
                   placeholder='请输入 Sightengine API Secret'
                   value={siteSettings.IntelligentFilter.options.sightengine?.apiSecret || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, sightengine: { ...(prev.IntelligentFilter.options?.sightengine ?? {}), apiSecret: e.target.value } } } }))}
+                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, sightengine: { ...prev.IntelligentFilter!.options.sightengine!, apiSecret: e.target.value } } } }))}
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
@@ -5907,19 +5907,19 @@ const SiteConfigComponent = ({
               </p>
               <div>
                 <label className='block text-sm font-medium'>API URL</label>
-                <input type='text' value={siteSettings.IntelligentFilter.options.custom?.apiUrl || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, custom: { ...(prev.IntelligentFilter.options?.custom ?? {}), apiUrl: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
+                <input type='text' value={siteSettings.IntelligentFilter.options.custom?.apiUrl || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, apiUrl: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
               </div>
               <div>
                 <label className='block text-sm font-medium'>API Key Header</label>
-                <input type='text' placeholder='例如: Authorization' value={siteSettings.IntelligentFilter.options.custom?.apiKeyHeader || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, custom: { ...(prev.IntelligentFilter.options?.custom ?? {}), apiKeyHeader: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
+                <input type='text' placeholder='例如: Authorization' value={siteSettings.IntelligentFilter.options.custom?.apiKeyHeader || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, apiKeyHeader: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
               </div>
               <div>
                 <label className='block text-sm font-medium'>API Key Value</label>
-                <input type='password' placeholder='例如: Bearer sk-xxxx' value={siteSettings.IntelligentFilter.options.custom?.apiKeyValue || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, custom: { ...(prev.IntelligentFilter.options?.custom ?? {}), apiKeyValue: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
+                <input type='password' placeholder='例如: Bearer sk-xxxx' value={siteSettings.IntelligentFilter.options.custom?.apiKeyValue || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, apiKeyValue: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
               </div>
               <div>
                 <label className='block text-sm font-medium'>JSON Body Template</label>
-                <textarea value={siteSettings.IntelligentFilter.options.custom?.jsonBodyTemplate || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, custom: { ...(prev.IntelligentFilter.options?.custom ?? {}), jsonBodyTemplate: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg font-mono text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' rows={3}></textarea>
+                <textarea value={siteSettings.IntelligentFilter.options.custom?.jsonBodyTemplate || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, jsonBodyTemplate: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg font-mono text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' rows={3}></textarea>
                 <p className='text-xs text-gray-500 mt-1'>使用 `{'{{URL}}'}` 作为图片地址的占位符。</p>
               </div>
               {/* 新增: 响应分数路径 */}
@@ -5929,7 +5929,7 @@ const SiteConfigComponent = ({
                   type='text'
                   placeholder='例如: nudity.raw 或 data.score'
                   value={siteSettings.IntelligentFilter.options.custom?.responseScorePath || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, options: { ...prev.IntelligentFilter.options, custom: { ...(prev.IntelligentFilter.options?.custom ?? {}), responseScorePath: e.target.value } } } }))}
+                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, responseScorePath: e.target.value } } } }))}
                   className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800'
                 />
                 <p className='text-xs text-gray-500 mt-1'>
