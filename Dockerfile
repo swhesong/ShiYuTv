@@ -27,7 +27,8 @@ RUN rm -rf .git .github docs *.md .gitignore .env.example && \
     find . -name "*.test.js" -delete && \
     find . -name "*.test.ts" -delete && \
     find . -name "*.spec.js" -delete && \
-    find . -name "*.spec.ts" -delete
+    find . -name "*.spec.ts" -delete && \
+    find ./scripts -type f ! -name "generate-manifest.js" -delete 2>/dev/null || true
 
 # 在构建阶段也显式设置 DOCKER_ENV，
 ENV DOCKER_ENV=true
@@ -73,7 +74,7 @@ ENV DOCKER_ENV=true
 # 从构建器中复制 standalone 输出
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 # 从构建器中复制 scripts 目录
-# COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
+COPY --from=builder --chown=nextjs:nodejs /app/scripts ./scripts
 # 从构建器中复制 start.js
 COPY --from=builder --chown=nextjs:nodejs /app/start.js ./start.js
 # 从构建器中复制 public 和 .next/static 目录
