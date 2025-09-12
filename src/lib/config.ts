@@ -459,7 +459,50 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
     seenLiveKeys.add(live.key);
     return true;
   });
-
+  // 新增：智能审核配置从旧格式到新格式的数据迁移逻辑
+  // @ts-ignore - 临时允许访问可能不存在的旧属性
+  if (adminConfig.SiteConfig.IntelligentFilterEnabled !== undefined) {
+    console.log('[Config] Migrating legacy IntelligentFilter settings to new structure...');
+    
+    // @ts-ignore
+    const legacyEnabled = adminConfig.SiteConfig.IntelligentFilterEnabled;
+    // @ts-ignore
+    const legacyConfidence = adminConfig.SiteConfig.IntelligentFilterConfidence;
+    // @ts-ignore
+    const legacyApiUrl = adminConfig.SiteConfig.IntelligentFilterApiUrl;
+    // @ts-ignore
+    const legacyApiKey = adminConfig.SiteConfig.IntelligentFilterApiKey;
+    adminConfig.SiteConfig.IntelligentFilter = {
+      enabled: legacyEnabled,
+      provider: 'sightengine', // 旧配置无法判断提供商，默认迁移到 sightengine
+      confidence: legacyConfidence || 0.85,
+      options: {
+        sightengine: {
+          apiUrl: legacyApiUrl || 'https://api.sightengine.com/1.0/check.json',
+          // 旧的 ApiKey 同时赋值给 User 和 Secret，需要用户迁移后手动检查修正
+          apiUser: legacyApiKey || '',
+          apiSecret: legacyApiKey || '',
+        },
+        custom: {
+          apiUrl: '',
+          apiKeyHeader: 'X-Api-Key',
+          apiKeyValue: '',
+          jsonBodyTemplate: '{"image": "{{URL}}"}',
+          responseScorePath: '', // 初始化新字段
+        },
+      },
+    };
+  
+    // 删除旧的、已迁移的属性
+    // @ts-ignore
+    delete adminConfig.SiteConfig.IntelligentFilterEnabled;
+    // @ts-ignore
+    delete adminConfig.SiteConfig.IntelligentFilterApiUrl;
+    // @ts-ignore
+    delete adminConfig.SiteConfig.IntelligentFilterApiKey;
+    // @ts-ignore
+    delete adminConfig.SiteConfig.IntelligentFilterConfidence;
+  }
   return adminConfig;
 }
 
