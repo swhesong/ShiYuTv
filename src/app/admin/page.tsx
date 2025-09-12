@@ -308,7 +308,13 @@ interface SiteConfig {
   DoubanImageProxy: string;
   DisableYellowFilter: boolean;
   FluidSearch: boolean;
+  // 新增智能审核字段
+  IntelligentFilterEnabled: boolean;
+  IntelligentFilterApiUrl: string;
+  IntelligentFilterApiKey: string;
+  IntelligentFilterConfidence: number;
 }
+
 
 // 直播源数据类型
 interface LiveDataSource {
@@ -5132,7 +5138,13 @@ const SiteConfigComponent = ({
     DoubanImageProxy: '',
     DisableYellowFilter: false,
     FluidSearch: true,
+    // 初始化新增字段
+    IntelligentFilterEnabled: false,
+    IntelligentFilterApiUrl: '',
+    IntelligentFilterApiKey: '',
+    IntelligentFilterConfidence: 0.85,
   });
+
 
   // 豆瓣数据源相关状态
   const [isDoubanDropdownOpen, setIsDoubanDropdownOpen] = useState(false);
@@ -5641,6 +5653,104 @@ const SiteConfigComponent = ({
         <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
           启用后搜索结果将实时流式返回，提升用户体验。
         </p>
+      </div>
+
+      {/* 新增：智能内容审核配置 */}
+      <div className='border-t border-gray-200 dark:border-gray-700 pt-6 mt-6'>
+        <h3 className='text-md font-semibold text-gray-800 dark:text-gray-200 mb-4'>
+          智能内容审核 (AI API)
+        </h3>
+        <div className='space-y-6'>
+          {/* 启用开关 */}
+          <div>
+            <div className='flex items-center justify-between'>
+              <label className='block text-sm font-medium text-gray-700 dark:text-gray-300'>
+                启用智能审核
+              </label>
+              <button
+                type='button'
+                onClick={() =>
+                  setSiteSettings((prev) => ({
+                    ...prev,
+                    IntelligentFilterEnabled: !prev.IntelligentFilterEnabled,
+                  }))
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+                  siteSettings.IntelligentFilterEnabled
+                    ? buttonStyles.toggleOn
+                    : buttonStyles.toggleOff
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full ${
+                    buttonStyles.toggleThumb
+                  } transition-transform ${
+                    siteSettings.IntelligentFilterEnabled
+                      ? buttonStyles.toggleThumbOn
+                      : buttonStyles.toggleThumbOff
+                  }`}
+                />
+              </button>
+            </div>
+            <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+              启用后，将使用第三方AI服务对视频封面图进行审核，可能会产生额外费用并影响搜索速度。
+            </p>
+          </div>
+
+          {/* API 地址 */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+              审核 API 地址
+            </label>
+            <input
+              type='text'
+              placeholder='例如: https://api.example.com/v1/image/moderation'
+              value={siteSettings.IntelligentFilterApiUrl}
+              onChange={(e) =>
+                setSiteSettings((prev) => ({ ...prev, IntelligentFilterApiUrl: e.target.value }))
+              }
+              className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+            />
+          </div>
+
+          {/* API 密钥 */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+              API 密钥 (API Key)
+            </label>
+            <input
+              type='password'
+              placeholder='请输入您的内容审核API密钥'
+              value={siteSettings.IntelligentFilterApiKey}
+              onChange={(e) =>
+                setSiteSettings((prev) => ({ ...prev, IntelligentFilterApiKey: e.target.value }))
+              }
+              className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+            />
+          </div>
+
+          {/* 置信度阈值 */}
+          <div>
+            <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+              置信度阈值 (0.0 - 1.0)
+            </label>
+            <input
+              type='number'
+              min="0"
+              max="1"
+              step="0.05"
+              placeholder='例如: 0.85'
+              value={siteSettings.IntelligentFilterConfidence}
+              onChange={(e) =>
+                setSiteSettings((prev) => ({ ...prev, IntelligentFilterConfidence: parseFloat(e.target.value) || 0.85 }))
+              }
+              className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
+            />
+            <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+              当AI模型识别出色情内容的可能性高于此值时，将自动屏蔽。值越高，审核越严格。
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* 操作按钮 */}
