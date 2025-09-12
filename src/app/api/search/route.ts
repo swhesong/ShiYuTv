@@ -202,6 +202,42 @@ export async function GET(request: NextRequest) {
       return Math.max(0, Math.round(score));
     };
   
+    // 定义AI审核辅助函数
+    async function moderateImage(imageUrl: string, config: any): Promise<boolean> {
+      if (!config.SiteConfig.IntelligentFilterEnabled || !config.SiteConfig.IntelligentFilterApiUrl || !imageUrl) {
+        return true; // 如果未启用或缺少配置，则默认通过
+      }
+    
+      try {
+        const response = await fetch(config.SiteConfig.IntelligentFilterApiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Api-Key': config.SiteConfig.IntelligentFilterApiKey || '',
+          },
+          body: JSON.stringify({ image: imageUrl }),
+        });
+    
+        if (!response.ok) {
+          console.warn(`[AI Filter] API request failed with status ${response.status} for image: ${imageUrl}`);
+          return true; // API失败，为不影响用户体验，默认通过
+        }
+    
+        const result = await response.json();
+        // 此处需要根据您选择的AI服务API的返回格式进行调整
+        // 假设返回格式为 { "is_porn": boolean, "confidence": number }
+        if (result.is_porn && result.confidence >= config.SiteConfig.IntelligentFilterConfidence) {
+          console.log(`[AI Filter] Blocked image with confidence ${result.confidence}: ${imageUrl}`);
+          return false; // 判定为违规，不通过
+        }
+    
+        return true; // 审核通过
+      } catch (error) {
+        console.error('[AI Filter] Error calling moderation API:', error);
+        return true; // 出现异常，默认通过
+      }
+    }
+
     try {
       const results = await Promise.allSettled(searchPromises);
       const successResults = results
@@ -209,6 +245,7 @@ export async function GET(request: NextRequest) {
         .map((result) => (result as PromiseFulfilledResult<any>).value);
       let flattenedResults = successResults.flat();
       
+      // --- 1. 关键词预过滤 ---
       if (!config.SiteConfig.DisableYellowFilter) {
         flattenedResults = flattenedResults.filter((result) => {
           const typeName = result.type_name || '';
@@ -223,6 +260,15 @@ export async function GET(request: NextRequest) {
         });
       }
 
+      // --- 2. 智能 AI 审核 ---
+      if (config.SiteConfig.IntelligentFilterEnabled) {
+        const moderationPromises = flattenedResults.map(async (item) => {
+          const isSafe = await moderateImage(item.poster, config);
+          return isSafe ? item : null;
+        });
+        const moderatedResults = await Promise.all(moderationPromises);
+        flattenedResults = moderatedResults.filter((item): item is any => item !== null);
+      }
       
       // Create a map for quick lookup of site health status
       const siteStatusMap = new Map(apiSites.map(site => {
