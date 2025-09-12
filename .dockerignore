@@ -47,8 +47,7 @@ iptv
 .eslintrc*
 .prettierrc*
 jest.config*
-postcss.config*
-tailwind.config*
+
 
 # 源码映射文件
 **/*.map
