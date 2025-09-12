@@ -223,10 +223,25 @@ async function getInitConfig(
         process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
       FluidSearch: process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false',
       // 智能内容审核配置
-      IntelligentFilterEnabled: false, // 默认关闭
-      IntelligentFilterApiUrl: '', // 审核API地址
-      IntelligentFilterApiKey: '', // 审核API密钥
-      IntelligentFilterConfidence: 0.85, // 审核结果置信度阈值
+      IntelligentFilter: {
+        enabled: false,
+        provider: 'sightengine',
+        confidence: 0.85,
+        options: {
+          sightengine: {
+            apiUrl: 'https://api.sightengine.com/1.0/check.json',
+            apiUser: '',
+            apiSecret: '',
+          },
+          custom: {
+            apiUrl: '',
+            apiKeyHeader: 'X-Api-Key',
+            apiKeyValue: '',
+            jsonBodyTemplate: '{"image": "{{URL}}"}',
+            responseScorePath: 'nudity.raw', // 默认一个示例值
+          },
+        },
+      },
       EnableRegistration: process.env.ENABLE_REGISTRATION === 'true',
       RegistrationApproval: process.env.REGISTRATION_APPROVAL !== 'false',
       MaxUsers: process.env.MAX_USERS
