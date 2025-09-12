@@ -30,14 +30,15 @@ export interface AdminConfig {
     DoubanImageProxy: string;
     DisableYellowFilter: boolean;
     FluidSearch: boolean;
-    EnableRegistration: boolean; // 全局注册开关
-    RegistrationApproval: boolean; // 是否需要管理员审批
-    MaxUsers?: number; // 最大用户数限制（可选）
-    LinuxDoOAuth: OAuthConfig;
+    // 新增智能审核字段
     IntelligentFilterEnabled: boolean;
     IntelligentFilterApiUrl: string;
     IntelligentFilterApiKey: string;
     IntelligentFilterConfidence: number;
+    EnableRegistration: boolean; // 全局注册开关
+    RegistrationApproval: boolean; // 是否需要管理员审批
+    MaxUsers?: number; // 最大用户数限制（可选）
+    LinuxDoOAuth: OAuthConfig;
   };
   UserConfig: {
     Users: {
