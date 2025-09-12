@@ -34,6 +34,10 @@ export interface AdminConfig {
     RegistrationApproval: boolean; // 是否需要管理员审批
     MaxUsers?: number; // 最大用户数限制（可选）
     LinuxDoOAuth: OAuthConfig;
+    IntelligentFilterEnabled: boolean;
+    IntelligentFilterApiUrl: string;
+    IntelligentFilterApiKey: string;
+    IntelligentFilterConfidence: number;
   };
   UserConfig: {
     Users: {
