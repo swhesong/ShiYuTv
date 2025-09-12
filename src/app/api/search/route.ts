@@ -305,6 +305,12 @@ export async function GET(request: NextRequest) {
         .filter((result) => result.status === 'fulfilled')
         .map((result) => (result as PromiseFulfilledResult<any>).value);
       let flattenedResults = successResults.flat();
+      // 在此处添加修正逻辑
+      flattenedResults.forEach((item: any) => {
+        if (item.poster && item.poster.startsWith('http://')) {
+          item.poster = item.poster.replace('http://', 'https://');
+        }
+      });
       
       // --- 1. 关键词预过滤 ---
       if (!config.SiteConfig.DisableYellowFilter) {
