@@ -202,6 +202,12 @@ export async function GET(request: NextRequest) {
 
               // Apply yellow content filter
               let filteredResults = results;
+              // 在此处添加修正逻辑
+              filteredResults.forEach((item: any) => {
+                if (item.poster && item.poster.startsWith('http://')) {
+                  item.poster = item.poster.replace('http://', 'https://');
+                }
+              });
               if (!config.SiteConfig.DisableYellowFilter) {
                 filteredResults = results.filter((result) => {
                   const typeName = result.type_name || '';
