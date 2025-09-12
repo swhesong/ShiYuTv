@@ -219,7 +219,7 @@ export async function GET(request: NextRequest) {
               // 新增：智能 AI 审核 (完全通用化)
               if (config.SiteConfig.IntelligentFilter?.enabled) {
                 // 真正通用化的审核函数
-                async function moderateImage(imageUrl: string, config: any): Promise<boolean> {
+                const moderateImage = async (imageUrl: string, config: any): Promise<boolean> => {
                   const filterConfig = config.SiteConfig.IntelligentFilter;
                 
                   if (!filterConfig || !filterConfig.enabled || !imageUrl) {
