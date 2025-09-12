@@ -6,7 +6,7 @@ export const runtime = 'nodejs';
 // 智能审核API的统一测试接口
 export async function POST(request: NextRequest) {
   // 1. 身份验证
-  const authInfo = getAuthInfoFromCookie(request);
+  const authInfo = getAuthInfoFromCookie(request) as { role?: string };
   if (authInfo?.role !== 'owner' && authInfo?.role !== 'admin') {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
