@@ -5297,18 +5297,20 @@ const SiteConfigComponent = ({
         document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isDoubanImageProxyDropdownOpen]);
-  // 新增：当自定义API配置变化时，重置验证状态
+  // 新增：当审核配置变化时，重置验证状态
   useEffect(() => {
-    if (siteSettings.IntelligentFilter?.provider === 'custom') {
-      setIsApiVerified(false);
-      setApiTestResult(null);
-    }
+    setIsApiVerified(false);
+    setApiTestResult(null);
   }, [
+    siteSettings.IntelligentFilter?.provider,
     siteSettings.IntelligentFilter?.options.custom?.apiUrl,
     siteSettings.IntelligentFilter?.options.custom?.apiKeyHeader,
     siteSettings.IntelligentFilter?.options.custom?.apiKeyValue,
     siteSettings.IntelligentFilter?.options.custom?.jsonBodyTemplate,
     siteSettings.IntelligentFilter?.options.custom?.responseScorePath,
+    siteSettings.IntelligentFilter?.options.sightengine?.apiUrl,
+    siteSettings.IntelligentFilter?.options.sightengine?.apiUser,
+    siteSettings.IntelligentFilter?.options.sightengine?.apiSecret,
   ]);
   
   // 处理豆瓣数据源变化
@@ -5326,18 +5328,31 @@ const SiteConfigComponent = ({
       DoubanImageProxyType: value,
     }));
   };
-  // 新增：测试API连接的函数
+  // 新增：测试API连接的函数（已修改为通用）
   const handleTestApiConnection = async () => {
-    if (!siteSettings.IntelligentFilter?.options.custom) return;
+    const provider = siteSettings.IntelligentFilter?.provider;
+    if (!provider) return;
+
+    // 根据当前选择的 provider 获取对应的配置
+    const config = provider === 'sightengine'
+        ? siteSettings.IntelligentFilter.options.sightengine
+        : siteSettings.IntelligentFilter.options.custom;
+
+    if (!config) {
+      showAlert({ type: 'error', title: '错误', message: '找不到API配置' });
+      return;
+    }
+
     setIsApiTesting(true);
     setApiTestResult(null);
     try {
-      // 这是一个假设的API端点，您需要在后端实现它
+      // 向同一个后端接口发送请求，但增加了 provider 字段以作区分
       const response = await fetch('/api/admin/moderate/test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          config: siteSettings.IntelligentFilter.options.custom,
+          provider, // <--- 关键改动：告知后端当前测试的是哪个提供商
+          config: config,
         }),
       });
       const result = await response.json();
@@ -5856,6 +5871,32 @@ const SiteConfigComponent = ({
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
+              {/* 新增：为 Sightengine 添加测试连接按钮和结果显示 */}
+              <div className='pt-2'>
+                <button
+                  type='button'
+                  onClick={handleTestApiConnection}
+                  disabled={isApiTesting}
+                  className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isApiTesting
+                      ? buttonStyles.disabled
+                      : buttonStyles.primary
+                  }`}
+                >
+                  {isApiTesting ? '测试中...' : '测试连接'}
+                </button>
+                {apiTestResult && (
+                  <div
+                    className={`mt-3 p-2 text-xs rounded-md ${
+                      apiTestResult.success
+                        ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                        : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {apiTestResult.message}
+                  </div>
+                )}
+              </div>
             </div>
           )}
           {/* 自定义 API 配置项 */}
@@ -5950,23 +5991,17 @@ const SiteConfigComponent = ({
           onClick={handleSave}
           disabled={
             isLoading('saveSiteConfig') ||
-            (siteSettings.IntelligentFilter?.enabled &&
-              siteSettings.IntelligentFilter?.provider === 'custom' &&
-              !isApiVerified)
+            (siteSettings.IntelligentFilter?.enabled && !isApiVerified)
           }
           className={`px-4 py-2 ${
             isLoading('saveSiteConfig') ||
-            (siteSettings.IntelligentFilter?.enabled &&
-              siteSettings.IntelligentFilter?.provider === 'custom' &&
-              !isApiVerified)
+            (siteSettings.IntelligentFilter?.enabled && !isApiVerified)
               ? buttonStyles.disabled
               : buttonStyles.success
           } rounded-lg transition-colors`}
           title={
-            siteSettings.IntelligentFilter?.enabled &&
-            siteSettings.IntelligentFilter?.provider === 'custom' &&
-            !isApiVerified
-              ? '请先测试并确保自定义API连接通过'
+            siteSettings.IntelligentFilter?.enabled && !isApiVerified
+              ? '请先测试并确保API连接通过'
               : ''
           }
         >
