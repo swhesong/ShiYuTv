@@ -5853,12 +5853,27 @@ const SiteConfigComponent = ({
       <div className='flex justify-end'>
         <button
           onClick={handleSave}
-          disabled={isLoading('saveSiteConfig')}
+          disabled={
+            isLoading('saveSiteConfig') ||
+            (siteSettings.IntelligentFilter?.enabled &&
+              siteSettings.IntelligentFilter?.provider === 'custom' &&
+              !isApiVerified)
+          }
           className={`px-4 py-2 ${
-            isLoading('saveSiteConfig')
+            isLoading('saveSiteConfig') ||
+            (siteSettings.IntelligentFilter?.enabled &&
+              siteSettings.IntelligentFilter?.provider === 'custom' &&
+              !isApiVerified)
               ? buttonStyles.disabled
               : buttonStyles.success
           } rounded-lg transition-colors`}
+          title={
+            siteSettings.IntelligentFilter?.enabled &&
+            siteSettings.IntelligentFilter?.provider === 'custom' &&
+            !isApiVerified
+              ? '请先测试并确保自定义API连接通过'
+              : ''
+          }
         >
           {isLoading('saveSiteConfig') ? '保存中…' : '保存'}
         </button>
