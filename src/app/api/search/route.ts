@@ -322,7 +322,7 @@ export async function GET(request: NextRequest) {
       }
 
       // --- 2. 智能 AI 审核 ---
-      if (config.SiteConfig.IntelligentFilterEnabled) {
+      if (config.SiteConfig.IntelligentFilter?.enabled) {
         const moderationPromises = flattenedResults.map(async (item) => {
           const isSafe = await moderateImage(item.poster, config);
           return isSafe ? item : null;
