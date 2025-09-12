@@ -218,6 +218,7 @@ function PlayPageClient() {
     if (qualityLower.includes('1080')) return 1080;
     if (qualityLower.includes('720')) return 720;
     if (qualityLower.includes('480')) return 480;
+    if (qualityLower.includes('网络超时') || qualityLower.includes('未知')) return -1; // 网络问题源排在未知分辨率之前
     return 0; // 其他或未知分辨率排在最后
   };
 
@@ -295,13 +296,25 @@ function PlayPageClient() {
                                 errorMessage.includes('NetworkError');
           
           if (isNetworkError) {
-            // 网络错误：给予默认分辨率但不完全排除
+            // 网络错误：尝试从源名称推断分辨率，否则标记为网络问题
+            let inferredQuality = '网络超时';
+            const sourceName = source.source_name?.toLowerCase() || '';
+            
+            // 尝试从源名称推断可能的分辨率
+            if (sourceName.includes('4k') || sourceName.includes('超清')) {
+              inferredQuality = '4K(推测)';
+            } else if (sourceName.includes('1080') || sourceName.includes('高清')) {
+              inferredQuality = '1080p(推测)';
+            } else if (sourceName.includes('720')) {
+              inferredQuality = '720p(推测)';
+            }
+            
             return {
               source,
               testResult: {
-                quality: '720p', // 假设为720p，避免因网络问题被误判
-                loadSpeed: '未知',
-                pingTime: 500, // 给一个中等延迟值
+                quality: inferredQuality,
+                loadSpeed: '网络超时',
+                pingTime: 999, // 高延迟值表示网络问题
                 hasError: false,
                 isPartialFailure: true,
               },
