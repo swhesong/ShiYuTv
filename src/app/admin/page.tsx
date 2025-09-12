@@ -5171,7 +5171,39 @@ const SiteConfigComponent = ({
     message: string;
   } | null>(null);
   const [isApiVerified, setIsApiVerified] = useState(false);
-
+  const [isApiVerified, setIsApiVerified] = useState(false);
+  // 新增：创建更健壮、可复用的状态更新函数
+  const handleIntelligentFilterChange = (
+    key: keyof SiteConfig['IntelligentFilter'],
+    value: any
+  ) => {
+    setSiteSettings((prev) => ({
+      ...prev,
+      IntelligentFilter: {
+        ...prev.IntelligentFilter!,
+        [key]: value,
+      },
+    }));
+  };
+  const handleFilterOptionChange = (
+    provider: 'sightengine' | 'custom',
+    key: string,
+    value: string
+  ) => {
+    setSiteSettings((prev) => ({
+      ...prev,
+      IntelligentFilter: {
+        ...prev.IntelligentFilter!,
+        options: {
+          ...prev.IntelligentFilter!.options,
+          [provider]: {
+            ...prev.IntelligentFilter!.options[provider]!,
+            [key]: value,
+          },
+        },
+      },
+    }));
+  };
   // 豆瓣数据源相关状态
   const [isDoubanDropdownOpen, setIsDoubanDropdownOpen] = useState(false);
   const [isDoubanImageProxyDropdownOpen, setIsDoubanImageProxyDropdownOpen] =
@@ -5778,15 +5810,7 @@ const SiteConfigComponent = ({
               </label>
               <button
                 type='button'
-                onClick={() =>
-                  setSiteSettings((prev: any) => ({
-                    ...prev,
-                    IntelligentFilter: {
-                      ...prev.IntelligentFilter,
-                      enabled: !prev.IntelligentFilter.enabled,
-                    },
-                  }))
-                }
+                onClick={() => handleIntelligentFilterChange('enabled', !siteSettings.IntelligentFilter?.enabled)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
                   siteSettings.IntelligentFilter?.enabled
                     ? buttonStyles.toggleOn
@@ -5815,16 +5839,7 @@ const SiteConfigComponent = ({
             </label>
             <select
               value={siteSettings.IntelligentFilter?.provider || 'sightengine'}
-              onChange={(e) =>
-                setSiteSettings((prev: any) => ({
-                  ...prev,
-                  IntelligentFilter: {
-                    // 使用空对象作为备用，防止 prev.IntelligentFilter 是 undefined
-                    ...(prev.IntelligentFilter ?? {}),
-                    provider: e.target.value as 'sightengine' | 'custom',
-                  },
-                }))
-              }
+              onChange={(e) => handleIntelligentFilterChange('provider', e.target.value)}
               className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
             >
               <option value='sightengine'>Sightengine (内置支持)</option>
@@ -5845,7 +5860,7 @@ const SiteConfigComponent = ({
                 <input
                   type='text'
                   value={siteSettings.IntelligentFilter.options.sightengine?.apiUrl || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, sightengine: { ...prev.IntelligentFilter!.options.sightengine!, apiUrl: e.target.value } } } }))}
+                  onChange={(e) => handleFilterOptionChange('sightengine', 'apiUrl', e.target.value)}
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
@@ -5857,7 +5872,7 @@ const SiteConfigComponent = ({
                   type='text'
                   placeholder='请输入 Sightengine API User'
                   value={siteSettings.IntelligentFilter.options.sightengine?.apiUser || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, sightengine: { ...prev.IntelligentFilter!.options.sightengine!, apiUser: e.target.value } } } }))}
+                  onChange={(e) => handleFilterOptionChange('sightengine', 'apiUser', e.target.value)}
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
@@ -5869,7 +5884,7 @@ const SiteConfigComponent = ({
                   type='password'
                   placeholder='请输入 Sightengine API Secret'
                   value={siteSettings.IntelligentFilter.options.sightengine?.apiSecret || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, sightengine: { ...prev.IntelligentFilter!.options.sightengine!, apiSecret: e.target.value } } } }))}
+                  onChange={(e) => handleFilterOptionChange('sightengine', 'apiSecret', e.target.value)}
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
@@ -5909,19 +5924,19 @@ const SiteConfigComponent = ({
               </p>
               <div>
                 <label className='block text-sm font-medium'>API URL</label>
-                <input type='text' value={siteSettings.IntelligentFilter.options.custom?.apiUrl || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, apiUrl: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
+                <input type='text' value={siteSettings.IntelligentFilter.options.custom?.apiUrl || ''} onChange={(e) => handleFilterOptionChange('custom', 'apiUrl', e.target.value)} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
               </div>
               <div>
                 <label className='block text-sm font-medium'>API Key Header</label>
-                <input type='text' placeholder='例如: Authorization' value={siteSettings.IntelligentFilter.options.custom?.apiKeyHeader || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, apiKeyHeader: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
+                <input type='text' placeholder='例如: Authorization' value={siteSettings.IntelligentFilter.options.custom?.apiKeyHeader || ''} onChange={(e) => handleFilterOptionChange('custom', 'apiKeyHeader', e.target.value)} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
               </div>
               <div>
                 <label className='block text-sm font-medium'>API Key Value</label>
-                <input type='password' placeholder='例如: Bearer sk-xxxx' value={siteSettings.IntelligentFilter.options.custom?.apiKeyValue || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, apiKeyValue: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
+                <input type='password' placeholder='例如: Bearer sk-xxxx' value={siteSettings.IntelligentFilter.options.custom?.apiKeyValue || ''} onChange={(e) => handleFilterOptionChange('custom', 'apiKeyValue', e.target.value)} className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' />
               </div>
               <div>
                 <label className='block text-sm font-medium'>JSON Body Template</label>
-                <textarea value={siteSettings.IntelligentFilter.options.custom?.jsonBodyTemplate || ''} onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, jsonBodyTemplate: e.target.value } } } }))} className='w-full px-3 py-2 border rounded-lg font-mono text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' rows={3}></textarea>
+                <textarea value={siteSettings.IntelligentFilter.options.custom?.jsonBodyTemplate || ''} onChange={(e) => handleFilterOptionChange('custom', 'jsonBodyTemplate', e.target.value)} className='w-full px-3 py-2 border rounded-lg font-mono text-xs text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800' rows={3}></textarea>
                 <p className='text-xs text-gray-500 mt-1'>使用 `{'{{URL}}'}` 作为图片地址的占位符。</p>
               </div>
               {/* 新增: 响应分数路径 */}
@@ -5931,7 +5946,7 @@ const SiteConfigComponent = ({
                   type='text'
                   placeholder='例如: nudity.raw 或 data.score'
                   value={siteSettings.IntelligentFilter.options.custom?.responseScorePath || ''}
-                  onChange={(e) => setSiteSettings((prev) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter!, options: { ...prev.IntelligentFilter!.options, custom: { ...prev.IntelligentFilter!.options.custom!, responseScorePath: e.target.value } } } }))}
+                  onChange={(e) => handleFilterOptionChange('custom', 'responseScorePath', e.target.value)}
                   className='w-full px-3 py-2 border rounded-lg text-gray-900 dark:text-gray-100 bg-white dark:bg-gray-800'
                 />
                 <p className='text-xs text-gray-500 mt-1'>
@@ -5977,7 +5992,7 @@ const SiteConfigComponent = ({
               min="0" max="1" step="0.05"
               placeholder='例如: 0.85'
               value={siteSettings.IntelligentFilter?.confidence || 0.85}
-              onChange={(e) => setSiteSettings((prev: any) => ({ ...prev, IntelligentFilter: { ...prev.IntelligentFilter, confidence: parseFloat(e.target.value) || 0.85 } }))}
+              onChange={(e) => handleIntelligentFilterChange('confidence', parseFloat(e.target.value) || 0.85)}
               className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
             />
             <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
