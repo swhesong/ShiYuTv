@@ -5224,23 +5224,28 @@ const SiteConfigComponent = ({
   useEffect(() => {
     if (config?.SiteConfig) {
       // 使用函数式更新和深度合并，确保 IntelligentFilter 结构始终存在
-      setSiteSettings(prevSettings => ({
+      setSiteSettings(prevSettings => {
+        const intelligentFilter = config.SiteConfig.IntelligentFilter;
+        return {
         ...prevSettings, // 首先保留代码中定义的完整默认结构
         ...config.SiteConfig, // 然后用服务器加载的配置覆盖现有字段
         // 关键：确保 IntelligentFilter 及其内部 options 总是对象，而不是 undefined
         IntelligentFilter: {
-          ...(prevSettings.IntelligentFilter || {}),
-          ...(config.SiteConfig.IntelligentFilter || {}),
+          enabled: intelligentFilter?.enabled ?? prevSettings.IntelligentFilter.enabled,
+          provider: intelligentFilter?.provider ?? prevSettings.IntelligentFilter.provider,
+          confidence: intelligentFilter?.confidence ?? prevSettings.IntelligentFilter.confidence,
           options: {
-            ...(prevSettings.IntelligentFilter?.options || {}),
-            ...(config.SiteConfig.IntelligentFilter?.options || {}),
             sightengine: {
-              ...(prevSettings.IntelligentFilter?.options?.sightengine || {}),
-              ...(config.SiteConfig.IntelligentFilter?.options?.sightengine || {}),
+              apiUrl: intelligentFilter?.options?.sightengine?.apiUrl ?? '',
+              apiUser: intelligentFilter?.options?.sightengine?.apiUser ?? '',
+              apiSecret: intelligentFilter?.options?.sightengine?.apiSecret ?? '',
             },
             custom: {
-              ...(prevSettings.IntelligentFilter?.options?.custom || {}),
-              ...(config.SiteConfig.IntelligentFilter?.options?.custom || {}),
+              apiUrl: intelligentFilter?.options?.custom?.apiUrl ?? '',
+              apiKeyHeader: intelligentFilter?.options?.custom?.apiKeyHeader ?? '',
+              apiKeyValue: intelligentFilter?.options?.custom?.apiKeyValue ?? '',
+              jsonBodyTemplate: intelligentFilter?.options?.custom?.jsonBodyTemplate ?? '',
+              responseScorePath: intelligentFilter?.options?.custom?.responseScorePath ?? '',
             },
           },
         },
@@ -5253,7 +5258,7 @@ const SiteConfigComponent = ({
         DoubanImageProxy: config.SiteConfig.DoubanImageProxy || '',
         DisableYellowFilter: config.SiteConfig.DisableYellowFilter || false,
         FluidSearch: config.SiteConfig.FluidSearch ?? true,
-      }));
+      }});
     }
   }, [config]);
 
