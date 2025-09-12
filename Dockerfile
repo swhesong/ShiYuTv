@@ -22,13 +22,13 @@ COPY --from=deps /app/node_modules ./node_modules
 # 复制全部源代码
 COPY . .
 
-# 删除敏感文件和目录
+# 删除敏感文件和目录，保留运行时必需的文件
 RUN rm -rf .git .github docs *.md .gitignore .env.example && \
     find . -name "*.test.js" -delete && \
     find . -name "*.test.ts" -delete && \
     find . -name "*.spec.js" -delete && \
     find . -name "*.spec.ts" -delete && \
-    find ./scripts -type f ! -name "generate-manifest.js" -delete 2>/dev/null || true
+    rm -rf scripts/convert-changelog.js 2>/dev/null || true
 
 # 在构建阶段也显式设置 DOCKER_ENV，
 ENV DOCKER_ENV=true
