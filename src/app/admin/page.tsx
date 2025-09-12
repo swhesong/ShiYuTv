@@ -5271,7 +5271,20 @@ const SiteConfigComponent = ({
         document.removeEventListener('mousedown', handleClickOutside);
     }
   }, [isDoubanImageProxyDropdownOpen]);
-
+  // 新增：当自定义API配置变化时，重置验证状态
+  useEffect(() => {
+    if (siteSettings.IntelligentFilter?.provider === 'custom') {
+      setIsApiVerified(false);
+      setApiTestResult(null);
+    }
+  }, [
+    siteSettings.IntelligentFilter?.options.custom?.apiUrl,
+    siteSettings.IntelligentFilter?.options.custom?.apiKeyHeader,
+    siteSettings.IntelligentFilter?.options.custom?.apiKeyValue,
+    siteSettings.IntelligentFilter?.options.custom?.jsonBodyTemplate,
+    siteSettings.IntelligentFilter?.options.custom?.responseScorePath,
+  ]);
+  
   // 处理豆瓣数据源变化
   const handleDoubanDataSourceChange = (value: string) => {
     setSiteSettings((prev) => ({
@@ -5287,7 +5300,34 @@ const SiteConfigComponent = ({
       DoubanImageProxyType: value,
     }));
   };
-
+  // 新增：测试API连接的函数
+  const handleTestApiConnection = async () => {
+    if (!siteSettings.IntelligentFilter?.options.custom) return;
+    setIsApiTesting(true);
+    setApiTestResult(null);
+    try {
+      // 这是一个假设的API端点，您需要在后端实现它
+      const response = await fetch('/api/admin/moderate/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config: siteSettings.IntelligentFilter.options.custom,
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) {
+        throw new Error(result.error || '测试请求失败');
+      }
+      setApiTestResult({ success: true, message: result.message });
+      setIsApiVerified(true); // 测试通过
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '未知错误';
+      setApiTestResult({ success: false, message });
+      setIsApiVerified(false); // 测试失败
+    } finally {
+      setIsApiTesting(false);
+    }
+  };
   // 保存站点配置
   const handleSave = async () => {
     await withLoading('saveSiteConfig', async () => {
@@ -5827,8 +5867,35 @@ const SiteConfigComponent = ({
                   指定 API 响应中数字分数的路径。如果分数大于等于置信度阈值，则屏蔽。
                 </p>
               </div>
+              {/* 新增：测试连接按钮和结果显示 */}
+              <div className='pt-2'>
+                <button
+                  type='button'
+                  onClick={handleTestApiConnection}
+                  disabled={isApiTesting}
+                  className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isApiTesting
+                      ? buttonStyles.disabled
+                      : buttonStyles.primary
+                  }`}
+                >
+                  {isApiTesting ? '测试中...' : '测试连接'}
+                </button>
+                {apiTestResult && (
+                  <div
+                    className={`mt-3 p-2 text-xs rounded-md ${
+                      apiTestResult.success
+                        ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                        : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {apiTestResult.message}
+                  </div>
+                )}
+              </div>
             </div>
           )}
+
           {/* 通用配置：置信度 */}
           <div>
             <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
