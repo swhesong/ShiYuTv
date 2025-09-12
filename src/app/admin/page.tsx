@@ -5223,8 +5223,28 @@ const SiteConfigComponent = ({
 
   useEffect(() => {
     if (config?.SiteConfig) {
-      setSiteSettings({
-        ...config.SiteConfig,
+      // 使用函数式更新和深度合并，确保 IntelligentFilter 结构始终存在
+      setSiteSettings(prevSettings => ({
+        ...prevSettings, // 首先保留代码中定义的完整默认结构
+        ...config.SiteConfig, // 然后用服务器加载的配置覆盖现有字段
+        // 关键：确保 IntelligentFilter 及其内部 options 总是对象，而不是 undefined
+        IntelligentFilter: {
+          ...(prevSettings.IntelligentFilter || {}),
+          ...(config.SiteConfig.IntelligentFilter || {}),
+          options: {
+            ...(prevSettings.IntelligentFilter?.options || {}),
+            ...(config.SiteConfig.IntelligentFilter?.options || {}),
+            sightengine: {
+              ...(prevSettings.IntelligentFilter?.options?.sightengine || {}),
+              ...(config.SiteConfig.IntelligentFilter?.options?.sightengine || {}),
+            },
+            custom: {
+              ...(prevSettings.IntelligentFilter?.options?.custom || {}),
+              ...(config.SiteConfig.IntelligentFilter?.options?.custom || {}),
+            },
+          },
+        },
+        // 保留其他字段的默认值逻辑
         DoubanProxyType:
           config.SiteConfig.DoubanProxyType || 'cmliussss-cdn-tencent',
         DoubanProxy: config.SiteConfig.DoubanProxy || '',
@@ -5232,10 +5252,11 @@ const SiteConfigComponent = ({
           config.SiteConfig.DoubanImageProxyType || 'cmliussss-cdn-tencent',
         DoubanImageProxy: config.SiteConfig.DoubanImageProxy || '',
         DisableYellowFilter: config.SiteConfig.DisableYellowFilter || false,
-        FluidSearch: config.SiteConfig.FluidSearch || true,
-      });
+        FluidSearch: config.SiteConfig.FluidSearch ?? true,
+      }));
     }
   }, [config]);
+
 
   // 点击外部区域关闭下拉框
   useEffect(() => {
@@ -5776,7 +5797,8 @@ const SiteConfigComponent = ({
                 setSiteSettings((prev: any) => ({
                   ...prev,
                   IntelligentFilter: {
-                    ...prev.IntelligentFilter,
+                    // 使用空对象作为备用，防止 prev.IntelligentFilter 是 undefined
+                    ...(prev.IntelligentFilter ?? {}),
                     provider: e.target.value as 'sightengine' | 'custom',
                   },
                 }))
