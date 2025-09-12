@@ -96,18 +96,19 @@ RUN echo "=== Checking static assets ===" && \
     ls -la .next/static/ || echo "No static directory" && \
     ls -la public/ || echo "No public directory"
 
-# 切换到非特权用户
-USER nextjs
-
-EXPOSE 3000
-
-# 使用自定义启动脚本，先预加载配置再启动服务器
-CMD ["node", "start.js"]
 
 # 添加健康检查脚本
 RUN echo '#!/bin/sh' > /tmp/health-check.sh && \
     echo 'curl -f http://localhost:3000/api/health || exit 1' >> /tmp/health-check.sh && \
     chmod +x /tmp/health-check.sh
 
+
+# 切换到非特权用户
+USER nextjs
+
+EXPOSE 3000
+
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD ["/tmp/health-check.sh"]
+# 使用自定义启动脚本，先预加载配置再启动服务器
+CMD ["node", "start.js"]
