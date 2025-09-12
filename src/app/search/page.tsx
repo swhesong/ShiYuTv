@@ -422,21 +422,18 @@ function SearchPageClient() {
       return true;
     });
 
-    // 如果没有指定年份排序，则完全按后端传入的 relevanceScore 或前端计算的评分排序
-    if (yearOrder === 'none') {
-        // 后端已经提供了 relevanceScore，直接使用；否则前端计算
-        return filtered.sort((a, b) => (b as any).relevanceScore - (a as any).relevanceScore);
-    }
-    
-    // 如果指定了年份排序，则年份优先，相关性评分为次要排序标准
+    // 统一排序逻辑：先按年份（如果指定），再按相关性评分
     return filtered.sort((a, b) => {
+      // 1. 年份排序优先
+      if (yearOrder !== 'none') {
         const yearComp = compareYear(a.year, b.year, yearOrder);
         if (yearComp !== 0) return yearComp;
-        
-        // 年份相同时，按相关性评分排序
-        const scoreA = (a as any).relevanceScore || calculateRelevanceScore(a, searchQuery);
-        const scoreB = (b as any).relevanceScore || calculateRelevanceScore(b, searchQuery);
-        return scoreB - scoreA;
+      }
+      
+      // 2. 按相关性评分排序（始终包含前端计算作为备用方案）
+      const scoreA = (a as any).relevanceScore || calculateRelevanceScore(a, searchQuery);
+      const scoreB = (b as any).relevanceScore || calculateRelevanceScore(b, searchQuery);
+      return scoreB - scoreA;
     });
   }, [searchResults, filterAll, searchQuery]);
 
@@ -454,28 +451,23 @@ function SearchPageClient() {
       return true;
     });
 
-    // 如果没有指定年份排序，则按组内最高相关性评分排序
-    if (yearOrder === 'none') {
-      return filtered.sort((a, b) => {
-        const scoreA = Math.max(...a[1].map(item => (item as any).relevanceScore || 0));
-        const scoreB = Math.max(...b[1].map(item => (item as any).relevanceScore || 0));
-        return scoreB - scoreA;
-      });
-    }
-
-    // 如果指定了年份排序，则年份优先，相关性评分为次要排序标准
+    // 统一排序逻辑：先按年份（如果指定），再按组内最高相关性评分
     return filtered.sort((a, b) => {
+      // 1. 年份排序优先
+      if (yearOrder !== 'none') {
         const aYear = a[1][0].year;
         const bYear = b[1][0].year;
         const yearComp = compareYear(aYear, bYear, yearOrder);
         if (yearComp !== 0) return yearComp;
-        
-        // 年份相同时，按组内最高相关性评分排序
-        const scoreA = Math.max(...a[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
-        const scoreB = Math.max(...b[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
-        return scoreB - scoreA;
+      }
+      
+      // 2. 按组内最高相关性评分排序（始终包含前端计算作为备用方案）
+      const scoreA = Math.max(...a[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
+      const scoreB = Math.max(...b[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
+      return scoreB - scoreA;
     });
   }, [aggregatedResults, filterAgg, searchQuery]);
+
 
 
   useEffect(() => {
