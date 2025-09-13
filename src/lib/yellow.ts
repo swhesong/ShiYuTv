@@ -398,7 +398,7 @@ function _moderateContentLogic(
   });
   
   if (hasWhitelistContext) {
-    totalScore *= 0.5; // 大幅降权
+    totalScore *= 0.65; // 大幅降权
     flags.push('whitelist_context_detected');
   }
   
