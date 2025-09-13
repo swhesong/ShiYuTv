@@ -25,8 +25,19 @@ export async function GET(request: NextRequest) {
   }
   const username = authInfo.username;
 
+
+
   try {
     const config = await getConfig();
+
+    // 在返回给前端前，用占位符屏蔽敏感信息
+    if (config.SiteConfig.IntelligentFilter?.options?.sightengine?.apiSecret) {
+      config.SiteConfig.IntelligentFilter.options.sightengine.apiSecret = "********";
+    }
+    if (config.SiteConfig.IntelligentFilter?.options?.custom?.apiKeyValue) {
+      config.SiteConfig.IntelligentFilter.options.custom.apiKeyValue = "********";
+    }
+
     const result: AdminConfigResult = {
       Role: 'owner',
       Config: config,
@@ -39,7 +50,7 @@ export async function GET(request: NextRequest) {
         result.Role = 'admin';
       } else {
         return NextResponse.json(
-          { error: '你是管理员吗你就访问？' },
+          { error: '请核实您的管理员权限？' },
           { status: 401 }
         );
       }
