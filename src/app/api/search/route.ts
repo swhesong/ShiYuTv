@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
-
+import { fetch as undiciFetch } from 'undici';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
@@ -279,7 +279,7 @@ export async function GET(request: NextRequest) {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds
 
-        const response = await fetch(requestUrl, {
+        const response = await undiciFetch(requestUrl, {
           ...requestOptions,
           signal: controller.signal
         });
