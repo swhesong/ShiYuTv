@@ -335,7 +335,7 @@ export async function GET(request: NextRequest) {
                   const moderationResult = await moderateImage(item.poster, config);
                   // 策略：当审核成功且结果是'allow'时才保留。'block' 或 'error' 都会被过滤。
                   // 您可以修改这里，例如改成 moderationResult.decision !== 'block' 来放行审核失败的内容。
-                  return moderationResult.decision === 'allow' ? item : null;
+                  return moderationResult.decision === 'block' ? item : null;
                 });
                 const moderatedResults = await Promise.all(moderationPromises);
                 filteredResults = moderatedResults.filter((item): item is any => item !== null);
