@@ -41,6 +41,7 @@ export async function POST(request: NextRequest) {
       FluidSearch,
       EnableRegistration,
       RegistrationApproval,
+      IntelligentFilter, // 新增：从请求体中解构出 IntelligentFilter 对象
     } = body as {
       SiteName: string;
       Announcement: string;
@@ -54,6 +55,7 @@ export async function POST(request: NextRequest) {
       FluidSearch: boolean;
       EnableRegistration: boolean;
       RegistrationApproval: boolean;
+      IntelligentFilter: any; // 新增：为 IntelligentFilter 添加类型
     };
 
     // 参数校验
@@ -69,7 +71,8 @@ export async function POST(request: NextRequest) {
       typeof DisableYellowFilter !== 'boolean' ||
       typeof FluidSearch !== 'boolean' ||
       typeof EnableRegistration !== 'boolean' ||
-      typeof RegistrationApproval !== 'boolean'
+      typeof RegistrationApproval !== 'boolean' ||
+      typeof IntelligentFilter !== 'object' // 新增：校验 IntelligentFilter 是一个对象
     ) {
       return NextResponse.json({ error: '参数格式错误' }, { status: 400 });
     }
@@ -84,6 +87,20 @@ export async function POST(request: NextRequest) {
       );
       if (!user || user.role !== 'admin' || user.banned) {
         return NextResponse.json({ error: '权限不足' }, { status: 401 });
+      }
+    }
+
+    // 安全检查：防止已保存的密钥被空值或占位符意外覆盖
+    if (IntelligentFilter) {
+      const sightengineOpts = IntelligentFilter.options?.sightengine;
+      const customOpts = IntelligentFilter.options?.custom;
+
+      // 如果前端传来的 apiSecret 是占位符或空字符串，则保留数据库中已有的值
+      if (sightengineOpts && (sightengineOpts.apiSecret === '********' || sightengineOpts.apiSecret === '')) {
+        sightengineOpts.apiSecret = adminConfig.SiteConfig.IntelligentFilter?.options?.sightengine?.apiSecret || '';
+      }
+      if (customOpts && (customOpts.apiKeyValue === '********' || customOpts.apiKeyValue === '')) {
+        customOpts.apiKeyValue = adminConfig.SiteConfig.IntelligentFilter?.options?.custom?.apiKeyValue || '';
       }
     }
 
@@ -102,7 +119,9 @@ export async function POST(request: NextRequest) {
       FluidSearch,
       EnableRegistration,
       RegistrationApproval,
+      IntelligentFilter, // 新增：将处理过的 IntelligentFilter 对象加入保存
     };
+
 
     // 写入数据库和缓存
     await setCachedConfig(adminConfig);
