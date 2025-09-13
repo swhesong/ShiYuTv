@@ -222,9 +222,10 @@ export async function GET(request: NextRequest) {
                 });
               }
 
-              // 新增：智能 AI 审核 (完全通用化)
+              // 新增：智能 AI 审核 (完全通用化，并增加熔断机制)
               if (config.SiteConfig.IntelligentFilter?.enabled) {
                 console.log('[AI Filter DEBUG][WS] IntelligentFilter is ENABLED. Starting moderation process...');
+                
                 // 真正通用化的审核函数
                 const moderateImage = async (imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> => {
                   console.log(`[AI Filter DEBUG][WS] ==> moderateImage CALLED for URL: ${imageUrl}`);
@@ -242,9 +243,7 @@ export async function GET(request: NextRequest) {
                       const value = path.split('.').reduce((o, k) => (o || {})[k], obj);
                       const num = parseFloat(value);
                       return isNaN(num) ? null : num;
-                    } catch {
-                      return null;
-                    }
+                    } catch { return null; }
                   };
                 
                   let provider: string = filterConfig.provider;
@@ -298,8 +297,16 @@ export async function GET(request: NextRequest) {
                   // --- 2. 执行 API 请求并解析响应 ---
                   try {
                     console.log(`[AI Filter DEBUG][WS] Sending request to ${provider} API: ${requestUrl}`);
-                    const response = await fetch(requestUrl, requestOptions);
-                
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds
+
+                    const response = await fetch(requestUrl, {
+                      ...requestOptions,
+                      signal: controller.signal
+                    });
+                    
+                    clearTimeout(timeoutId);
+
                     if (!response.ok) {
                       const errorBody = await response.text();
                       const reason = `API request for ${provider} failed with status ${response.status}. Body: ${errorBody.substring(0, 200)}`;
@@ -331,12 +338,36 @@ export async function GET(request: NextRequest) {
                     return { decision: 'error', reason };
                   }
                 }
-                const moderationPromises = filteredResults.map(async (item) => {
+
+                // --- 熔断机制的实现 ---
+                let failureCount = 0;
+                const failureThreshold = 3; // 连续失败3次后触发熔断
+                let isServiceDown = false;
+
+                const moderationPromises = filteredResults.map(async (item, index) => {
+                  if (isServiceDown) {
+                    console.log(`[AI Filter DEBUG][WS] Circuit breaker is OPEN. Allowing item #${index} to pass directly.`);
+                    return item;
+                  }
+
                   const moderationResult = await moderateImage(item.poster, config);
-                  // 策略：当审核成功且结果是'allow'时才保留。'block' 或 'error' 都会被过滤。
-                  // 您可以修改这里，例如改成 moderationResult.decision !== 'block' 来放行审核失败的内容。
-                  return moderationResult.decision === 'block' ? item : null;
+                  
+                  if (moderationResult.decision === 'error') {
+                    failureCount++;
+                    console.log(`[AI Filter DEBUG][WS] Moderation failure #${failureCount} recorded.`);
+                  } else {
+                    failureCount = 0;
+                  }
+
+                  if (failureCount >= failureThreshold) {
+                    isServiceDown = true;
+                    console.warn(`[AI Filter DEBUG][WS] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+                  }
+
+                  // 策略：失败时放行
+                  return moderationResult.decision !== 'block' ? item : null;
                 });
+                
                 const moderatedResults = await Promise.all(moderationPromises);
                 filteredResults = moderatedResults.filter((item): item is any => item !== null);
               }
