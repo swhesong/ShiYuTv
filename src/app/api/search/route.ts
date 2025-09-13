@@ -346,14 +346,39 @@ export async function GET(request: NextRequest) {
         });
       }
 
-      // --- 2. 智能 AI 审核 ---
+      // --- 2. 智能 AI 审核 (新增熔断机制) ---
       if (config.SiteConfig.IntelligentFilter?.enabled) {
         console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
-        const moderationPromises = flattenedResults.map(async (item) => {
+        
+        let failureCount = 0;
+        const failureThreshold = 3; // 连续失败3次后触发熔断
+        let isServiceDown = false;
+
+        const moderationPromises = flattenedResults.map(async (item, index) => {
+          // 如果服务已熔断，则直接放行
+          if (isServiceDown) {
+            console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item #${index} to pass directly.`);
+            return item;
+          }
+
           const moderationResult = await moderateImage(item.poster, config);
-          // 策略：当审核成功且结果是'allow'时才保留。'block' 或 'error' 都会被过滤。
-          // 您可以修改这里，例如改成 moderationResult.decision !== 'block' 来放行审核失败的内容。
-          return moderationResult.decision === 'block' ? item : null;
+          
+          if (moderationResult.decision === 'error') {
+            failureCount++;
+            console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
+          } else {
+            // 任何一次成功都重置失败计数器
+            failureCount = 0;
+          }
+
+          // 检查是否达到熔断阈值
+          if (failureCount >= failureThreshold) {
+            isServiceDown = true;
+            console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+          }
+
+          // 策略：失败时放行 (当审核出错或审核通过时，都保留)
+          return moderationResult.decision !== 'block' ? item : null;
         });
         const moderatedResults = await Promise.all(moderationPromises);
         flattenedResults = moderatedResults.filter((item): item is any => item !== null);
