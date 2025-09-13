@@ -203,11 +203,13 @@ export async function GET(request: NextRequest) {
     };
   
     // 真正通用化的审核函数
-    async function moderateImage(imageUrl: string, config: any): Promise<boolean> {
+    async function moderateImage(imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> {
+      console.log(`[AI Filter DEBUG] ==> moderateImage CALLED for URL: ${imageUrl}`);
       const filterConfig = config.SiteConfig.IntelligentFilter;
     
       if (!filterConfig || !filterConfig.enabled || !imageUrl) {
-        return true;
+        console.log(`[AI Filter DEBUG] SKIPPING: Filter disabled or no image URL.`);
+        return { decision: 'allow', reason: 'Filter disabled or no image URL' };
       }
       
       // 辅助函数：根据路径字符串安全地从对象中获取嵌套值
@@ -233,7 +235,7 @@ export async function GET(request: NextRequest) {
           const opts = filterConfig.options.sightengine;
           if (!opts || !opts.apiUrl || !opts.apiUser || !opts.apiSecret) {
             console.warn('[AI Filter] Sightengine is not fully configured.');
-            return true;
+            return { decision: 'error', reason: 'Sightengine not fully configured' };
           }
           requestUrl = opts.apiUrl;
           const formData = new FormData();
@@ -250,7 +252,7 @@ export async function GET(request: NextRequest) {
           const opts = filterConfig.options.custom;
           if (!opts || !opts.apiUrl || !opts.apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath) {
             console.warn('[AI Filter] Custom API is not fully configured.');
-            return true;
+            return { decision: 'error', reason: 'Custom API not fully configured' };
           }
           try {
             requestUrl = opts.apiUrl;
@@ -261,41 +263,49 @@ export async function GET(request: NextRequest) {
             scorePath = opts.responseScorePath;
           } catch (error) {
             console.error('[AI Filter] Failed to construct custom API request:', error);
-            return true;
+            return { decision: 'error', reason: 'Failed to construct custom API request' };
           }
           break;
         }
     
         default:
-          return true; // 未知提供商
+          return { decision: 'allow', reason: 'Unknown provider' }; // 未知提供商
       }
       
       // --- 2. 执行 API 请求并解析响应 ---
       try {
+        console.log(`[AI Filter DEBUG] Sending request to ${provider} API: ${requestUrl}`);
         const response = await fetch(requestUrl, requestOptions);
     
         if (!response.ok) {
-          console.warn(`[AI Filter] API request for ${provider} failed with status ${response.status}.`);
-          return true;
+          const errorBody = await response.text();
+          const reason = `API request for ${provider} failed with status ${response.status}. Body: ${errorBody.substring(0, 200)}`;
+          console.warn(`[AI Filter DEBUG] ${reason}`);
+          return { decision: 'error', reason };
         }
     
         const result = await response.json();
+        console.log(`[AI Filter DEBUG] Received response from ${provider}:`, JSON.stringify(result).substring(0, 500));
         const score = getNestedValue(result, scorePath);
         
         if (score === null) {
-          console.warn(`[AI Filter] Could not find a valid score at path "${scorePath}" for ${provider}.`);
-          return false; // 无法解析分数，默认阻止
+          const reason = `Could not find a valid score at path "${scorePath}" for ${provider}.`;
+          console.warn(`[AI Filter DEBUG] ${reason}`);
+          return { decision: 'error', reason };
         }
     
         if (score >= filterConfig.confidence) {
-          console.log(`[AI Filter] Blocked by ${provider}. Score: ${score}, Confidence: ${filterConfig.confidence}. URL: ${imageUrl}`);
-          return false; // 分数超过阈值，屏蔽
+          const reason = `Blocked by ${provider}. Score: ${score} >= Confidence: ${filterConfig.confidence}.`;
+          console.log(`[AI Filter DEBUG] <== ${reason} URL: ${imageUrl}`);
+          return { decision: 'block', reason, score };
         }
-    
-        return true; // 审核通过
+        
+        console.log(`[AI Filter DEBUG] <== Image PASSED. Score: ${score}, Confidence: ${filterConfig.confidence}. URL: ${imageUrl}`);
+        return { decision: 'allow', reason: 'Moderation passed', score };
       } catch (error) {
-        console.error(`[AI Filter] Exception during API call for ${provider}:`, error);
-        return false; // 发生异常，默认阻止
+        const reason = `Exception during API call for ${provider}: ${(error as Error).message}`;
+        console.error(`[AI Filter DEBUG] <== ${reason} URL: ${imageUrl}`, error);
+        return { decision: 'error', reason };
       }
     }
 
@@ -329,9 +339,12 @@ export async function GET(request: NextRequest) {
 
       // --- 2. 智能 AI 审核 ---
       if (config.SiteConfig.IntelligentFilter?.enabled) {
+        console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
         const moderationPromises = flattenedResults.map(async (item) => {
-          const isSafe = await moderateImage(item.poster, config);
-          return isSafe ? item : null;
+          const moderationResult = await moderateImage(item.poster, config);
+          // 策略：当审核成功且结果是'allow'时才保留。'block' 或 'error' 都会被过滤。
+          // 您可以修改这里，例如改成 moderationResult.decision !== 'block' 来放行审核失败的内容。
+          return moderationResult.decision === 'allow' ? item : null;
         });
         const moderatedResults = await Promise.all(moderationPromises);
         flattenedResults = moderatedResults.filter((item): item is any => item !== null);
