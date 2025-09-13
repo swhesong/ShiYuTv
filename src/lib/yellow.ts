@@ -345,8 +345,8 @@ function _moderateContentLogic(
   context = {}
 ) {
   let totalScore = 0;
-  const flags = [];
-  const matchedWords = [];
+  const flags: string[] = [];
+  const matchedWords: Array<{word: string; category: string; weight: number}> = [];
   
   if (!text || typeof text !== 'string') {
     return {
@@ -366,7 +366,7 @@ function _moderateContentLogic(
     if (Array.isArray(words)) {
       words.forEach(word => {
         if (lowerCaseText.includes(word.toLowerCase())) {
-          const weight = config.weights[category] || 10;
+          const weight = (config.weights as any)[category] || 10;
           totalScore += weight;
           matchedWords.push({ word, category, weight });
         }
@@ -376,7 +376,7 @@ function _moderateContentLogic(
       Object.entries(words).forEach(([lang, langWords]) => {
         (langWords as string[]).forEach(word => {
           if (lowerCaseText.includes(word.toLowerCase())) {
-            const weight = config.weights.international[lang] || 10;
+            const weight = (config.weights.international as any)[lang] || 10;
             totalScore += weight;
             matchedWords.push({ word, category: `international_${lang}`, weight });
           }
@@ -468,17 +468,17 @@ export function moderateContent(text: string, context = {}) {
 // ===== 持续优化机制 (保持不变) =====
 export const optimizationSystem = {
   // 反馈学习
-  addFeedback: function(content, humanDecision, systemDecision) {
+  addFeedback: function(content: string, humanDecision: string, systemDecision: string) {
     // 记录人工审核与系统判断的差异，用于优化权重
   },
   
   // 新词汇发现
-  discoverNewTerms: function(flaggedContent) {
+  discoverNewTerms: function(flaggedContent: string) {
     // 通过聚类分析发现新的规避词汇
   },
   
   // 动态权重调整
-  adjustWeights: function(category, adjustment) {
+  adjustWeights: function(category: string, adjustment: number) {
     // 根据误报率和漏报率动态调整权重
   }
 };
