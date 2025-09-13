@@ -1,75 +1,443 @@
-export const yellowWords = [
-  // --- 类别1: 核心明确词汇 (简体中文) ---
-  // 直接描述色情、成人内容的词汇
-  '色情', '成人', 'A片', '毛片', '三级片', '限制级', '情色', '黄色', '淫秽', '淫乱',
-  '女优', 'AV', '巨乳', '爆乳', '美乳', '罩杯', '骚货', '母狗', '肉便器', '肉便', '春药', '催情',
-  '淫荡', '淫水', '淫娃', '淫语', '淫叫', '淫声', '荡妇', '荡女', '浪女', '骚B',
+// 基于全球最佳实践的分级权重关键词系统
+export const yellowWords = {
+  // ===== 极高风险词汇 (权重: 200分, 立即拦截) =====
+  // 涉及未成年人、极端违法内容 - 零容忍
+  criticalRisk: [
+    // 未成年相关
+    '幼女', '萝莉', 'Loli', '正太', 'shota', '童妓', '恋童', '儿童色情', 'child porn', 'cp',
+    'underage', 'minor', 'teen porn', '未成年', 'l0li', 'l0l1', 'l.oli', 'lo.li',
+    
+    // 极端暴力犯罪
+    '强奸', '强暴', '迷奸', '轮奸', '诱奸', '奸杀', '性侵', '猥亵儿童',
+    '兽交', '人兽', '尸交', '恋尸', '虐杀', '性虐杀',
+    
+    // 繁体版本
+    '強姦', '強暴', '迷姦', '輪姦', '誘姦', '姦殺', '兒童色情', '未成年',
+    
+    // 日语
+    'ロリ', 'shota', 'jc', 'js', 'jk'
+  ],
 
-  // --- 类别2: 暴力与非法行为 ---
-  // 描述极端暴力、非法及严重违反道德的行为
-  '强奸', '强暴', '迷奸', '轮奸', '诱奸', '奸杀', '乱伦', '通奸', '兽交', '人兽',
-  '偷拍', '自拍', '针孔', '摄像头', '暴力', '猥亵', '血腥', '虐待', '施虐', '恋童',
-  '幼女', '萝莉', 'Loli', '童妓', '未成年', '援助交际', '援交',
+  // ===== 高风险词汇 (权重: 100-150分) =====
+  // 直接露骨的成人内容
+  highRisk: [
+    // 核心色情词汇
+    '色情', '淫秽', '淫乱', 'A片', '毛片', '黄片', '三级片', 'AV', '成人',
+    '女优', '巨乳', '爆乳', '美乳', '骚货', '母狗', '肉便器', '肉便', '春药', '催情',
+    '淫荡', '淫水', '淫娃', '淫语', '淫叫', '淫声', '荡妇', '荡女', '浪女', '骚B',
+    
+    // 直接性行为描述
+    '做爱', '性爱', '口交', '肛交', '群交', '乱伦', '通奸', '射精', '内射', '中出', 
+    '颜射', '口爆', '潮吹', '高潮', '3P', 'NP', '多P', '车震',
+    
+    // 身体部位露骨描述
+    '阴茎', '阴道', '鸡巴', '逼', '屌', '肉棒', '骚穴', '嫩穴', '龟头', '睾丸',
+    '精液', '精子', '体液', '乳交', '胸推', '阴部', '阴唇', '阴蒂', '私处',
+    '肉缝', '美鲍', 'B', '小穴', '骚B', '穴', '肛门', '后庭', '走后门', '菊花',
+    
+    // 平台相关
+    'pornhub', 'xvideos', 'xhamster', 'onlyfans', 'chaturbate', 'xnxx', 'fansly',
+    
+    // 繁体版本
+    '色情', '淫穢', '做愛', '性愛', '口交', '肛交', '亂倫', '射精', '內射', '中出',
+    '顏射', '調教', '捆綁', '無碼A片', '成人影片', 'H漫',
+    
+    // 日语罗马音
+    'nakadashi', 'bukakke', 'gokkun', 'chikan', 'hentai', 'oppai', 'sekkusu',
+    
+    // 规避性拼写
+    'p0rn', 'pr0n', 'xxx', 'se.x', 's3x', 'f.uck', 'fvck', 'p.orn', 'po.rn'
+  ],
 
-  // --- 类别3: 角色扮演与特定身份 ---
-  // 常见于成人影片题材中的角色和关系
-  '人妻', '熟女', '少妇', '寡妇', '女仆', '姐妹', '母女', '父女', '师生', '性奴',
-  '继母', '继父', '继女', '阿姨', '岳母', '女教师', '女学生', '学生妹', '美少女', '空姐', '护士',
-  '主播', '嫩模', '外围', '模特', '媛交', '福利姬', 'cosplay', 'Coser',
+  // ===== 中高风险词汇 (权重: 60-90分) =====
+  // 强关联成人内容但可能有合法用途
+  mediumHighRisk: [
+    // 题材标签
+    '制服诱惑', '黑丝诱惑', '国产传媒', '日本无码', '日本有码', '网红主播',
+    '色情片', '同性片', '福利视频', '福利片', '写真热舞', '伦理片', '理论片',
+    '韩国伦理', '港台三级', '里番动漫', '门事件', '萝莉少女',
+    
+    // BDSM相关
+    'SM', 'BDSM', '调教', '捆绑', '性奴', '奴隶', '主奴', '主人', '滴蜡', '性虐', 
+    '羞辱', '支配', '臣服', '口枷', '项圈', '鞭打', '犬奴', '圣水', '黄金',
+    
+    // 特定行为
+    '自慰', '手淫', '无套', '叫床', '群交', '下海', '交配', '交媾', '性交',
+    '性瘾', '爱抚', '前戏', '舔', '吸', '吮', '插入', '破处', '破身', '抽插', 
+    '活塞', '痉挛', '喷潮', '失禁', '呻吟',
+    
+    // 平台厂商
+    'JAV', 'FC2', 'FC2PPV', 'SWAG', '91', '探花', '麻豆', '天美', '精东', 
+    '星空', '蜜桃', '糖心', '一本道', '加勒比', '东京热', 'HEYZO',
+    
+    // 繁体补充
+    '倫理', '裏番', '國產', '無碼', '有碼', '寫真', '調教', '捆綁'
+  ],
 
-  // --- 类别4: 恋物与特定癖好 ---
-  // 描述特定 fetish 或 BDSM 相关内容
-  '制服', '黑丝', '肉丝', '白丝', '丝袜','肉丝', '美腿', '美足', '足交', '脚交', '恋足',
-  'SM', 'BDSM', '调教', '捆绑', '露出', '痴汉', '奴隶', '主奴', '主人', '滴蜡', '性虐', '羞辱',
-  '支配', '臣服', '口枷', '项圈', '鞭打',
+  // ===== 中风险词汇 (权重: 30-50分) =====
+  // 需要结合语境判断
+  mediumRisk: [
+    // 角色身份
+    '人妻', '熟女', '少妇', '寡妇', '女仆', '姐妹', '母女', '父女', '师生',
+    '继母', '继父', '继女', '阿姨', '岳母', '女教师', '女学生', '学生妹', 
+    '美少女', '空姐', '护士', '主播', '嫩模', '外围', '模特', '媛交', 
+    '福利姬', 'cosplay', 'Coser', '兔女郎', '体操服',
+    
+    // 身体特征
+    '巨乳', '爆乳', '美乳', '罩杯', '贫乳', '御姐', '丝袜', '黑丝', '肉丝', 
+    '白丝', '制服', '美腿', '美足', '美臀', '屁股', '乳房', '奶子', '乳头',
+    
+    // 地区类型
+    '国产', '传媒', '日本', '韩国', '欧美', '港台', '里番', '无码', '有码', 
+    '步兵', '骑兵', '三级片', '限制级', '情色', '黄色', '伦理', '日本伦理',
+    
+    // 特殊癖好
+    '足交', '脚交', '恋足', '露出', '痴汉', '偷拍', '自拍', '针孔', '摄像头',
+    
+    // 繁体版本
+    '巨乳', '貧乳', '禦姐', '誘惑', '三級', '強姦', '亂倫', '偷拍', '女優', '自慰'
+  ],
 
-  // --- 类别5: 行业与地区术语 ---
-  // 包括平台、类型和地区的黑话
-  'JAV', 'FC2', 'SWAG', '91', 'Porn', 'Xvideos', 'Pornhub', '国产', '传媒', '探花', '麻豆',
-  '日本', '韩国', '欧美', '港台', '里番', '无码', '有码', '步兵', '骑兵', '一本道', '加勒比',
+  // ===== 低风险词汇 (权重: 10-25分) =====
+  // 单独出现通常无害，组合使用风险增加
+  lowRisk: [
+    // 弱特征词
+    '福利', '激情', '动作', '爱情动作', '啪啪啪', '嘿咻', '床上', '搞基',
+    '诱惑', '撩人', '挑逗', '大尺度', '性感', '魅惑', '真空', '凸点', 
+    '激凸', '走光', '漏底', '湿身',
+    
+    // 场所职业
+    '楼凤', 'LF', '会所', '桑拿', '水疗', '按摩', '推油', '足浴',
+    '私房', '闺密', '闺蜜', '睡前', '教学', '辅导', '清洁', '检查', '体检',
+    '独居', '合租', '隔壁', '房东', '司机', '老板', '秘书', '加班', '夜勤', '催眠',
+    
+    // 技术相关
+    '会员', '付费', '解锁', '订阅', '付费内容', '付费视频', '完整版', '未删减',
+    '在线观看', '下载', '密码', '磁力', '磁链', '种子', 'torrent', 'magnet', 
+    'ed2k', '迅雷', '百度网盘', '提取码',
+    
+    // 声音描述
+    '亚麻带', 'yamete', 'kimochi', '一库', 'ikuyo', '啊哼', '嗯啊', '唔唔', '啊啊',
+    
+    // 动物暗语
+    '鸡', '鸭', '鸡婆', '小姐', '公主', '小妹', '犬交'
+  ],
 
-  // --- 类别6: 繁体中文 (台湾、香港地区常用) ---
-  // 简体词汇对应的繁体版本，以及当地特有说法
-  '倫理', '裏番', '誘惑', '國產', '無碼', '有碼', '色情', '寫真', '巨乳', '貧乳', '禦姐',
-  '理論', '韓國', '三級', '強姦', '亂倫', '偷拍', '女優', '做愛', '性愛', '自慰',
-  '淫穢', '調教', '捆綁', '顏射', '中出', '內射', '無碼A片', '中文字幕', '成人影片', 'H漫',
+  // ===== 规避性变体词汇 =====
+  evasionPatterns: [
+    // 拼音
+    'seqing', 'se qing', 'huangse', 'yinhui', 'lunli', 'fuli', 'sao', 'zuoai',
+    'koujiao', 'gangqiao', 'kouhuo', 'kb', 'ns', 'zs', 'cj', 'lm', 'rj', 'yy', 'mm', 'sb',
+    'cp', 'jy', 'gc', 'cc', 'xp', 'tp', '89',
+    
+    // 分隔符干扰
+    '色*情', '淫*秽', '乱*伦', '强*奸', '诱*奸', '迷*奸', '性*奴', '卖*淫',
+    '爆*乳', '巨*乳', '肛*交', '口*交', '做*爱', '性*爱',
+    '色.情', '淫.秽', '乱.伦', '强.奸', '做.爱', '口.交', '肛.交',
+    '色 情', '淫 秽', '乱 伦', '强 奸', '做 爱', '口 交', '肛 交',
+    '色_情', '淫_秽', '乱_伦', '强_奸', '做_爱', '口_交', '肛_交',
+    
+    // 谐音变体
+    '艹', '肏', '操', '草B', '操B', '法克', 'fuck', '碧池', 'bitch', '煞笔', '沙雕',
+    '簧片', '小电影', '基佬', '拉拉', 'Les',
+    
+    // 数字字母替换
+    'b1tch', 'fvck', 'sh1t', 'a55', 'p0rn', 'pr0n', 'ƒuck', 'ѕex', 'рorn', 'аss', 'тits'
+  ],
 
-  // --- 类别7: 日语原文及罗马音 ---
-  // 用户在搜索日本资源时可能直接使用的词汇
-  '無碼', '人妻', '熟女', '巨乳', '貧乳', '痴漢', '露出', '素人', '中出し', '顔射', '鬼畜',
-  'ロリ', // Rori (Loli)
-  'セーラー服', // Se-ra-fuku (Sailor uniform)
-  '制服', // Seifuku (Uniform)
-  'ギャル', // Gyaru (Gal)
-  'おっぱい', // Oppai (Breasts)
-  'セックス', // Sekkusu (Sex)
-  'nakadashi', 'chikan', 'shirouto', 'bukakke', 'gokkun', 'nyotaimori', 'hentai',
+  // ===== 多语言扩展 =====
+  international: {
+    korean: [
+      '한국야동', '일본야동', '품번', '섹스', '노출', '김치녀', '야동', '성인',
+      '포르노', '19금', '성관계', '자위', '오르가즘'
+    ],
+    russian: [
+      'порно', 'секс', 'русское', 'сиськи', 'жопа', 'ебля', 'трах', 'минет',
+      'анал', 'оргазм', 'мастурбация', 'голая', 'эротика'
+    ],
+    japanese: [
+      '無碼', '人妻', '熟女', '巨乳', '貧乳', '痴漢', '露出', '素人', '中出し',
+      '顔射', '鬼畜', 'ロリ', 'セーラー服', '制服', 'ギャル', 'おっぱい', 'セックス',
+      'エロ', 'アダルト', 'オナニー', 'フェラ', 'パイズリ'
+    ],
+    english: [
+      'porn', 'sex', 'fuck', 'pussy', 'dick', 'cock', 'tits', 'ass', 'nude',
+      'naked', 'blowjob', 'anal', 'orgasm', 'masturbate', 'cumshot', 'hardcore',
+      'adult', 'xxx', 'erotic', 'nsfw', 'milf', 'teen', 'amateur'
+    ],
+    spanish: [
+      'porno', 'sexo', 'desnudo', 'adulto', 'erótico', 'coño', 'polla', 'tetas',
+      'culo', 'follar', 'mamada', 'anal', 'orgasmo', 'masturbación'
+    ],
+    french: [
+      'porno', 'sexe', 'nu', 'adulte', 'érotique', 'chatte', 'bite', 'seins',
+      'cul', 'baiser', 'fellation', 'anal', 'orgasme', 'masturbation'
+    ],
+    german: [
+      'porno', 'sex', 'nackt', 'erwachsene', 'erotik', 'muschi', 'schwanz', 'titten',
+      'arsch', 'ficken', 'blasen', 'anal', 'orgasmus', 'masturbation'
+    ],
+    italian: [
+      'porno', 'sesso', 'nudo', 'adulto', 'erotico', 'figa', 'cazzo', 'tette',
+      'culo', 'scopare', 'pompino', 'anale', 'orgasmo', 'masturbazione'
+    ],
+    portuguese: [
+      'porno', 'sexo', 'nu', 'adulto', 'erótico', 'buceta', 'pau', 'peitos',
+      'bunda', 'transar', 'boquete', 'anal', 'orgasmo', 'masturbação'
+    ],
+    dutch: [
+      'porno', 'seks', 'naakt', 'volwassen', 'erotisch', 'kut', 'lul', 'tieten',
+      'kont', 'neuken', 'pijpen', 'anaal', 'orgasme', 'masturbatie'
+    ],
+    arabic: [
+      'إباحية', 'جنس', 'عاري', 'بالغ', 'مثير', 'قضيب', 'مهبل', 'ثدي'
+    ],
+    hindi: [
+      'अश्लील', 'यौन', 'नग्न', 'वयस्क', 'कामुक', 'लिंग', 'योनि', 'स्तन'
+    ]
+  }
+};
 
-  // --- 类别8: 拼音、谐音与变体词 ---
-  // 用于规避简单文本过滤的词汇
-  'lunli', 'fuli', 'huangse', 'seqing', 'se qing', 'sao', // 拼音
-  '肏', '草B', '操B', '射精', '口爆', '颜射', '菊爆', // 粗俗及变体
-  '黄片', '簧片', '鸡', '鸭', '鸡婆', // 谐音与暗语
-  '激情', '动作', '愛情動作', '啪啪啪', '嘿咻', '床上', '搞基', // 擦边球/代称
-  '楼凤', 'LF', '会所', '桑拿', '犬交', // 线下相关
+// ===== 上下文白名单系统 (降低误报) =====
+export const contextWhitelist = {
+  medical: [
+    // 医疗健康
+    '健康', '医疗', '治疗', '疾病', '症状', '诊断', '预防', '康复', '医学', '临床',
+    '医院', '医生', '护理', '药物', '手术', '检查', '体检', '病理', '解剖', '生理',
+    '妇科', '男科', '泌尿科', '外科', '内科', '儿科', '肿瘤科', '皮肤科',
+    '乳腺癌', '前列腺', '子宫', '卵巢', '睾丸', '阴道炎', '尿道炎', '性病', 'HPV',
+    'health', 'medical', 'treatment', 'disease', 'diagnosis', 'prevention', 'therapy'
+  ],
+  
+  educational: [
+    // 教育科普
+    '教育', '科普', '知识', '学习', '课程', '教学', '研究', '学术', '科学', '生物学',
+    '解剖学', '生理学', '心理学', '社会学', '人类学', '性教育', '青春期', '发育',
+    '教科书', '百科全书', '学校', '大学', '学院', '教授', '老师', '学生',
+    'education', 'science', 'biology', 'anatomy', 'physiology', 'textbook', 'university'
+  ],
+  
+  news: [
+    // 新闻报道
+    '新闻', '报道', '案件', '法律', '判决', '起诉', '调查', '警方', '法院', '律师',
+    '证据', '犯罪', '受害者', '嫌疑人', '司法', '执法', '立法', '政策', '社会',
+    '公共安全', '维权', '法制', '正义', '公正',
+    'news', 'report', 'case', 'legal', 'court', 'police', 'investigation', 'justice'
+  ],
+  
+  art: [
+    // 艺术文化
+    '艺术', '文化', '历史', '文学', '电影', '戏剧', '绘画', '雕塑', '摄影', '音乐',
+    '博物馆', '展览', '收藏', '古典', '现代', '当代', '创作', '作品', '艺术家',
+    '文艺复兴', '印象派', '抽象派', '写实主义', '浪漫主义',
+    'art', 'culture', 'history', 'literature', 'museum', 'exhibition', 'artist'
+  ],
+  
+  fitness: [
+    // 健身运动
+    '健身', '运动', '锻炼', '训练', '体能', '肌肉', '力量', '耐力', '柔韧性',
+    '瑜伽', '普拉提', '有氧运动', '无氧运动', '跑步', '游泳', '举重', '体操',
+    'fitness', 'exercise', 'training', 'workout', 'muscle', 'strength', 'yoga'
+  ]
+};
 
-  // --- 类别9: 原始列表保留 ---
-  // 保留您最初列表中的所有词汇以确保兼容
-  '伦理片', '福利', '里番动漫', '门事件', '萝莉少女', '制服诱惑', '国产传媒',
-  '黑丝诱惑', '日本无码', '日本有码', '网红主播', '色情片', '同性片', '福利视频',
-  '福利片', '写真热舞', '倫理片', '理论片', '韩国伦理', '港台三级', '电影解说',
-  '伦理', '日本伦理',
-
-  // --- 类别10: 身体部位与露骨描述 (新增) ---
-  // 针对特定身体部位和状态的描述词
-  '乳房', '奶子', '乳头', '乳交', '胸推', '阴道', '阴部', '阴唇', '阴蒂', '私处',
-  '骚穴', '嫩穴', '肉缝', '美鲍', '逼', 'B', '小穴', '骚B', '穴',
-  '屁股', '美臀', '肛门', '后庭', '走后门', '菊花',
-  '阴茎', '鸡巴', 'JB', '屌', '肉棒', '龟头', '睾丸', '精液', '精子', '体液',
-
-  // --- 类别11: 行为与过程 (新增) ---
-  // 描述具体的性行为和过程
-  '做爱', '性爱', '口交', '肛交', '自慰', '手淫', '内射', '无套', '中出', '颜射', '口爆',
-  '高潮', '喷潮', '潮吹', '失禁', '呻吟', '叫床', '车震', '群交', '下海', '3P', 'NP',
-  '交配', '交媾', '性交', '性瘾', '爱抚', '前戏', '舔', '吸', '吮', '插入', '破处', '破身', '抽插', '活塞', '痉挛'
+// ===== 组合检测规则系统 =====
+export const combinationRules = [
+  // 极高风险组合 (立即拦截)
+  {
+    pattern: ['未成年', '性', '视频'],
+    weight: 300,
+    action: 'block',
+    description: '涉及未成年人的性内容'
+  },
+  {
+    pattern: ['幼女', '萝莉', '诱惑'],
+    weight: 300,
+    action: 'block',
+    description: '儿童性剥削内容'
+  },
+  {
+    pattern: ['强奸', '迷奸', '视频'],
+    weight: 250,
+    action: 'block',
+    description: '性暴力内容'
+  },
+  
+  // 高风险组合 (人工审核)
+  {
+    pattern: ['制服', '诱惑', '学生'],
+    weight: 150,
+    action: 'human_review',
+    description: '可能的角色扮演成人内容'
+  },
+  {
+    pattern: ['护士', '按摩', '私密'],
+    weight: 120,
+    action: 'human_review',
+    description: '可能的职业角色成人内容'
+  },
+  {
+    pattern: ['主播', '福利', '付费'],
+    weight: 100,
+    action: 'human_review',
+    description: '可能的付费成人内容'
+  },
+  
+  // 中风险组合 (AI审核)
+  {
+    pattern: ['写真', '大尺度', '私房'],
+    weight: 80,
+    action: 'ai_review',
+    description: '边缘性感内容'
+  },
+  {
+    pattern: ['直播', '深夜', '互动'],
+    weight: 60,
+    action: 'ai_review',
+    description: '可能的成人直播'
+  }
 ];
+
+// ===== 权重计算系统 =====
+export const weightSystem = {
+  criticalRisk: 200,
+  highRisk: 100,
+  mediumHighRisk: 70,
+  mediumRisk: 40,
+  lowRisk: 15,
+  evasionPatterns: 50,
+  international: {
+    korean: 60,
+    russian: 60,
+    japanese: 50,
+    english: 80,
+    spanish: 40,
+    french: 40,
+    german: 40,
+    italian: 40,
+    portuguese: 40,
+    dutch: 40,
+    arabic: 30,
+    hindi: 30
+  }
+};
+
+// ===== 决策阈值系统 =====
+export const decisionThresholds = {
+  BLOCK: 200,           // 立即拦截
+  HUMAN_REVIEW: 120,    // 人工审核
+  AI_REVIEW: 80,        // AI深度审核
+  FLAG: 50,             // 标记监控
+  APPROVED: 0           // 通过
+};
+
+// ===== 实施函数示例 =====
+export function moderateContent(text, context = {}) {
+  let totalScore = 0;
+  let flags = [];
+  let matchedWords = [];
+  
+  // 第一层：关键词检测
+  Object.entries(yellowWords).forEach(([category, words]) => {
+    if (Array.isArray(words)) {
+      words.forEach(word => {
+        if (text.toLowerCase().includes(word.toLowerCase())) {
+          const weight = weightSystem[category] || 10;
+          totalScore += weight;
+          matchedWords.push({ word, category, weight });
+        }
+      });
+    } else if (typeof words === 'object') {
+      // 处理international对象
+      Object.entries(words).forEach(([lang, langWords]) => {
+        langWords.forEach(word => {
+          if (text.toLowerCase().includes(word.toLowerCase())) {
+            const weight = weightSystem.international[lang] || 10;
+            totalScore += weight;
+            matchedWords.push({ word, category: `international_${lang}`, weight });
+          }
+        });
+      });
+    }
+  });
+  
+  // 第二层：上下文分析 (降权)
+  let hasWhitelistContext = false;
+  Object.values(contextWhitelist).forEach(contextWords => {
+    contextWords.forEach(contextWord => {
+      if (text.toLowerCase().includes(contextWord.toLowerCase())) {
+        hasWhitelistContext = true;
+      }
+    });
+  });
+  
+  if (hasWhitelistContext) {
+    totalScore *= 0.3; // 大幅降权
+    flags.push('whitelist_context_detected');
+  }
+  
+  // 第三层：组合规则检测
+  combinationRules.forEach(rule => {
+    const allMatched = rule.pattern.every(keyword => 
+      text.toLowerCase().includes(keyword.toLowerCase())
+    );
+    if (allMatched) {
+      totalScore += rule.weight;
+      flags.push(`combination_${rule.action}_${rule.description}`);
+    }
+  });
+  
+  // 决策逻辑
+  let decision = 'APPROVED';
+  if (totalScore >= decisionThresholds.BLOCK) {
+    decision = 'BLOCK';
+  } else if (totalScore >= decisionThresholds.HUMAN_REVIEW) {
+    decision = 'HUMAN_REVIEW';
+  } else if (totalScore >= decisionThresholds.AI_REVIEW) {
+    decision = 'AI_REVIEW';
+  } else if (totalScore >= decisionThresholds.FLAG) {
+    decision = 'FLAG';
+  }
+  
+  return {
+    decision,
+    totalScore,
+    matchedWords,
+    flags,
+    hasWhitelistContext,
+    recommendation: getRecommendation(decision, totalScore)
+  };
+}
+
+function getRecommendation(decision, score) {
+  switch (decision) {
+    case 'BLOCK':
+      return '内容包含严重违规词汇，建议立即拦截';
+    case 'HUMAN_REVIEW':
+      return '内容存在较高风险，需要人工审核';
+    case 'AI_REVIEW':
+      return '内容存在中等风险，建议AI深度分析';
+    case 'FLAG':
+      return '内容存在轻微风险，标记监控';
+    default:
+      return '内容通过基础检测';
+  }
+}
+
+// ===== 持续优化机制 =====
+export const optimizationSystem = {
+  // 反馈学习
+  addFeedback: function(content, humanDecision, systemDecision) {
+    // 记录人工审核与系统判断的差异，用于优化权重
+  },
+  
+  // 新词汇发现
+  discoverNewTerms: function(flaggedContent) {
+    // 通过聚类分析发现新的规避词汇
+  },
+  
+  // 动态权重调整
+  adjustWeights: function(category, adjustment) {
+    // 根据误报率和漏报率动态调整权重
+  }
+};
