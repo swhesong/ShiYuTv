@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
-import { yellowWords } from '@/lib/yellow';
+import { moderateContent, decisionThresholds } from '@/lib/yellow';
 
 export const runtime = 'nodejs';
 
@@ -54,7 +54,14 @@ export async function GET(request: NextRequest) {
     if (!config.SiteConfig.DisableYellowFilter) {
       result = result.filter((result) => {
         const typeName = result.type_name || '';
-        return !yellowWords.some((word: string) => typeName.includes(word));
+        const title = result.title || '';
+        
+        // 使用新的审核函数检查标题和分类名
+        const titleModeration = moderateContent(title);
+        const typeModeration = moderateContent(typeName);
+        
+        return titleModeration.totalScore < decisionThresholds.FLAG && 
+               typeModeration.totalScore < decisionThresholds.FLAG;
       });
     }
     const cacheTime = await getCacheTime();
