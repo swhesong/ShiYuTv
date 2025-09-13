@@ -5,7 +5,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
-import { yellowWords } from '@/lib/yellow';
+import { moderateContent, decisionThresholds } from '@/lib/yellow';
 
 export const runtime = 'nodejs';
 
@@ -213,12 +213,13 @@ export async function GET(request: NextRequest) {
                   const typeName = result.type_name || '';
                   const title = result.title || ''; // 新增：获取标题
 
-                  // 检查标题或分类名是否包含不良词汇
-                  const isYellow = yellowWords.some((word: string) => 
-                    typeName.includes(word) || title.includes(word)
-                  );
+                  // 使用新的审核函数检查标题和分类名
+                  const titleModeration = moderateContent(title);
+                  const typeModeration = moderateContent(typeName);
                   
-                  return !isYellow; // 如果不是不良内容，则保留
+                  // 如果标题或分类名任一超过FLAG阈值，则过滤掉
+                  return titleModeration.totalScore < decisionThresholds.FLAG && 
+                         typeModeration.totalScore < decisionThresholds.FLAG;
                 });
               }
 
