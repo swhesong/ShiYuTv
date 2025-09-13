@@ -331,28 +331,52 @@ export const decisionThresholds = {
   APPROVED: 0           // 通过
 };
 
-// ===== 实施函数示例 =====
-export function moderateContent(text, context = {}) {
+// ===== 核心审核逻辑 (内部函数，不导出) =====
+// 这个函数现在接收所有依赖作为参数，解决了作用域问题
+function _moderateContentLogic(
+  text: string,
+  config: {
+    words: typeof yellowWords;
+    whitelist: typeof contextWhitelist;
+    rules: typeof combinationRules;
+    weights: typeof weightSystem;
+    thresholds: typeof decisionThresholds;
+  },
+  context = {}
+) {
   let totalScore = 0;
-  let flags = [];
-  let matchedWords = [];
+  const flags = [];
+  const matchedWords = [];
   
+  if (!text || typeof text !== 'string') {
+    return {
+      decision: 'APPROVED',
+      totalScore: 0,
+      matchedWords: [],
+      flags: ['invalid_input'],
+      hasWhitelistContext: false,
+      recommendation: '输入内容无效',
+    };
+  }
+  
+  const lowerCaseText = text.toLowerCase();
+
   // 第一层：关键词检测
-  Object.entries(yellowWords).forEach(([category, words]) => {
+  Object.entries(config.words).forEach(([category, words]) => {
     if (Array.isArray(words)) {
       words.forEach(word => {
-        if (text.toLowerCase().includes(word.toLowerCase())) {
-          const weight = weightSystem[category] || 10;
+        if (lowerCaseText.includes(word.toLowerCase())) {
+          const weight = config.weights[category] || 10;
           totalScore += weight;
           matchedWords.push({ word, category, weight });
         }
       });
-    } else if (typeof words === 'object') {
-      // 处理international对象
+    } else if (typeof words === 'object' && category === 'international') {
+      // 处理 international 对象
       Object.entries(words).forEach(([lang, langWords]) => {
-        langWords.forEach(word => {
-          if (text.toLowerCase().includes(word.toLowerCase())) {
-            const weight = weightSystem.international[lang] || 10;
+        (langWords as string[]).forEach(word => {
+          if (lowerCaseText.includes(word.toLowerCase())) {
+            const weight = config.weights.international[lang] || 10;
             totalScore += weight;
             matchedWords.push({ word, category: `international_${lang}`, weight });
           }
@@ -363,12 +387,14 @@ export function moderateContent(text, context = {}) {
   
   // 第二层：上下文分析 (降权)
   let hasWhitelistContext = false;
-  Object.values(contextWhitelist).forEach(contextWords => {
-    contextWords.forEach(contextWord => {
-      if (text.toLowerCase().includes(contextWord.toLowerCase())) {
+  Object.values(config.whitelist).forEach(contextWords => {
+    if (hasWhitelistContext) return; // 优化：一旦找到白名单上下文就停止检查
+    for (const contextWord of contextWords) {
+      if (lowerCaseText.includes(contextWord.toLowerCase())) {
         hasWhitelistContext = true;
+        break;
       }
-    });
+    }
   });
   
   if (hasWhitelistContext) {
@@ -377,25 +403,41 @@ export function moderateContent(text, context = {}) {
   }
   
   // 第三层：组合规则检测
-  combinationRules.forEach(rule => {
+  config.rules.forEach(rule => {
     const allMatched = rule.pattern.every(keyword => 
-      text.toLowerCase().includes(keyword.toLowerCase())
+      lowerCaseText.includes(keyword.toLowerCase())
     );
     if (allMatched) {
       totalScore += rule.weight;
       flags.push(`combination_${rule.action}_${rule.description}`);
     }
   });
+
+  // 内部辅助函数，解决了未导出的问题
+  function getRecommendation(decision: string, score: number): string {
+    switch (decision) {
+      case 'BLOCK':
+        return '内容包含严重违规词汇，建议立即拦截';
+      case 'HUMAN_REVIEW':
+        return '内容存在较高风险，需要人工审核';
+      case 'AI_REVIEW':
+        return '内容存在中等风险，建议AI深度分析';
+      case 'FLAG':
+        return '内容存在轻微风险，标记监控';
+      default:
+        return '内容通过基础检测';
+    }
+  }
   
   // 决策逻辑
   let decision = 'APPROVED';
-  if (totalScore >= decisionThresholds.BLOCK) {
+  if (totalScore >= config.thresholds.BLOCK) {
     decision = 'BLOCK';
-  } else if (totalScore >= decisionThresholds.HUMAN_REVIEW) {
+  } else if (totalScore >= config.thresholds.HUMAN_REVIEW) {
     decision = 'HUMAN_REVIEW';
-  } else if (totalScore >= decisionThresholds.AI_REVIEW) {
+  } else if (totalScore >= config.thresholds.AI_REVIEW) {
     decision = 'AI_REVIEW';
-  } else if (totalScore >= decisionThresholds.FLAG) {
+  } else if (totalScore >= config.thresholds.FLAG) {
     decision = 'FLAG';
   }
   
@@ -409,22 +451,21 @@ export function moderateContent(text, context = {}) {
   };
 }
 
-function getRecommendation(decision, score) {
-  switch (decision) {
-    case 'BLOCK':
-      return '内容包含严重违规词汇，建议立即拦截';
-    case 'HUMAN_REVIEW':
-      return '内容存在较高风险，需要人工审核';
-    case 'AI_REVIEW':
-      return '内容存在中等风险，建议AI深度分析';
-    case 'FLAG':
-      return '内容存在轻微风险，标记监控';
-    default:
-      return '内容通过基础检测';
-  }
+// ===== 导出的主函数 =====
+// 这个函数封装了内部逻辑，并自动传入所有配置，保持外部调用接口的简洁性
+export function moderateContent(text: string, context = {}) {
+  const config = {
+    words: yellowWords,
+    whitelist: contextWhitelist,
+    rules: combinationRules,
+    weights: weightSystem,
+    thresholds: decisionThresholds
+  };
+  return _moderateContentLogic(text, config, context);
 }
 
-// ===== 持续优化机制 =====
+
+// ===== 持续优化机制 (保持不变) =====
 export const optimizationSystem = {
   // 反馈学习
   addFeedback: function(content, humanDecision, systemDecision) {
