@@ -306,7 +306,7 @@ export async function GET(request: NextRequest) {
                     
                     if (score === null) {
                       console.warn(`[AI Filter] Could not find a valid score at path "${scorePath}" for ${provider}.`);
-                      return true; // 无法解析分数，默认放行
+                      return false; // 无法解析分数，默认阻止
                     }
                 
                     if (score >= filterConfig.confidence) {
@@ -317,7 +317,7 @@ export async function GET(request: NextRequest) {
                     return true; // 审核通过
                   } catch (error) {
                     console.error(`[AI Filter] Exception during API call for ${provider}:`, error);
-                    return true; // 发生异常，默认放行
+                    return false; // 发生异常，默认阻止
                   }
                 }
                 const moderationPromises = filteredResults.map(async (item) => {
