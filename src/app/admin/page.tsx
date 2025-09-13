@@ -5252,7 +5252,8 @@ const SiteConfigComponent = ({
     }
   };
 
-  useEffect(() => {
+
+useEffect(() => {
     if (config?.SiteConfig) {
       // 使用函数式更新和深度合并，确保 IntelligentFilter 结构始终存在
       setSiteSettings(prevSettings => {
@@ -5271,13 +5272,13 @@ const SiteConfigComponent = ({
               apiUrl: intelligentFilter?.options?.sightengine?.apiUrl ?? prevOptions.sightengine!.apiUrl,
               apiUser: intelligentFilter?.options?.sightengine?.apiUser ?? prevOptions.sightengine!.apiUser,
               // 核心修改：当服务器返回的 apiSecret 为空时，保留当前已输入的值 (prevSettings)，而不是用空字符串覆盖
-              apiSecret: intelligentFilter?.options?.sightengine?.apiSecret ?? prevOptions.sightengine!.apiSecret,
+              apiSecret: intelligentFilter?.options?.sightengine?.apiSecret || prevSettings.IntelligentFilter.options.sightengine!.apiSecret,
             },
             custom: {
               apiUrl: intelligentFilter?.options?.custom?.apiUrl ?? prevOptions.custom!.apiUrl,
               apiKeyHeader: intelligentFilter?.options?.custom?.apiKeyHeader ?? prevOptions.custom!.apiKeyHeader,
               // 核心修改：同上，处理自定义API的密钥
-              apiKeyValue: intelligentFilter?.options?.custom?.apiKeyValue ?? prevOptions.custom!.apiKeyValue,
+              apiKeyValue: intelligentFilter?.options?.custom?.apiKeyValue || prevSettings.IntelligentFilter.options.custom!.apiKeyValue,
               jsonBodyTemplate: intelligentFilter?.options?.custom?.jsonBodyTemplate ?? prevOptions.custom!.jsonBodyTemplate,
               responseScorePath: intelligentFilter?.options?.custom?.responseScorePath ?? prevOptions.custom!.responseScorePath,
             },
