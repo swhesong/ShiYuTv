@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
-import { fetch as undiciFetch, RequestInit, FormData } from 'undici';
+import { fetch as undiciFetch, RequestInit, FormData, AbortController } from 'undici';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
