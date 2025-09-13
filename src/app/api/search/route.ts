@@ -275,7 +275,16 @@ export async function GET(request: NextRequest) {
       // --- 2. 执行 API 请求并解析响应 ---
       try {
         console.log(`[AI Filter DEBUG] Sending request to ${provider} API: ${requestUrl}`);
-        const response = await fetch(requestUrl, requestOptions);
+        // 新增：为 fetch 请求添加 15 秒超时控制
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds
+
+        const response = await fetch(requestUrl, {
+          ...requestOptions,
+          signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId); // 如果请求成功，清除超时定时器
     
         if (!response.ok) {
           const errorBody = await response.text();
