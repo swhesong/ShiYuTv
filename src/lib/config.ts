@@ -243,6 +243,7 @@ async function getInitConfig(
           baidu: {
             apiKey: '',
             secretKey: '',
+            tokenUrl: 'https://aip.baidubce.com/oauth/2.0/token',
           },
           aliyun: {
             accessKeyId: '',
