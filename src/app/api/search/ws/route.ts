@@ -260,7 +260,7 @@ export async function GET(request: NextRequest) {
                         console.warn('[AI Filter] Sightengine is not fully configured.');
                         return { decision: 'error', reason: 'Sightengine not fully configured' };
                       }
-                      requestUrl = opts.apiUrl;
+                      requestUrl = opts.apiUrl.includes('/1.0/check.json') ? opts.apiUrl : `${opts.apiUrl.replace(/\/$/, '')}/1.0/check.json`;
                       const formData = new FormData();
                       formData.append('api_user', opts.apiUser);
                       formData.append('api_secret', opts.apiSecret);
