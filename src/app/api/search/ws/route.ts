@@ -304,7 +304,8 @@ export async function GET(request: NextRequest) {
 
                     const response = await undiciFetch(requestUrl, {
                       ...requestOptions,
-                      signal: controller.signal
+                      signal: controller.signal,
+                      timeout: 30000
                     });
                     
                     clearTimeout(timeoutId);
@@ -343,34 +344,51 @@ export async function GET(request: NextRequest) {
 
                 // --- 熔断机制的实现 ---
                 let failureCount = 0;
-                const failureThreshold = 3; // 连续失败3次后触发熔断
+                const failureThreshold = 5; // 提高失败阈值到5次
                 let isServiceDown = false;
 
-                const moderationPromises = filteredResults.map(async (item, index) => {
-                  if (isServiceDown) {
-                    console.log(`[AI Filter DEBUG][WS] Circuit breaker is OPEN. Allowing item #${index} to pass directly.`);
-                    return item;
-                  }
+                // 添加批次处理，避免并发过高
+                const batchSize = 3; // WebSocket中使用更小的批次
+                const batches = [];
+                for (let i = 0; i < filteredResults.length; i += batchSize) {
+                  batches.push(filteredResults.slice(i, i + batchSize));
+                }
 
-                  const moderationResult = await moderateImage(item.poster, config);
+                const moderatedResults = [];
+                for (const batch of batches) {
+                  const batchPromises = batch.map(async (item, index) => {
+                    if (isServiceDown) {
+                      console.log(`[AI Filter DEBUG][WS] Circuit breaker is OPEN. Allowing item to pass directly.`);
+                      return item;
+                    }
+
+                    const moderationResult = await moderateImage(item.poster, config);
+                    
+                    if (moderationResult.decision === 'error') {
+                      failureCount++;
+                      console.log(`[AI Filter DEBUG][WS] Moderation failure #${failureCount} recorded.`);
+                    } else {
+                      failureCount = Math.max(0, failureCount - 1);
+                    }
+
+                    if (failureCount >= failureThreshold) {
+                      isServiceDown = true;
+                      console.warn(`[AI Filter DEBUG][WS] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+                    }
+
+                    // 策略：失败时放行
+                    return moderationResult.decision !== 'block' ? item : null;
+                  });
                   
-                  if (moderationResult.decision === 'error') {
-                    failureCount++;
-                    console.log(`[AI Filter DEBUG][WS] Moderation failure #${failureCount} recorded.`);
-                  } else {
-                    failureCount = 0;
+                  const batchResults = await Promise.all(batchPromises);
+                  moderatedResults.push(...batchResults);
+                  
+                  // 批次间添加延迟
+                  if (batches.indexOf(batch) < batches.length - 1) {
+                    await new Promise(resolve => setTimeout(resolve, 150));
                   }
-
-                  if (failureCount >= failureThreshold) {
-                    isServiceDown = true;
-                    console.warn(`[AI Filter DEBUG][WS] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
-                  }
-
-                  // 策略：失败时放行
-                  return moderationResult.decision !== 'block' ? item : null;
-                });
+                }
                 
-                const moderatedResults = await Promise.all(moderationPromises);
                 filteredResults = moderatedResults.filter((item): item is any => item !== null);
               }
           
