@@ -238,7 +238,21 @@ async function getInitConfig(
             apiKeyHeader: 'X-Api-Key',
             apiKeyValue: '',
             jsonBodyTemplate: '{"image": "{{URL}}"}',
-            responseScorePath: 'nudity.raw', // 默认一个示例值
+            responseScorePath: 'nudity.raw',
+          },
+          baidu: {
+            apiKey: '',
+            secretKey: '',
+          },
+          aliyun: {
+            accessKeyId: '',
+            accessKeySecret: '',
+            regionId: 'cn-shanghai',
+          },
+          tencent: {
+            secretId: '',
+            secretKey: '',
+            region: 'ap-shanghai',
           },
         },
       },
