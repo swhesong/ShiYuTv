@@ -56,6 +56,7 @@ export interface AdminConfig {
           baidu?: {
             apiKey: string;
             secretKey: string;
+            tokenUrl?: string;
           };
           // 阿里云 的配置
           aliyun?: {
