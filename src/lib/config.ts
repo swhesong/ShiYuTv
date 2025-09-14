@@ -488,7 +488,7 @@ export function configSelfCheck(adminConfig: AdminConfig): AdminConfig {
           apiKeyHeader: 'X-Api-Key',
           apiKeyValue: '',
           jsonBodyTemplate: '{"image": "{{URL}}"}',
-          responseScorePath: '', // 初始化新字段
+          responseScorePath: 'nudity.raw', // 初始化新字段
         },
       },
     };
