@@ -31,30 +31,46 @@ export interface AdminConfig {
     DisableYellowFilter: boolean;
     FluidSearch: boolean;
     // 智能审核字段
-    IntelligentFilter: {
-      enabled: boolean;
-      provider: 'sightengine' | 'custom'; // 当前支持的提供商
-      confidence: number;
-      // 不同提供商的特定配置
-      options: {
-        // Sightengine 的配置
-        sightengine?: {
-          apiUrl: string;
-          apiUser: string;
-          apiSecret: string;
-        };
-        // 自定义 API 的配置
-        custom?: {
-          apiUrl: string;
-          apiKeyHeader: string; // 例如 'Authorization' 或 'X-Api-Key'
-          apiKeyValue: string;
+      IntelligentFilter: {
+        enabled: boolean;
+        provider: 'sightengine' | 'custom' | 'baidu' | 'aliyun' | 'tencent'; // 扩展支持的提供商
+        confidence: number;
+        // 不同提供商的特定配置
+        options: {
+          // Sightengine 的配置
+          sightengine?: {
+            apiUrl: string;
+            apiUser: string;
+            apiSecret: string;
+          };
+          // 自定义 API 的配置
+          custom?: {
+            apiUrl: string;
+            apiKeyHeader: string;
+            apiKeyValue: string;
           // 使用 {{URL}} 作为图片地址占位符
-          jsonBodyTemplate: string; // 例如 '{"image": "{{URL}}"}'
-          // 新增：响应解析配置
-          responseScorePath: string; // 例如: data.score 或 nudity.raw
+            jsonBodyTemplate: string;
+            responseScorePath: string;
+          };
+          // 百度智能云 的配置
+          baidu?: {
+            apiKey: string;
+            secretKey: string;
+          };
+          // 阿里云 的配置
+          aliyun?: {
+            accessKeyId: string;
+            accessKeySecret: string;
+            regionId: string; // 例如: cn-shanghai
+          };
+          // 腾讯云 的配置
+          tencent?: {
+            secretId: string;
+            secretKey: string;
+            region: string; // 例如: ap-shanghai
+          };
         };
       };
-    };
     EnableRegistration: boolean; // 全局注册开关
     RegistrationApproval: boolean; // 是否需要管理员审批
     MaxUsers?: number; // 最大用户数限制（可选）
