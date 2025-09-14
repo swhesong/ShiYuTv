@@ -89,7 +89,31 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '权限不足' }, { status: 401 });
       }
     }
-
+    
+    // 日志记录：检查从前端接收到的原始参数
+    if (IntelligentFilter) {
+      const sightengineOpts = IntelligentFilter.options?.sightengine;
+      const customOpts = IntelligentFilter.options?.custom;
+      console.log('Received IntelligentFilter config from frontend:', {
+        ...IntelligentFilter,
+        options: {
+          sightengine: {
+            ...sightengineOpts,
+            // 安全处理：不直接打印密钥，只打印长度信息
+            apiSecret: sightengineOpts?.apiSecret 
+              ? `(present, length: ${sightengineOpts.apiSecret.length})` 
+              : '(not provided)',
+          },
+          custom: {
+            ...customOpts,
+            apiKeyValue: customOpts?.apiKeyValue 
+              ? `(present, length: ${customOpts.apiKeyValue.length})` 
+              : '(not provided)',
+          },
+        },
+      });
+    }
+    
     // 安全检查：防止已保存的密钥被空值或占位符意外覆盖
     if (IntelligentFilter) {
       const sightengineOpts = IntelligentFilter.options?.sightengine;
@@ -97,9 +121,11 @@ export async function POST(request: NextRequest) {
 
       // 如果前端传来的 apiSecret 是占位符或空字符串，则保留数据库中已有的值
       if (sightengineOpts && (sightengineOpts.apiSecret === '********' || sightengineOpts.apiSecret === '')) {
+        console.log("Detected placeholder for apiSecret. Preserving old value.");
         sightengineOpts.apiSecret = adminConfig.SiteConfig.IntelligentFilter?.options?.sightengine?.apiSecret || '';
       }
       if (customOpts && (customOpts.apiKeyValue === '********' || customOpts.apiKeyValue === '')) {
+        console.log("Detected placeholder for apiKeyValue. Preserving old value.");
         customOpts.apiKeyValue = adminConfig.SiteConfig.IntelligentFilter?.options?.custom?.apiKeyValue || '';
       }
     }
