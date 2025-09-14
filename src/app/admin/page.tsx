@@ -5299,6 +5299,11 @@ useEffect(() => {
               jsonBodyTemplate: intelligentFilter?.options?.custom?.jsonBodyTemplate ?? prevOptions.custom!.jsonBodyTemplate,
               responseScorePath: intelligentFilter?.options?.custom?.responseScorePath ?? prevOptions.custom!.responseScorePath,
             },
+            baidu: {
+              apiKey: intelligentFilter?.options?.baidu?.apiKey ?? prevOptions.baidu!.apiKey,
+              secretKey: intelligentFilter?.options?.baidu?.secretKey || prevSettings.IntelligentFilter.options.baidu!.secretKey,
+              tokenUrl: intelligentFilter?.options?.baidu?.tokenUrl ?? prevOptions.baidu!.tokenUrl,
+            },
           },
         },
         // 保留其他字段的默认值逻辑
@@ -5362,6 +5367,9 @@ useEffect(() => {
     siteSettings.IntelligentFilter?.options.sightengine?.apiUrl,
     siteSettings.IntelligentFilter?.options.sightengine?.apiUser,
     siteSettings.IntelligentFilter?.options.sightengine?.apiSecret,
+    siteSettings.IntelligentFilter?.options.baidu?.apiKey,
+    siteSettings.IntelligentFilter?.options.baidu?.secretKey,
+    siteSettings.IntelligentFilter?.options.baidu?.tokenUrl,
   ]);
   
   // 处理豆瓣数据源变化
