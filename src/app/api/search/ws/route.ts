@@ -304,8 +304,7 @@ export async function GET(request: NextRequest) {
 
                     const response = await undiciFetch(requestUrl, {
                       ...requestOptions,
-                      signal: controller.signal,
-                      timeout: 30000
+                      signal: controller.signal
                     });
                     
                     clearTimeout(timeoutId);
