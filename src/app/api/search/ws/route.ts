@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
 import { fetch as undiciFetch, RequestInit, FormData, Agent } from 'undici';
 import { NextRequest, NextResponse } from 'next/server';
-
+import { getBaiduAccessToken } from '@/lib/baidu-token-manager';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
@@ -330,37 +330,13 @@ export async function GET(request: NextRequest) {
                       }
                       
                       try {
-                        // 1. 获取 Access Token
-                        const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${baiduApiKey}&client_secret=${baiduSecretKey}`;
-                        console.log(`[AI Filter DEBUG][WS] Requesting access token from Baidu...`);
+                        // 3. 使用新的管理器获取 Access Token
+                        const accessToken = await getBaiduAccessToken(baiduApiKey, baiduSecretKey);
                         
-                        // undiciFetch 在新版本中已不推荐直接使用 timeout 选项，改用 AbortSignal
-                        const tokenController = new AbortController();
-                        const tokenTimeoutId = setTimeout(() => tokenController.abort(), 15000); // 15秒超时
-                        
-                        const tokenResponse = await undiciFetch(tokenUrl, { 
-                          method: 'POST',
-                          dispatcher: agent,
-                          signal: tokenController.signal
-                        });
-                        clearTimeout(tokenTimeoutId);
-                        
-                        if (!tokenResponse.ok) {
-                          const errorText = await tokenResponse.text();
-                          throw new Error(`Token request failed: ${tokenResponse.status} ${errorText}`);
-                        }
-                        
-                        const tokenData = await tokenResponse.json() as any;
-                        if (!tokenData.access_token) {
-                          throw new Error(tokenData.error_description || 'No access_token in response from Baidu');
-                        }
-                        
-                        console.log(`[AI Filter DEBUG][WS] Successfully obtained Baidu access token`);
-                        
-                        // 2. 准备审核请求
-                        requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${tokenData.access_token}`;
+                        // 4. 准备审核请求
+                        requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${accessToken}`;
                         const body = new URLSearchParams();
-                        body.append('imgUrl', imageUrl); // 关键修复：使用正确的参数名 imgUrl
+                        body.append('imgUrl', imageUrl);
                         
                         const censorController = new AbortController();
                         const censorTimeoutId = setTimeout(() => censorController.abort(), 15000); // 15秒超时
@@ -372,7 +348,7 @@ export async function GET(request: NextRequest) {
                           dispatcher: agent,
                           signal: censorController.signal
                         };
-                        clearTimeout(censorTimeoutId); // 在 undiciFetch 内部 signal 会处理，这里清除以防万一
+                        clearTimeout(censorTimeoutId);
                         
                         scorePath = 'conclusionType'; // 百度返回的结论类型 1:合规, 2:不合规, 3:疑似, 4:审核失败
                         
@@ -381,7 +357,8 @@ export async function GET(request: NextRequest) {
                         return { decision: 'error', reason: `Failed to prepare Baidu request: ${(error as Error).message}` };
                       }
                       break;
-                    }           
+                    }
+           
                     case 'custom': {
                       const opts = filterConfig.options.custom || {};
                       opts.apiKeyValue = process.env.CUSTOM_API_KEY_VALUE || opts.apiKeyValue;
@@ -511,7 +488,7 @@ export async function GET(request: NextRequest) {
                   
                   // 批次间添加延迟
                   if (batches.indexOf(batch) < batches.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 150));
+                    await new Promise(resolve => setTimeout(resolve, 250));
                   }
                 }
                 
