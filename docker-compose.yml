@@ -7,6 +7,19 @@ services:
     restart: unless-stopped
     ports:
       - '3133:3000'
+  dns:
+    - 8.8.8.8
+    - 1.1.1.1
+    - 8.8.4.4
+  dns_search:
+    - .
+  dns_opt:
+    - ndots:1
+  extra_hosts:
+    - "api.sightengine.com:5.39.70.185"  # 添加静态解析
+  sysctls:
+    - net.ipv6.conf.all.disable_ipv6=1
+    - net.ipv6.conf.default.disable_ipv6=1
     environment:
       - USERNAME=root
       - PASSWORD=<您的shihiütv强密码>  # <--- 必须修改
