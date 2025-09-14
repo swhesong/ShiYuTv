@@ -39,7 +39,8 @@ export async function POST(request: NextRequest) {
       formData.append('url', 'https://placehold.co/100x100.png'); // 使用一个公开、安全的图片URL进行测试
       formData.append('models', 'nudity-2.0');
 
-      const response = await fetch(config.apiUrl, { method: 'POST', body: formData });
+      const testUrl = config.apiUrl.includes('/1.0/check.json') ? config.apiUrl : `${config.apiUrl.replace(/\/$/, '')}/1.0/check.json`;
+      const response = await fetch(testUrl, { method: 'POST', body: formData });
       const result = await response.json();
 
       if (response.ok && result.status === 'success') {
