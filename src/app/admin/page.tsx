@@ -5962,6 +5962,18 @@ useEffect(() => {
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  Token URL (可选)
+                </label>
+                <input
+                  type='text'
+                  placeholder='留空则使用默认地址'
+                  value={siteSettings.IntelligentFilter.options.baidu?.tokenUrl || ''}
+                  onChange={(e) => handleFilterOptionChange('baidu', 'tokenUrl', e.target.value)}
+                  className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                />
+              </div>
               {/* 为百度云添加测试连接按钮 */}
               <div className='pt-2'>
                 <button
