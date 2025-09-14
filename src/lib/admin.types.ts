@@ -12,14 +12,7 @@ export interface SourceLastCheck {
   timestamp: number; // Unix timestamp of the check
 }
 
-export interface AdminConfig {
-  ConfigSubscribtion: {
-    URL: string;
-    AutoUpdate: boolean;
-    LastCheck: string;
-  };
-  ConfigFile: string;
-  SiteConfig: {
+export interface SiteConfig {
     SiteName: string;
     Announcement: string;
     SearchDownstreamMaxPage: number;
@@ -76,7 +69,16 @@ export interface AdminConfig {
     RegistrationApproval: boolean; // 是否需要管理员审批
     MaxUsers?: number; // 最大用户数限制（可选）
     LinuxDoOAuth: OAuthConfig;
+}
+
+export interface AdminConfig {
+  ConfigSubscribtion: {
+    URL: string;
+    AutoUpdate: boolean;
+    LastCheck: string;
   };
+  ConfigFile: string;
+  SiteConfig: SiteConfig;
   UserConfig: {
     Users: {
       username: string;
