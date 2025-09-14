@@ -132,7 +132,7 @@ export async function POST(request: NextRequest) {
         console.log("Preserving existing baidu secretKey.");
         baiduOpts.secretKey = adminConfig.SiteConfig.IntelligentFilter?.options?.baidu?.secretKey || '';
       }
-
+    }
     // 更新缓存中的站点设置（保留 OAuth 配置）
     adminConfig.SiteConfig = {
       ...adminConfig.SiteConfig,
