@@ -281,7 +281,8 @@ export async function GET(request: NextRequest) {
 
         const response = await undiciFetch(requestUrl, {
           ...requestOptions,
-          signal: controller.signal
+          signal: controller.signal,
+          timeout: 30000
         });
         
         clearTimeout(timeoutId); // 如果请求成功，清除超时定时器
