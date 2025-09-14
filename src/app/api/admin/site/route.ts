@@ -118,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (IntelligentFilter) {
       const sightengineOpts = IntelligentFilter.options?.sightengine;
       const customOpts = IntelligentFilter.options?.custom;
-
+      const baiduOpts = IntelligentFilter.options?.baidu;
       // 如果前端传来的 apiSecret 是占位符或空字符串，则保留数据库中已有的值
       if (sightengineOpts && (sightengineOpts.apiSecret === '********' || sightengineOpts.apiSecret === '')) {
         console.log("Detected placeholder for apiSecret. Preserving old value.");
@@ -127,6 +127,9 @@ export async function POST(request: NextRequest) {
       if (customOpts && (customOpts.apiKeyValue === '********' || customOpts.apiKeyValue === '')) {
         console.log("Detected placeholder for apiKeyValue. Preserving old value.");
         customOpts.apiKeyValue = adminConfig.SiteConfig.IntelligentFilter?.options?.custom?.apiKeyValue || '';
+      }
+      if (baiduOpts && (baiduOpts.secretKey === '********' || baiduOpts.secretKey === '')) {
+        baiduOpts.secretKey = adminConfig.SiteConfig.IntelligentFilter?.options?.baidu?.secretKey || '';
       }
     }
 
