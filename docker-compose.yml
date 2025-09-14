@@ -26,11 +26,11 @@ services:
       - NEXT_PUBLIC_ENABLE_REGISTER=true
       - NEXT_PUBLIC_SITE_NAME=shihiütv
       # Sightengine审核服务
-      SIGHTENGINE_API_USER=您的Sightengine_API_User  # <--- 必须修改
-      SIGHTENGINE_API_SECRET=您的Sightengine_API_Secret  # <--- 必须修改
+      - SIGHTENGINE_API_USER=您的Sightengine_API_User  # <--- 必须修改
+      - SIGHTENGINE_API_SECRET=您的Sightengine_API_Secret  # <--- 必须修改
       # 百度智能云审核服务
-      BAIDU_API_KEY=您的百度云API_Key  # <--- 必须修改
-      BAIDU_SECRET_KEY=您的百度云Secret_Key  # <--- 必须修改
+      - BAIDU_API_KEY=您的百度云API_Key  # <--- 必须修改
+      - BAIDU_SECRET_KEY=您的百度云Secret_Key  # <--- 必须修改
 
     networks:
       - shihiütv-network
