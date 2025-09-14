@@ -260,7 +260,7 @@ export async function GET(request: NextRequest) {
           const baiduSecretKey = process.env.BAIDU_SECRET_KEY;
           
           if (!baiduApiKey || !baiduSecretKey) {
-            console.warn('[AI Filter] Baidu API keys not found in environment variables.');
+            console.warn('[AI Filter] Baidu API keys not found in environment variables. Please configure BAIDU_API_KEY and BAIDU_SECRET_KEY in your docker-compose.yml or .env file.');
             return { decision: 'error', reason: 'Baidu API keys not configured in server environment' };
           }
           
@@ -269,12 +269,15 @@ export async function GET(request: NextRequest) {
             const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${baiduApiKey}&client_secret=${baiduSecretKey}`;
             console.log(`[AI Filter DEBUG] Requesting access token from Baidu...`);
             
-            // undiciFetch 在新版本中已不推荐直接使用 timeout 选项，改用 AbortSignal
+            const tokenController = new AbortController();
+            const tokenTimeoutId = setTimeout(() => tokenController.abort(), 15000); // 15秒超时
+            
             const tokenResponse = await undiciFetch(tokenUrl, { 
               method: 'POST',
               dispatcher: agent,
-              signal: AbortSignal.timeout(15000) // 15秒超时
+              signal: tokenController.signal
             });
+            clearTimeout(tokenTimeoutId);
             
             if (!tokenResponse.ok) {
               const errorText = await tokenResponse.text();
@@ -283,7 +286,7 @@ export async function GET(request: NextRequest) {
             
             const tokenData = await tokenResponse.json() as any;
             if (!tokenData.access_token) {
-              throw new Error(tokenData.error_description || 'No access_token in response');
+              throw new Error(tokenData.error_description || 'No access_token in response from Baidu');
             }
             
             console.log(`[AI Filter DEBUG] Successfully obtained Baidu access token`);
@@ -291,16 +294,21 @@ export async function GET(request: NextRequest) {
             // 2. 准备审核请求
             requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${tokenData.access_token}`;
             const body = new URLSearchParams();
-            body.append('imgUrl', imageUrl); // 修复：使用正确的参数名 imgUrl
+            body.append('imgUrl', imageUrl); // 关键修复：使用正确的参数名 imgUrl
             
+            const censorController = new AbortController();
+            const censorTimeoutId = setTimeout(() => censorController.abort(), 15000); // 15秒超时
+
             requestOptions = {
               method: 'POST',
               headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
               body: body.toString(),
               dispatcher: agent,
-              signal: AbortSignal.timeout(15000) // 15秒超时
+              signal: censorController.signal
             };
-            scorePath = 'conclusionType';
+            clearTimeout(censorTimeoutId); // 在 undiciFetch 内部 signal 会处理，这里清除以防万一
+            
+            scorePath = 'conclusionType'; // 百度返回的结论类型 1:合规, 2:不合规, 3:疑似, 4:审核失败
             
           } catch (error) {
             console.error('[AI Filter] Failed to prepare Baidu request:', error);
