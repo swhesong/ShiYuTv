@@ -55,7 +55,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: '百度智能云配置不完整' }, { status: 400 });
       }
       
-      const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${config.apiKey}&client_secret=${config.secretKey}`;
+      const baseUrl = config.tokenUrl || 'https://aip.baidubce.com/oauth/2.0/token';
+      const tokenUrl = `${baseUrl}?grant_type=client_credentials&client_id=${config.apiKey}&client_secret=${config.secretKey}`;
       const tokenResponse = await fetch(tokenUrl, { method: 'POST' });
       const tokenData = await tokenResponse.json();
 
