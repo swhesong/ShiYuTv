@@ -119,19 +119,19 @@ export async function POST(request: NextRequest) {
       const sightengineOpts = IntelligentFilter.options?.sightengine;
       const customOpts = IntelligentFilter.options?.custom;
       const baiduOpts = IntelligentFilter.options?.baidu;
-      // 如果前端传来的 apiSecret 是占位符，则保留数据库中已有的值
-      if (sightengineOpts && sightengineOpts.apiSecret === '********') {
-        console.log("Detected placeholder for apiSecret. Preserving old value.");
+      // 如果前端传来的密钥是占位符、空或未定义，则保留数据库中已有的值
+      if (sightengineOpts && (!sightengineOpts.apiSecret || sightengineOpts.apiSecret === '********')) {
+        console.log("Preserving existing sightengine apiSecret.");
         sightengineOpts.apiSecret = adminConfig.SiteConfig.IntelligentFilter?.options?.sightengine?.apiSecret || '';
       }
-      if (customOpts && customOpts.apiKeyValue === '********') {
-        console.log("Detected placeholder for apiKeyValue. Preserving old value.");
+      if (customOpts && (!customOpts.apiKeyValue || customOpts.apiKeyValue === '********')) {
+        console.log("Preserving existing custom apiKeyValue.");
         customOpts.apiKeyValue = adminConfig.SiteConfig.IntelligentFilter?.options?.custom?.apiKeyValue || '';
       }
-      if (baiduOpts && baiduOpts.secretKey === '********') {
+      if (baiduOpts && (!baiduOpts.secretKey || baiduOpts.secretKey === '********')) {
+        console.log("Preserving existing baidu secretKey.");
         baiduOpts.secretKey = adminConfig.SiteConfig.IntelligentFilter?.options?.baidu?.secretKey || '';
       }
-    }
 
     // 更新缓存中的站点设置（保留 OAuth 配置）
     adminConfig.SiteConfig = {
