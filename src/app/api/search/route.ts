@@ -353,36 +353,54 @@ export async function GET(request: NextRequest) {
         console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
         
         let failureCount = 0;
-        const failureThreshold = 3; // 连续失败3次后触发熔断
+        const failureThreshold = 5; // 提高失败阈值到5次
         let isServiceDown = false;
 
-        const moderationPromises = flattenedResults.map(async (item, index) => {
-          // 如果服务已熔断，则直接放行
-          if (isServiceDown) {
-            console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item #${index} to pass directly.`);
-            return item;
-          }
+        // 添加批次处理，避免并发过高
+        const batchSize = 5;
+        const batches = [];
+        for (let i = 0; i < flattenedResults.length; i += batchSize) {
+          batches.push(flattenedResults.slice(i, i + batchSize));
+        }
 
-          const moderationResult = await moderateImage(item.poster, config);
+        const moderatedResults = [];
+        for (const batch of batches) {
+          const batchPromises = batch.map(async (item, index) => {
+            // 如果服务已熔断，则直接放行
+            if (isServiceDown) {
+              console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
+              return item;
+            }
+
+            const moderationResult = await moderateImage(item.poster, config);
+            
+            if (moderationResult.decision === 'error') {
+              failureCount++;
+              console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
+            } else {
+              // 任何一次成功都重置失败计数器
+              failureCount = Math.max(0, failureCount - 1);
+            }
+
+            // 检查是否达到熔断阈值
+            if (failureCount >= failureThreshold) {
+              isServiceDown = true;
+              console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+            }
+
+            // 策略：失败时放行 (当审核出错或审核通过时，都保留)
+            return moderationResult.decision !== 'block' ? item : null;
+          });
           
-          if (moderationResult.decision === 'error') {
-            failureCount++;
-            console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
-          } else {
-            // 任何一次成功都重置失败计数器
-            failureCount = 0;
+          const batchResults = await Promise.all(batchPromises);
+          moderatedResults.push(...batchResults);
+          
+          // 批次间添加延迟，减少API压力
+          if (batches.indexOf(batch) < batches.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 100));
           }
+        }
 
-          // 检查是否达到熔断阈值
-          if (failureCount >= failureThreshold) {
-            isServiceDown = true;
-            console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
-          }
-
-          // 策略：失败时放行 (当审核出错或审核通过时，都保留)
-          return moderationResult.decision !== 'block' ? item : null;
-        });
-        const moderatedResults = await Promise.all(moderationPromises);
         flattenedResults = moderatedResults.filter((item): item is any => item !== null);
       }
       
