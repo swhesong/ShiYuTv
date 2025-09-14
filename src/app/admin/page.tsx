@@ -311,7 +311,7 @@ interface SiteConfig {
   // 智能审核字段
   IntelligentFilter: {
     enabled: boolean;
-    provider: 'sightengine' | 'custom';
+    provider: 'sightengine' | 'custom' | 'baidu' | 'aliyun' | 'tencent';
     confidence: number;
     options: {
       sightengine?: {
@@ -325,6 +325,20 @@ interface SiteConfig {
         apiKeyValue: string;
         jsonBodyTemplate: string;
         responseScorePath: string; // 新增
+      };
+      baidu?: {
+        apiKey: string;
+        secretKey: string;
+      };
+      aliyun?: {
+        accessKeyId: string;
+        accessKeySecret: string;
+        regionId: string;
+      };
+      tencent?: {
+        secretId: string;
+        secretKey: string;
+        region: string;
       };
     };
   };
@@ -5161,6 +5175,9 @@ const SiteConfigComponent = ({
       options: {
         sightengine: { apiUrl: '', apiUser: '', apiSecret: '' },
         custom: { apiUrl: '', apiKeyHeader: '', apiKeyValue: '', jsonBodyTemplate: '', responseScorePath: '' },
+        baidu: { apiKey: '', secretKey: '' },
+        aliyun: { accessKeyId: '', accessKeySecret: '', regionId: 'cn-shanghai' },
+        tencent: { secretId: '', secretKey: '', region: 'ap-shanghai' },
       },
     },
   });
@@ -5185,7 +5202,7 @@ const SiteConfigComponent = ({
     }));
   };
   const handleFilterOptionChange = (
-    provider: 'sightengine' | 'custom',
+    provider: 'sightengine' | 'custom' | 'baidu' | 'aliyun' | 'tencent',
     key: string,
     value: string
   ) => {
