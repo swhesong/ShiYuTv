@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
-import { fetch as undiciFetch, RequestInit, FormData } from 'undici';
+import { fetch as undiciFetch, RequestInit, FormData, Agent } from 'undici';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
@@ -366,10 +366,14 @@ export async function GET(request: NextRequest) {
                     console.log(`[AI Filter DEBUG][WS] Network test - attempting connection to API endpoint...`);
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
+                    const agent = new Agent({
+                      connectTimeout: 30000 // 30秒连接超时
+                    });
 
                     const response = await undiciFetch(requestUrl, {
                       ...requestOptions,
-                      signal: controller.signal
+                      signal: controller.signal,
+                      dispatcher: agent
                     });
                     
                     clearTimeout(timeoutId);
