@@ -324,11 +324,12 @@ interface SiteConfig {
         apiKeyHeader: string;
         apiKeyValue: string;
         jsonBodyTemplate: string;
-        responseScorePath: string; // 新增
+        responseScorePath: string;
       };
       baidu?: {
         apiKey: string;
         secretKey: string;
+        tokenUrl?: string; 
       };
       aliyun?: {
         accessKeyId: string;
