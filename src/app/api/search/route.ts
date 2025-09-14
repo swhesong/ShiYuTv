@@ -255,17 +255,22 @@ export async function GET(request: NextRequest) {
           break;
         }
         case 'baidu': {
-          // 优先从环境变量读取百度API密钥
-          const baiduApiKey = process.env.BAIDU_API_KEY;
-          const baiduSecretKey = process.env.BAIDU_SECRET_KEY;
+          // 从前端配置中获取选项，并提供一个空对象作为默认值
+          const opts = filterConfig.options.baidu || {};
+
+          // 1. 优先从环境变量读取密钥，如果不存在，则回退到前端设置
+          const baiduApiKey = process.env.BAIDU_API_KEY || opts.apiKey;
+          const baiduSecretKey = process.env.BAIDU_SECRET_KEY || opts.secretKey;
           
+          // 2. 检查最终确定的密钥是否存在
           if (!baiduApiKey || !baiduSecretKey) {
-            console.warn('[AI Filter] Baidu API keys not found in environment variables. Please configure BAIDU_API_KEY and BAIDU_SECRET_KEY in your docker-compose.yml or .env file.');
-            return { decision: 'error', reason: 'Baidu API keys not configured in server environment' };
+            // 更新日志，告知用户两种配置方式
+            console.warn('[AI Filter] Baidu API keys are not configured. Please set them either in environment variables (BAIDU_API_KEY, BAIDU_SECRET_KEY) or in the web UI.');
+            return { decision: 'error', reason: 'Baidu API keys not configured' };
           }
           
           try {
-            // 1. 获取 Access Token
+            // 3. 获取 Access Token
             const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${baiduApiKey}&client_secret=${baiduSecretKey}`;
             console.log(`[AI Filter DEBUG] Requesting access token from Baidu...`);
             
@@ -291,7 +296,7 @@ export async function GET(request: NextRequest) {
             
             console.log(`[AI Filter DEBUG] Successfully obtained Baidu access token`);
             
-            // 2. 准备审核请求
+            // 4. 准备审核请求
             requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${tokenData.access_token}`;
             const body = new URLSearchParams();
             body.append('imgUrl', imageUrl); // 关键修复：使用正确的参数名 imgUrl
@@ -316,6 +321,7 @@ export async function GET(request: NextRequest) {
           }
           break;
         }
+
     
         case 'custom': {
           const opts = filterConfig.options.custom || {};
