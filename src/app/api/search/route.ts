@@ -246,6 +246,36 @@ export async function GET(request: NextRequest) {
           scorePath = 'nudity.raw'; // Sightengine 的分数路径是固定的
           break;
         }
+        case 'baidu': {
+          const opts = filterConfig.options.baidu;
+          if (!opts || !opts.apiKey || !opts.secretKey) {
+            console.warn('[AI Filter] Baidu is not fully configured.');
+            return { decision: 'error', reason: 'Baidu not fully configured' };
+          }
+          try {
+            // 1. 获取 Access Token
+            const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${opts.apiKey}&client_secret=${opts.secretKey}`;
+            const tokenResponse = await undiciFetch(tokenUrl, { method: 'POST' });
+            const tokenData = await tokenResponse.json() as any;
+            if (!tokenResponse.ok || !tokenData.access_token) {
+              throw new Error(tokenData.error_description || 'Failed to get access_token');
+            }
+            // 2. 准备审核请求
+            requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${tokenData.access_token}`;
+            const body = new URLSearchParams();
+            body.append('url', imageUrl);
+            requestOptions = {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+              body: body.toString(),
+            };
+            scorePath = 'conclusionType'; // 百度返回的结论类型 1:合规, 2:不合规, 3:疑似, 4:审核失败
+          } catch (error) {
+             console.error('[AI Filter] Failed to prepare Baidu request:', error);
+             return { decision: 'error', reason: `Failed to prepare Baidu request: ${(error as Error).message}` };
+          }
+          break;
+        }
     
         case 'custom': {
           const opts = filterConfig.options.custom;
@@ -295,6 +325,19 @@ export async function GET(request: NextRequest) {
     
         const result = await response.json();
         console.log(`[AI Filter DEBUG] Received response from ${provider}:`, JSON.stringify(result).substring(0, 500));
+        // 特殊处理百度的 conclusionType
+        if (provider === 'baidu') {
+            const conclusionType = getNestedValue(result, scorePath);
+            if (conclusionType === null || conclusionType === 4) { // 4是审核失败
+                return { decision: 'error', reason: 'Baidu moderation failed or invalid response' };
+            }
+            // 2:不合规, 3:疑似。我们把疑似也当作不合规处理
+            if (conclusionType === 2 || conclusionType === 3) {
+                const reason = `Blocked by Baidu. ConclusionType: ${conclusionType}.`;
+                return { decision: 'block', reason, score: conclusionType };
+            }
+            return { decision: 'allow', reason: 'Baidu moderation passed', score: conclusionType };
+        }
         const score = getNestedValue(result, scorePath);
         
         if (score === null) {
