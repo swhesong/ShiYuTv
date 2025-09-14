@@ -5135,6 +5135,20 @@ const SiteConfigComponent = ({
         tencent: { secretId: '', secretKey: '', region: 'ap-shanghai' },
       },
     },
+    // --- 新增字段以匹配 SiteConfig 类型 ---
+    EnableRegistration: false,
+    RegistrationApproval: true,
+    LinuxDoOAuth: {
+      enabled: false,
+      autoRegister: false,
+      minTrustLevel: 3,
+      defaultRole: 'user',
+      clientId: '',
+      clientSecret: '',
+      authorizeUrl: 'https://connect.linux.do/oauth2/authorize',
+      tokenUrl: 'https://connect.linux.do/oauth2/token',
+      userInfoUrl: 'https://connect.linux.do/api/user',
+    },
   });
   // 新增：API测试相关状态
   const [isApiTesting, setIsApiTesting] = useState(false);
