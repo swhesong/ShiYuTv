@@ -5842,10 +5842,12 @@ useEffect(() => {
               className='w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-green-500 focus:border-transparent'
             >
               <option value='sightengine'>Sightengine (内置支持)</option>
+              <option value='baidu'>百度智能云 (内置支持)</option>
+              <option value='aliyun'>阿里云 (即将支持)</option>
+              <option value='tencent'>腾讯云 (即将支持)</option>
               <option value='custom'>自定义 API</option>
             </select>
           </div>
-
           {/* Sightengine 配置项 */}
           {siteSettings.IntelligentFilter?.provider === 'sightengine' && (
             <div className='space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50'>
@@ -5887,7 +5889,7 @@ useEffect(() => {
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
-              {/* 新增：为 Sightengine 添加测试连接按钮和结果显示 */}
+              {/* 为 Sightengine 添加测试连接按钮和结果显示 */}
               <div className='pt-2'>
                 <button
                   type='button'
@@ -5913,6 +5915,73 @@ useEffect(() => {
                   </div>
                 )}
               </div>
+            </div>
+          )}
+          {/* 百度智能云 配置项 */}
+          {siteSettings.IntelligentFilter?.provider === 'baidu' && (
+            <div className='space-y-4 p-4 border border-gray-200 dark:border-gray-700 rounded-lg bg-gray-50 dark:bg-gray-900/50'>
+              <p className='text-sm text-gray-600 dark:text-gray-400'>
+                为百度智能云内容审核配置凭证。
+              </p>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  API Key (Client ID)
+                </label>
+                <input
+                  type='text'
+                  placeholder='请输入百度云 API Key'
+                  value={siteSettings.IntelligentFilter.options.baidu?.apiKey || ''}
+                  onChange={(e) => handleFilterOptionChange('baidu', 'apiKey', e.target.value)}
+                  className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  Secret Key (Client Secret)
+                </label>
+                <input
+                  type='password'
+                  placeholder='请输入百度云 Secret Key'
+                  value={siteSettings.IntelligentFilter.options.baidu?.secretKey || ''}
+                  onChange={(e) => handleFilterOptionChange('baidu', 'secretKey', e.target.value)}
+                  className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                />
+              </div>
+              {/* 为百度云添加测试连接按钮 */}
+              <div className='pt-2'>
+                <button
+                  type='button'
+                  onClick={handleTestApiConnection}
+                  disabled={isApiTesting}
+                  className={`w-full px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+                    isApiTesting
+                      ? buttonStyles.disabled
+                      : buttonStyles.primary
+                  }`}
+                >
+                  {isApiTesting ? '测试中...' : '测试连接'}
+                </button>
+                {apiTestResult && (
+                  <div
+                    className={`mt-3 p-2 text-xs rounded-md ${
+                      apiTestResult.success
+                        ? 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                        : 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                    }`}
+                  >
+                    {apiTestResult.message}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {/* 阿里云 & 腾讯云 (占位) */}
+          {(siteSettings.IntelligentFilter?.provider === 'aliyun' || siteSettings.IntelligentFilter?.provider === 'tencent') && (
+            <div className='p-4 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-center'>
+              <p className='text-sm text-gray-500 dark:text-gray-400'>
+                {siteSettings.IntelligentFilter.provider === 'aliyun' ? '阿里云' : '腾讯云'} 
+                内容安全服务即将支持，敬请期待！
+              </p>
             </div>
           )}
           {/* 自定义 API 配置项 */}
