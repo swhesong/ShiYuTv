@@ -574,7 +574,7 @@ export function moderateContent(text: string, context = {}) {
 }
 
 
-// ===== 持续优化机制 (保持不变) =====
+// ===== 持续优化机制=====
 export const optimizationSystem = {
   // 反馈学习
   addFeedback: function(content: string, humanDecision: string, systemDecision: string) {
