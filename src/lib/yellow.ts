@@ -398,7 +398,7 @@ function _moderateContentLogic(
   });
   
   if (hasWhitelistContext && totalScore < config.thresholds.HUMAN_REVIEW) {
-    totalScore *= 0.8; // 降权
+    totalScore *= 0.9; // 降权
     flags.push('whitelist_context_detected');
   }
   
