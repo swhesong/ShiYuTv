@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
       });
     }
     
-// 安全检查：防止已保存的密钥被占位符意外覆盖
+    // 安全检查：防止已保存的密钥被占位符意外覆盖
     if (IntelligentFilter) {
       const sightengineOpts = IntelligentFilter.options?.sightengine;
       const customOpts = IntelligentFilter.options?.custom;
