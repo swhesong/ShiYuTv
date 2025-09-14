@@ -274,6 +274,7 @@ export async function GET(request: NextRequest) {
       // --- 2. 执行 API 请求并解析响应 ---
       try {
         console.log(`[AI Filter DEBUG] Sending request to ${provider} API: ${requestUrl}`);
+        console.log(`[AI Filter DEBUG] Network test - attempting connection to API endpoint...`);
         // 新增：为 fetch 请求添加 30 秒超时控制
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
