@@ -316,6 +316,9 @@ function SearchPageClient() {
 
   // 将后端的强大评分算法引入前端
   const calculateRelevanceScore = (item: any, searchQuery: string): number => {
+      if (!item || !searchQuery) {
+        return 0;
+      }
       const query = searchQuery.toLowerCase().trim();
       const title = (item.title || '').toLowerCase();
       const typeName = (item.type_name || '').toLowerCase();
