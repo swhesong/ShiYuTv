@@ -352,7 +352,7 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 | BAIDU_API_KEY | 百度智能云审核服务的 API Key | 服务商提供的 Key | (空) |
 | BAIDU_SECRET_KEY | 百度智能云审核服务的 Secret Key | 服务商提供的 Key | (空) |
 
-</div>```
+</div>
 
 
 ### 🔗 NEXT_PUBLIC_DOUBAN_PROXY_TYPE 选项解释：
