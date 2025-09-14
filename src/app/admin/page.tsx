@@ -51,6 +51,7 @@ import {
   AdminConfigResult,
   PendingUser,
   RegistrationStats,
+  SiteConfig,
 } from '@/lib/admin.types';
 import { getAuthInfoFromBrowserCookie } from '@/lib/auth';
 import { parseImportData, exportData } from '@/lib/utils';
@@ -296,54 +297,7 @@ const useLoadingState = () => {
   return { loadingStates, setLoading, isLoading, withLoading };
 };
 
-// 新增站点配置类型
-interface SiteConfig {
-  SiteName: string;
-  Announcement: string;
-  SearchDownstreamMaxPage: number;
-  SiteInterfaceCacheTime: number;
-  DoubanProxyType: string;
-  DoubanProxy: string;
-  DoubanImageProxyType: string;
-  DoubanImageProxy: string;
-  DisableYellowFilter: boolean;
-  FluidSearch: boolean;
-  // 智能审核字段
-  IntelligentFilter: {
-    enabled: boolean;
-    provider: 'sightengine' | 'custom' | 'baidu' | 'aliyun' | 'tencent';
-    confidence: number;
-    options: {
-      sightengine?: {
-        apiUrl: string;
-        apiUser: string;
-        apiSecret: string;
-      };
-      custom?: {
-        apiUrl: string;
-        apiKeyHeader: string;
-        apiKeyValue: string;
-        jsonBodyTemplate: string;
-        responseScorePath: string;
-      };
-      baidu?: {
-        apiKey: string;
-        secretKey: string;
-        tokenUrl?: string; 
-      };
-      aliyun?: {
-        accessKeyId: string;
-        accessKeySecret: string;
-        regionId: string;
-      };
-      tencent?: {
-        secretId: string;
-        secretKey: string;
-        region: string;
-      };
-    };
-  };
-}
+
 
 
 // 直播源数据类型
