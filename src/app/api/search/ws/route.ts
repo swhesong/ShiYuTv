@@ -298,6 +298,7 @@ export async function GET(request: NextRequest) {
                   // --- 2. 执行 API 请求并解析响应 ---
                   try {
                     console.log(`[AI Filter DEBUG][WS] Sending request to ${provider} API: ${requestUrl}`);
+                    console.log(`[AI Filter DEBUG][WS] Network test - attempting connection to API endpoint...`);
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
 
