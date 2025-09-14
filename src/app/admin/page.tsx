@@ -5384,10 +5384,8 @@ useEffect(() => {
     const provider = siteSettings.IntelligentFilter?.provider;
     if (!provider) return;
 
-    // 根据当前选择的 provider 获取对应的配置
-    const config = provider === 'sightengine'
-        ? siteSettings.IntelligentFilter.options.sightengine
-        : siteSettings.IntelligentFilter.options.custom;
+    // 根据当前选择的 provider 动态获取对应的配置
+    const config = siteSettings.IntelligentFilter.options[provider];
 
     if (!config) {
       showAlert({ type: 'error', title: '错误', message: '找不到API配置' });
