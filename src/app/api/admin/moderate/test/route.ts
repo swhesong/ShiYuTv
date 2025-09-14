@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
   }
 
   // 2. 解析请求体, 获取 provider 和 config
-  let provider: 'sightengine' | 'custom';
+  let provider: 'sightengine' | 'custom' | 'baidu' | 'aliyun' | 'tencent';
   let config: any;
   try {
     const body = await request.json();
@@ -49,7 +49,31 @@ export async function POST(request: NextRequest) {
         const errorMessage = result.error?.message || '凭证无效或API错误';
         throw new Error(`Sightengine 测试失败: ${errorMessage}`);
       }
+    } else if (provider === 'baidu') {
+      // --- 百度智能云测试逻辑 ---
+      if (!config.apiKey || !config.secretKey) {
+        return NextResponse.json({ error: '百度智能云配置不完整' }, { status: 400 });
+      }
+      
+      const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${config.apiKey}&client_secret=${config.secretKey}`;
+      const tokenResponse = await fetch(tokenUrl, { method: 'POST' });
+      const tokenData = await tokenResponse.json();
 
+      if (tokenResponse.ok && tokenData.access_token) {
+        return NextResponse.json({ success: true, message: '百度智能云凭证有效，连接成功！' });
+      } else {
+        const errorMessage = tokenData.error_description || '获取 access_token 失败';
+        throw new Error(`百度智能云测试失败: ${errorMessage}`);
+      }
+    
+    } else if (provider === 'aliyun') {
+      // --- 阿里云 (占位) ---
+      return NextResponse.json({ error: '阿里云暂不支持测试连接' }, { status: 400 });
+    
+    } else if (provider === 'tencent') {
+      // --- 腾讯云 (占位) ---
+      return NextResponse.json({ error: '腾讯云暂不支持测试连接' }, { status: 400 });
+      
     } else if (provider === 'custom') {
       // --- 自定义 API 测试逻辑 ---
       if (!config.apiUrl || !config.apiKeyValue || !config.apiKeyHeader || !config.jsonBodyTemplate) {
