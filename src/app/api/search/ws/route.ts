@@ -267,6 +267,11 @@ export async function GET(request: NextRequest) {
                 const moderateImage = async (imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> => {
                   console.log(`[AI Filter DEBUG][WS] ==> moderateImage CALLED for URL: ${imageUrl}`);
                   const filterConfig = config.SiteConfig.IntelligentFilter;
+
+                  // 创建一个 Agent 来设置连接超时，并复用它
+                  const agent = new Agent({
+                    connectTimeout: 30000 // 30秒连接超时
+                  });
                 
                   if (!filterConfig || !filterConfig.enabled || !imageUrl) {
                     console.log(`[AI Filter DEBUG][WS] SKIPPING: Filter disabled or no image URL.`);
@@ -291,8 +296,11 @@ export async function GET(request: NextRequest) {
                   // --- 1. 根据提供商准备请求参数 ---
                   switch (provider) {
                     case 'sightengine': {
-                      const opts = filterConfig.options.sightengine;
-                      if (!opts || !opts.apiUrl || !opts.apiUser || !opts.apiSecret) {
+                      const opts = filterConfig.options.sightengine || {};
+                      opts.apiUser = process.env.SIGHTENGINE_API_USER || opts.apiUser;
+                      opts.apiSecret = process.env.SIGHTENGINE_API_SECRET || opts.apiSecret;
+                      
+                      if (!opts || !opts.apiUrl || !opts.apiUser || !opts.apiSecret || opts.apiSecret === '(not provided)') {
                         console.warn('[AI Filter] Sightengine is not fully configured.');
                         return { decision: 'error', reason: 'Sightengine not fully configured' };
                       }
@@ -303,19 +311,22 @@ export async function GET(request: NextRequest) {
                       formData.append('url', imageUrl);
                       formData.append('models', 'nudity-2.0');
                       requestOptions = { method: 'POST', body: formData };
-                      scorePath = 'nudity.raw'; // Sightengine 的分数路径是固定的
+                      scorePath = 'nudity.raw';
                       break;
                     }
                     case 'baidu': {
-                      const opts = filterConfig.options.baidu;
-                      if (!opts || !opts.apiKey || !opts.secretKey) {
+                      const opts = filterConfig.options.baidu || {};
+                      opts.apiKey = process.env.BAIDU_API_KEY || opts.apiKey;
+                      opts.secretKey = process.env.BAIDU_SECRET_KEY || opts.secretKey;
+
+                      if (!opts || !opts.apiKey || !opts.secretKey || opts.apiKey === '(not provided)') {
                         console.warn('[AI Filter] Baidu is not fully configured.');
                         return { decision: 'error', reason: 'Baidu not fully configured' };
                       }
                       try {
                         // 1. 获取 Access Token
                         const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${opts.apiKey}&client_secret=${opts.secretKey}`;
-                        const tokenResponse = await undiciFetch(tokenUrl, { method: 'POST' });
+                        const tokenResponse = await undiciFetch(tokenUrl, { method: 'POST', dispatcher: agent });
                         const tokenData = await tokenResponse.json() as any;
                         if (!tokenResponse.ok || !tokenData.access_token) {
                           throw new Error(tokenData.error_description || 'Failed to get access_token');
@@ -337,8 +348,10 @@ export async function GET(request: NextRequest) {
                       break;
                     }               
                     case 'custom': {
-                      const opts = filterConfig.options.custom;
-                      if (!opts || !opts.apiUrl || !opts.apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath) {
+                      const opts = filterConfig.options.custom || {};
+                      opts.apiKeyValue = process.env.CUSTOM_API_KEY_VALUE || opts.apiKeyValue;
+
+                      if (!opts || !opts.apiUrl || !opts.apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath || opts.apiKeyValue === '(not provided)') {
                         console.warn('[AI Filter] Custom API is not fully configured.');
                         return { decision: 'error', reason: 'Custom API not fully configured' };
                       }
@@ -366,9 +379,6 @@ export async function GET(request: NextRequest) {
                     console.log(`[AI Filter DEBUG][WS] Network test - attempting connection to API endpoint...`);
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
-                    const agent = new Agent({
-                      connectTimeout: 30000 // 30秒连接超时
-                    });
 
                     const response = await undiciFetch(requestUrl, {
                       ...requestOptions,
