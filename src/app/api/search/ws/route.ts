@@ -299,7 +299,7 @@ export async function GET(request: NextRequest) {
                   try {
                     console.log(`[AI Filter DEBUG][WS] Sending request to ${provider} API: ${requestUrl}`);
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 seconds
+                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
 
                     const response = await undiciFetch(requestUrl, {
                       ...requestOptions,
