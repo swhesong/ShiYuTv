@@ -5379,7 +5379,7 @@ useEffect(() => {
       DoubanImageProxyType: value,
     }));
   };
-  // 新增：测试API连接的函数（已修改为通用）
+  // 测试API连接的函数（已修改为通用）
   const handleTestApiConnection = async () => {
     const provider = siteSettings.IntelligentFilter?.provider;
     if (!provider) return;
