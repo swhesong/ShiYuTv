@@ -114,21 +114,21 @@ export async function POST(request: NextRequest) {
       });
     }
     
-    // 安全检查：防止已保存的密钥被空值或占位符意外覆盖
+// 安全检查：防止已保存的密钥被占位符意外覆盖
     if (IntelligentFilter) {
       const sightengineOpts = IntelligentFilter.options?.sightengine;
       const customOpts = IntelligentFilter.options?.custom;
       const baiduOpts = IntelligentFilter.options?.baidu;
-      // 如果前端传来的密钥是占位符、空或未定义，则保留数据库中已有的值
-      if (sightengineOpts && (!sightengineOpts.apiSecret || sightengineOpts.apiSecret === '********')) {
+      // 只有当前端传来的密钥是占位符时，才保留数据库中已有的值
+      if (sightengineOpts && sightengineOpts.apiSecret === '********') {
         console.log("Preserving existing sightengine apiSecret.");
         sightengineOpts.apiSecret = adminConfig.SiteConfig.IntelligentFilter?.options?.sightengine?.apiSecret || '';
       }
-      if (customOpts && (!customOpts.apiKeyValue || customOpts.apiKeyValue === '********')) {
+      if (customOpts && customOpts.apiKeyValue === '********') {
         console.log("Preserving existing custom apiKeyValue.");
         customOpts.apiKeyValue = adminConfig.SiteConfig.IntelligentFilter?.options?.custom?.apiKeyValue || '';
       }
-      if (baiduOpts && (!baiduOpts.secretKey || baiduOpts.secretKey === '********')) {
+      if (baiduOpts && baiduOpts.secretKey === '********') {
         console.log("Preserving existing baidu secretKey.");
         baiduOpts.secretKey = adminConfig.SiteConfig.IntelligentFilter?.options?.baidu?.secretKey || '';
       }
