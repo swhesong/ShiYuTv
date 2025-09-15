@@ -5403,12 +5403,30 @@ useEffect(() => {
   };
   // 保存站点配置
   const handleSave = async () => {
+    // 在保存前，先对数据进行处理
+    const settingsToSave = JSON.parse(JSON.stringify(siteSettings));
+
+    // 1. 检查百度 Token URL，如果为空则设置默认值
+    if (settingsToSave.IntelligentFilter?.options.baidu && !settingsToSave.IntelligentFilter.options.baidu.tokenUrl) {
+      settingsToSave.IntelligentFilter.options.baidu.tokenUrl = 'https://aip.baidubce.com';
+    }
+
+    // 2. 检查 Sightengine API URL，如果为空则设置默认值
+    if (settingsToSave.IntelligentFilter?.options.sightengine && !settingsToSave.IntelligentFilter.options.sightengine.apiUrl) {
+      settingsToSave.IntelligentFilter.options.sightengine.apiUrl = 'https://api.sightengine.com/';
+    }
+    
+    // 3. 确保自定义 API 的 URL 至少是一个空字符串
+    if (settingsToSave.IntelligentFilter?.options.custom && !settingsToSave.IntelligentFilter.options.custom.apiUrl) {
+      settingsToSave.IntelligentFilter.options.custom.apiUrl = '';
+    }
+
     await withLoading('saveSiteConfig', async () => {
       try {
         const resp = await fetch('/api/admin/site', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(siteSettings),
+          body: JSON.stringify(settingsToSave),
         });
         if (!resp.ok) {
           const data = await resp.json().catch(() => ({}));
