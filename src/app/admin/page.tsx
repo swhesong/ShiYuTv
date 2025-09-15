@@ -5904,6 +5904,22 @@ useEffect(() => {
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
+              {/* 超时时间设置 */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  超时时间 (毫秒)
+                </label>
+                <input
+                  type='number'
+                  placeholder='默认 15000'
+                  value={siteSettings.IntelligentFilter.options.sightengine?.timeoutMs || ''}
+                  onChange={(e) => handleFilterOptionChange('sightengine', 'timeoutMs', e.target.value)}
+                  className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                />
+                <p className='text-xs text-gray-500 dark:text-gray-400 mt-1'>
+                  设置请求 Sightengine API 的超时时间，单位为毫秒。
+                </p>
+              </div>              
               {/* 为 Sightengine 添加测试连接按钮和结果显示 */}
               <div className='pt-2'>
                 <button
