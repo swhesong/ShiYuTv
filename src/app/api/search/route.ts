@@ -230,7 +230,7 @@ export async function GET(request: NextRequest) {
           console.warn('[AI Filter] Custom API is not fully configured.');
           return { decision: 'error', reason: 'Custom API not fully configured' };
         }
-        
+        let effectiveTimeout = 20000; 
         try {
           // 优化 Agent 配置，使用更保守的超时设置
           const effectiveTimeout = Math.min(timeoutMs, 20000); // 最大20秒
