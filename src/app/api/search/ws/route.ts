@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
-import { fetch as undiciFetch, RequestInit, FormData, Agent } from 'undici';
+import { fetch as undiciFetch, RequestInit, Agent } from 'undici';
 import { NextRequest, NextResponse } from 'next/server';
-import { getBaiduAccessToken } from '@/lib/baidu-token-manager';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
 import { moderateContent, decisionThresholds } from '@/lib/yellow';
 import { checkImageWithSightengine } from '@/lib/sightengine-client';
+import { checkImageWithBaidu } from '@/lib/baidu-client';
+
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
@@ -29,6 +30,7 @@ export async function GET(request: NextRequest) {
 
   const config = await getConfig();
   const apiSites = await getAvailableApiSites(authInfo.username);
+  
   // --- 智能排序逻辑 ---
   // 对视频源进行智能排序，确保优先搜索最健康的源
   apiSites.sort((a, b) => {
@@ -123,412 +125,313 @@ export async function GET(request: NextRequest) {
 
           const results = (await searchPromise) as any[];
 
-              // International leading advanced search relevance scoring algorithm (consistent with standard API)
-              const calculateRelevanceScore = (item: any, searchQuery: string): number => {
-                const query = searchQuery.toLowerCase().trim();
-                const title = (item.title || '').toLowerCase();
-                const typeName = (item.type_name || '').toLowerCase();
-                const director = (item.director || '').toLowerCase();
-                const actor = (item.actor || '').toLowerCase();
-                
-                let score = 0;
-                const queryLength = query.length;
-                const titleLength = title.length;
-                
-                // Advanced exact matching with weight adjustment
-                if (title === query) {
-                  score += 1000; // Significantly higher for exact match
-                }
-                // Perfect prefix matching (high priority for user intent)
-                else if (title.startsWith(query)) {
-                  score += 800 * (queryLength / titleLength); // Weight by query coverage
-                }
-                // Word boundary exact matches (important for multi-word queries)
-                else if (new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(title)) {
-                  score += 600;
-                }
-                // Substring matching with position weighting
-                else if (title.includes(query)) {
-                  const position = title.indexOf(query);
-                  const positionWeight = 1 - (position / titleLength); // Earlier position gets higher score
-                  score += 300 * positionWeight;
-                }
-                
-                // Advanced multi-word query processing
-                const queryWords = query.split(/\s+/).filter((word: string) => word.length > 0);
-                const titleWords = title.split(/[\s-._]+/).filter((word: string) => word.length > 0);
-                
-                if (queryWords.length > 1) {
-                  let wordMatchScore = 0;
-                  let exactWordMatches = 0;
-                  let partialWordMatches = 0;
-                  
-                  queryWords.forEach(queryWord => {
-                    let bestWordScore = 0;
-                    titleWords.forEach((titleWord: string) => {
-                      if (titleWord === queryWord) {
-                        bestWordScore = Math.max(bestWordScore, 50);
-                        exactWordMatches++;
-                      } else if (titleWord.includes(queryWord) && queryWord.length >= 2) {
-                        const coverage = queryWord.length / titleWord.length;
-                        bestWordScore = Math.max(bestWordScore, 25 * coverage);
-                        partialWordMatches++;
-                      } else if (queryWord.includes(titleWord) && titleWord.length >= 2) {
-                        const coverage = titleWord.length / queryWord.length;
-                        bestWordScore = Math.max(bestWordScore, 20 * coverage);
-                      }
-                    });
-                    wordMatchScore += bestWordScore;
-                  });
-                  
-                  // Bonus for matching all query words
-                  if (exactWordMatches === queryWords.length) {
-                    wordMatchScore *= 2;
+          // International leading advanced search relevance scoring algorithm (consistent with standard API)
+          const calculateRelevanceScore = (item: any, searchQuery: string): number => {
+            const query = searchQuery.toLowerCase().trim();
+            const title = (item.title || '').toLowerCase();
+            const typeName = (item.type_name || '').toLowerCase();
+            const director = (item.director || '').toLowerCase();
+            const actor = (item.actor || '').toLowerCase();
+            
+            let score = 0;
+            const queryLength = query.length;
+            const titleLength = title.length;
+            
+            // Advanced exact matching with weight adjustment
+            if (title === query) {
+              score += 1000; // Significantly higher for exact match
+            }
+            // Perfect prefix matching (high priority for user intent)
+            else if (title.startsWith(query)) {
+              score += 800 * (queryLength / titleLength); // Weight by query coverage
+            }
+            // Word boundary exact matches (important for multi-word queries)
+            else if (new RegExp(`\\b${query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`).test(title)) {
+              score += 600;
+            }
+            // Substring matching with position weighting
+            else if (title.includes(query)) {
+              const position = title.indexOf(query);
+              const positionWeight = 1 - (position / titleLength); // Earlier position gets higher score
+              score += 300 * positionWeight;
+            }
+            
+            // Advanced multi-word query processing
+            const queryWords = query.split(/\s+/).filter((word: string) => word.length > 0);
+            const titleWords = title.split(/[\s-._]+/).filter((word: string) => word.length > 0);
+            
+            if (queryWords.length > 1) {
+              let wordMatchScore = 0;
+              let exactWordMatches = 0;
+              let partialWordMatches = 0;
+              
+              queryWords.forEach(queryWord => {
+                let bestWordScore = 0;
+                titleWords.forEach((titleWord: string) => {
+                  if (titleWord === queryWord) {
+                    bestWordScore = Math.max(bestWordScore, 50);
+                    exactWordMatches++;
+                  } else if (titleWord.includes(queryWord) && queryWord.length >= 2) {
+                    const coverage = queryWord.length / titleWord.length;
+                    bestWordScore = Math.max(bestWordScore, 25 * coverage);
+                    partialWordMatches++;
+                  } else if (queryWord.includes(titleWord) && titleWord.length >= 2) {
+                    const coverage = titleWord.length / queryWord.length;
+                    bestWordScore = Math.max(bestWordScore, 20 * coverage);
                   }
-                  
-                  // Bonus for high match ratio
-                  const matchRatio = (exactWordMatches + partialWordMatches * 0.5) / queryWords.length;
-                  wordMatchScore *= (0.5 + matchRatio);
-                  
-                  score += wordMatchScore;
-                }
-                
-                // Enhanced metadata matching
-                let metadataScore = 0;
-                if (typeName.includes(query)) {
-                  metadataScore += 40;
-                }
-                if (director.includes(query)) {
-                  metadataScore += 60; // Director matches are quite relevant
-                }
-                if (actor.includes(query)) {
-                  metadataScore += 50; // Actor matches are also relevant
-                }
-                score += metadataScore;
-                
-                // Content quality and recency weighting
-                const currentYear = new Date().getFullYear();
-                const itemYear = parseInt(item.year) || 0;
-                
-                if (itemYear >= currentYear - 1) {
-                  score += 30; // Very recent content
-                } else if (itemYear >= currentYear - 3) {
-                  score += 20; // Recent content
-                } else if (itemYear >= currentYear - 10) {
-                  score += 10; // Moderately recent
-                }
-                
-                // Penalty adjustments for better relevance
-                if (titleLength > queryLength * 4) {
-                  score *= 0.9; // Slight penalty for very long titles
-                }
-                
-                // Boost for concise, relevant titles
-                if (titleLength <= queryLength * 2 && score > 100) {
-                  score *= 1.1;
-                }
-                
-                // Ensure minimum threshold for very weak matches
-                if (score > 0 && score < 50 && !title.includes(query)) {
-                  score = 0; // Filter out very weak matches
-                }
-                
-                return Math.max(0, Math.round(score));
-              };
-
-              // Apply yellow content filter
-              let filteredResults = results;
-              // 在此处添加修正逻辑
-              filteredResults.forEach((item: any) => {
-                if (item.poster && item.poster.startsWith('http://')) {
-                  item.poster = item.poster.replace('http://', 'https://');
-                }
-              });
-              if (!config.SiteConfig.DisableYellowFilter) {
-                filteredResults = results.filter((result) => {
-                  const typeName = result.type_name || '';
-                  const title = result.title || ''; // 新增：获取标题
-
-                  // 使用新的审核函数检查标题和分类名
-                  const titleModeration = moderateContent(title);
-                  const typeModeration = moderateContent(typeName);
-                  
-                  // 如果标题或分类名任一超过FLAG阈值，则过滤掉
-                  return titleModeration.totalScore < decisionThresholds.FLAG && 
-                         typeModeration.totalScore < decisionThresholds.FLAG;
                 });
+                wordMatchScore += bestWordScore;
+              });
+              
+              // Bonus for matching all query words
+              if (exactWordMatches === queryWords.length) {
+                wordMatchScore *= 2;
+              }
+              
+              // Bonus for high match ratio
+              const matchRatio = (exactWordMatches + partialWordMatches * 0.5) / queryWords.length;
+              wordMatchScore *= (0.5 + matchRatio);
+              
+              score += wordMatchScore;
+            }
+            
+            // Enhanced metadata matching
+            let metadataScore = 0;
+            if (typeName.includes(query)) {
+              metadataScore += 40;
+            }
+            if (director.includes(query)) {
+              metadataScore += 60; // Director matches are quite relevant
+            }
+            if (actor.includes(query)) {
+              metadataScore += 50; // Actor matches are also relevant
+            }
+            score += metadataScore;
+            
+            // Content quality and recency weighting
+            const currentYear = new Date().getFullYear();
+            const itemYear = parseInt(item.year) || 0;
+            
+            if (itemYear >= currentYear - 1) {
+              score += 30; // Very recent content
+            } else if (itemYear >= currentYear - 3) {
+              score += 20; // Recent content
+            } else if (itemYear >= currentYear - 10) {
+              score += 10; // Moderately recent
+            }
+            
+            // Penalty adjustments for better relevance
+            if (titleLength > queryLength * 4) {
+              score *= 0.9; // Slight penalty for very long titles
+            }
+            
+            // Boost for concise, relevant titles
+            if (titleLength <= queryLength * 2 && score > 100) {
+              score *= 1.1;
+            }
+            
+            // Ensure minimum threshold for very weak matches
+            if (score > 0 && score < 50 && !title.includes(query)) {
+              score = 0; // Filter out very weak matches
+            }
+            
+            return Math.max(0, Math.round(score));
+          };
+
+          // Apply yellow content filter
+          let filteredResults = results;
+          // 在此处添加修正逻辑
+          filteredResults.forEach((item: any) => {
+            if (item.poster && item.poster.startsWith('http://')) {
+              item.poster = item.poster.replace('http://', 'https://');
+            }
+          });
+          if (!config.SiteConfig.DisableYellowFilter) {
+            filteredResults = results.filter((result) => {
+              const typeName = result.type_name || '';
+              const title = result.title || ''; // 新增：获取标题
+
+              // 使用新的审核函数检查标题和分类名
+              const titleModeration = moderateContent(title);
+              const typeModeration = moderateContent(typeName);
+              
+              // 如果标题或分类名任一超过FLAG阈值，则过滤掉
+              return titleModeration.totalScore < decisionThresholds.FLAG && 
+                     typeModeration.totalScore < decisionThresholds.FLAG;
+            });
+          }
+
+          // 新增：智能 AI 审核 (完全通用化，并增加熔断机制)
+          if (config.SiteConfig.IntelligentFilter?.enabled) {
+            console.log('[AI Filter DEBUG][WS] IntelligentFilter is ENABLED. Starting moderation process...');
+            
+            // 真正通用化的审核函数
+            const moderateImage = async (imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> => {
+              console.log(`[AI Filter DEBUG][WS] ==> moderateImage CALLED for URL: ${imageUrl}`);
+              const filterConfig = config.SiteConfig.IntelligentFilter;
+
+              if (!filterConfig || !filterConfig.enabled || !imageUrl) {
+                console.log(`[AI Filter DEBUG][WS] SKIPPING: Filter disabled or no image URL.`);
+                return { decision: 'allow', reason: 'Filter disabled or no image URL' };
               }
 
-              // 新增：智能 AI 审核 (完全通用化，并增加熔断机制)
-              if (config.SiteConfig.IntelligentFilter?.enabled) {
-                console.log('[AI Filter DEBUG][WS] IntelligentFilter is ENABLED. Starting moderation process...');
-                
-                // 真正通用化的审核函数
-                const moderateImage = async (imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> => {
-                  console.log(`[AI Filter DEBUG][WS] ==> moderateImage CALLED for URL: ${imageUrl}`);
-                  const filterConfig = config.SiteConfig.IntelligentFilter;
-
-                  // 创建一个 Agent 来设置连接超时，并复用它
-                  const agent = new Agent({
-                    connectTimeout: 30000 // 30秒连接超时
+              // 辅助函数：根据路径字符串安全地从对象中获取嵌套值
+              const getNestedValue = (obj: any, path: string): number | null => {
+                if (!path) return null;
+                try {
+                  const value = path.split('.').reduce((o, k) => (o || {})[k], obj);
+                  const num = parseFloat(value);
+                  return isNaN(num) ? null : num;
+                } catch { return null; }
+              };
+            
+              const provider: string = filterConfig.provider;
+            
+              switch (provider) {
+                case 'sightengine': {
+                  const opts = filterConfig.options.sightengine || {};
+                  // 正确调用外部客户端
+                  return await checkImageWithSightengine(imageUrl, {
+                    apiUrl: opts.apiUrl,
+                    apiUser: process.env.SIGHTENGINE_API_USER || opts.apiUser,
+                    apiSecret: process.env.SIGHTENGINE_API_SECRET || opts.apiSecret,
+                    confidence: filterConfig.confidence,
                   });
-                
-                  if (!filterConfig || !filterConfig.enabled || !imageUrl) {
-                    console.log(`[AI Filter DEBUG][WS] SKIPPING: Filter disabled or no image URL.`);
-                    return { decision: 'allow', reason: 'Filter disabled or no image URL' };
+                }
+                case 'baidu': {
+                  const opts = filterConfig.options.baidu || {};
+                  // 正确调用外部客户端
+                  return await checkImageWithBaidu(imageUrl, {
+                    apiKey: process.env.BAIDU_API_KEY || opts.apiKey,
+                    secretKey: process.env.BAIDU_SECRET_KEY || opts.secretKey,
+                  });
+                }
+                case 'custom': {
+                  // 由于没有 custom-client 附件，保留内联实现是正确的
+                  const opts = filterConfig.options.custom || {};
+                  const apiKeyValue = process.env.CUSTOM_API_KEY_VALUE || opts.apiKeyValue;
+                  if (!opts.apiUrl || !apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath || apiKeyValue === '(not provided)') {
+                    console.warn('[AI Filter] Custom API is not fully configured.');
+                    return { decision: 'error', reason: 'Custom API not fully configured' };
                   }
-                  
-                  // 辅助函数：根据路径字符串安全地从对象中获取嵌套值
-                  const getNestedValue = (obj: any, path: string): number | null => {
-                    if (!path) return null;
-                    try {
-                      const value = path.split('.').reduce((o, k) => (o || {})[k], obj);
-                      const num = parseFloat(value);
-                      return isNaN(num) ? null : num;
-                    } catch { return null; }
-                  };
-                
-                  let provider: string = filterConfig.provider;
-                  let requestUrl: string = '';
-                  let requestOptions: RequestInit = {};
-                  let scorePath: string = '';
-                
-                  // --- 1. 根据提供商准备请求参数 ---
-                  switch (provider) {
-                    case 'sightengine': {
-                      // 直接调用封装好的客户端
-                      const opts = filterConfig.options.sightengine || {};
-                      const sightengineConfig = {
-                        apiUrl: opts.apiUrl,
-                        apiUser: process.env.SIGHTENGINE_API_USER || opts.apiUser,
-                        apiSecret: process.env.SIGHTENGINE_API_SECRET || opts.apiSecret,
-                        confidence: filterConfig.confidence,
-                      };
-                      return await checkImageWithSightengine(imageUrl, sightengineConfig);
-                    }
-                    case 'baidu': {
-                      // 从前端配置中获取选项，并提供一个空对象作为默认值
-                      const opts = filterConfig.options.baidu || {};
-
-                      // 1. 优先从环境变量读取密钥，如果不存在，则回退到前端设置
-                      const baiduApiKey = process.env.BAIDU_API_KEY || opts.apiKey;
-                      const baiduSecretKey = process.env.BAIDU_SECRET_KEY || opts.secretKey;
-                      
-                      // 2. 检查最终确定的密钥是否存在
-                      if (!baiduApiKey || !baiduSecretKey) {
-                        // 更新日志，告知用户两种配置方式
-                        console.warn('[AI Filter] Baidu API keys are not configured. Please set them either in environment variables (BAIDU_API_KEY, BAIDU_SECRET_KEY) or in the web UI.');
-                        return { decision: 'error', reason: 'Baidu API keys not configured' };
-                      }
-                      
-                      try {
-                        // 3. 使用新的管理器获取 Access Token
-                        const accessToken = await getBaiduAccessToken(baiduApiKey, baiduSecretKey);
-                        
-                        // 4. 准备审核请求
-                        requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${accessToken}`;
-                        const body = new URLSearchParams();
-                        body.append('imgUrl', imageUrl);
-                        
-                        const censorController = new AbortController();
-                        const censorTimeoutId = setTimeout(() => censorController.abort(), 15000); // 15秒超时
-
-                        requestOptions = {
-                          method: 'POST',
-                          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                          body: body.toString(),
-                          dispatcher: agent,
-                          signal: censorController.signal
-                        };
-                        clearTimeout(censorTimeoutId);
-                        
-                        scorePath = 'conclusionType'; // 百度返回的结论类型 1:合规, 2:不合规, 3:疑似, 4:审核失败
-                        
-                      } catch (error) {
-                        console.error('[AI Filter] Failed to prepare Baidu request:', error);
-                        return { decision: 'error', reason: `Failed to prepare Baidu request: ${(error as Error).message}` };
-                      }
-                      break;
-                    }
-           
-                    case 'custom': {
-                      const opts = filterConfig.options.custom || {};
-                      opts.apiKeyValue = process.env.CUSTOM_API_KEY_VALUE || opts.apiKeyValue;
-
-                      if (!opts || !opts.apiUrl || !opts.apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath || opts.apiKeyValue === '(not provided)') {
-                        console.warn('[AI Filter] Custom API is not fully configured.');
-                        return { decision: 'error', reason: 'Custom API not fully configured' };
-                      }
-                      try {
-                        requestUrl = opts.apiUrl;
-                        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-                        headers[opts.apiKeyHeader] = opts.apiKeyValue;
-                        const body = JSON.parse(opts.jsonBodyTemplate.replace('{{URL}}', imageUrl));
-                        requestOptions = { method: 'POST', headers, body: JSON.stringify(body) };
-                        scorePath = opts.responseScorePath;
-                      } catch (error) {
-                        console.error('[AI Filter] Failed to construct custom API request:', error);
-                        return { decision: 'error', reason: 'Failed to construct custom API request' };
-                      }
-                      break;
-                    }
-                
-                    default:
-                      return { decision: 'allow', reason: 'Unknown provider' }; // 未知提供商
-                  }
-                  
-                  // --- 2. 执行 API 请求并解析响应 ---
                   try {
-                    console.log(`[AI Filter DEBUG][WS] Sending request to ${provider} API: ${requestUrl}`);
-                    console.log(`[AI Filter DEBUG][WS] Network test - attempting connection to API endpoint...`);
+                    const agent = new Agent({ connectTimeout: 30000 });
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
-
-                    const response = await undiciFetch(requestUrl, {
-                      ...requestOptions,
-                      signal: controller.signal,
-                      dispatcher: agent
+                    const timeoutId = setTimeout(() => controller.abort(), 30000);
+                    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+                    headers[opts.apiKeyHeader] = apiKeyValue;
+                    const body = JSON.parse(opts.jsonBodyTemplate.replace('{{URL}}', imageUrl));
+                    const response = await undiciFetch(opts.apiUrl, {
+                      method: 'POST', headers, body: JSON.stringify(body),
+                      signal: controller.signal, dispatcher: agent
                     });
-                    
                     clearTimeout(timeoutId);
-
                     if (!response.ok) {
                       const errorBody = await response.text();
-                      const reason = `API request for ${provider} failed with status ${response.status}. Body: ${errorBody.substring(0, 200)}`;
-                      console.warn(`[AI Filter DEBUG][WS] ${reason}`);
-                      return { decision: 'error', reason };
+                      return { decision: 'error', reason: `API request for custom failed with status ${response.status}. Body: ${errorBody.substring(0, 200)}` };
                     }
-                
                     const result = await response.json();
-                    console.log(`[AI Filter DEBUG][WS] Received response from ${provider}:`, JSON.stringify(result).substring(0, 500));
-                    // 特殊处理百度的 conclusionType
-                    if (provider === 'baidu') {
-                      const conclusionType = getNestedValue(result, scorePath);
-                      if (conclusionType === null || conclusionType === 4) { // 4是审核失败
-                        return { decision: 'error', reason: 'Baidu moderation failed or invalid response' };
-                      }
-                      // 2:不合规, 3:疑似。我们把疑似也当作不合规处理
-                      if (conclusionType === 2 || conclusionType === 3) {
-                        const reason = `Blocked by Baidu. ConclusionType: ${conclusionType}.`;
-                        return { decision: 'block', reason, score: conclusionType };
-                      }
-                      return { decision: 'allow', reason: 'Baidu moderation passed', score: conclusionType };
-                    }
-                    const score = getNestedValue(result, scorePath);
-                    
-                    if (score === null) {
-                      const reason = `Could not find a valid score at path "${scorePath}" for ${provider}.`;
-                      console.warn(`[AI Filter DEBUG][WS] ${reason}`);
-                      return { decision: 'error', reason };
-                    }
-                
-                    if (score >= filterConfig.confidence) {
-                      const reason = `Blocked by ${provider}. Score: ${score} >= Confidence: ${filterConfig.confidence}.`;
-                      console.log(`[AI Filter DEBUG][WS] <== ${reason} URL: ${imageUrl}`);
-                      return { decision: 'block', reason, score };
-                    }
-                    
-                    console.log(`[AI Filter DEBUG][WS] <== Image PASSED. Score: ${score}, Confidence: ${filterConfig.confidence}. URL: ${imageUrl}`);
+                    const score = getNestedValue(result, opts.responseScorePath);
+                    if (score === null) return { decision: 'error', reason: `Could not find a valid score at path "${opts.responseScorePath}" for custom.` };
+                    if (score >= filterConfig.confidence) return { decision: 'block', reason: `Blocked by custom. Score: ${score} >= Confidence: ${filterConfig.confidence}.`, score };
                     return { decision: 'allow', reason: 'Moderation passed', score };
                   } catch (error) {
-                    const reason = `Exception during API call for ${provider}: ${(error as Error).message}`;
-                    console.error(`[AI Filter DEBUG][WS] <== ${reason} URL: ${imageUrl}`, error);
-                    return { decision: 'error', reason };
+                    return { decision: 'error', reason: `Exception during API call for custom: ${(error as Error).message}` };
                   }
                 }
-
-                // --- 熔断机制的实现 ---
-                let failureCount = 0;
-                const failureThreshold = 5; // 提高失败阈值到5次
-                let isServiceDown = false;
-
-                // 添加批次处理，避免并发过高
-                const batchSize = 3; // WebSocket中使用更小的批次
-                const batches = [];
-                for (let i = 0; i < filteredResults.length; i += batchSize) {
-                  batches.push(filteredResults.slice(i, i + batchSize));
-                }
-
-                const moderatedResults = [];
-                for (const batch of batches) {
-                  const batchPromises = batch.map(async (item, index) => {
-                    if (isServiceDown) {
-                      console.log(`[AI Filter DEBUG][WS] Circuit breaker is OPEN. Allowing item to pass directly.`);
-                      return item;
-                    }
-
-                    const moderationResult = await moderateImage(item.poster, config);
-                    
-                    if (moderationResult.decision === 'error') {
-                      failureCount++;
-                      console.log(`[AI Filter DEBUG][WS] Moderation failure #${failureCount} recorded.`);
-                    } else {
-                      failureCount = Math.max(0, failureCount - 1);
-                    }
-
-                    if (failureCount >= failureThreshold) {
-                      isServiceDown = true;
-                      console.warn(`[AI Filter DEBUG][WS] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
-                    }
-
-                    // 策略：失败时放行
-                    return moderationResult.decision !== 'block' ? item : null;
-                  });
-                  
-                  const batchResults = await Promise.all(batchPromises);
-                  moderatedResults.push(...batchResults);
-                  
-                  // 批次间添加延迟
-                  if (batches.indexOf(batch) < batches.length - 1) {
-                    await new Promise(resolve => setTimeout(resolve, 250));
-                  }
-                }
-                
-                filteredResults = moderatedResults.filter((item): item is any => item !== null);
+                default:
+                  return { decision: 'allow', reason: 'Unknown provider' };
               }
-          
-              // Apply advanced relevance scoring and intelligent filtering (consistent with standard API)
-              const scoredResults = filteredResults
-                .map(item => ({
-                  ...item,
-                  relevanceScore: calculateRelevanceScore(item, query)
-                }))
-                .filter(item => {
-                  // Dynamic threshold based on query characteristics
-                  const minThreshold = query.length <= 2 ? 100 : 50;
-                  return item.relevanceScore >= minThreshold;
-                })
-                .sort((a, b) => {
-                  // Multi-tier sorting for optimal relevance
-                  const scoreDiff = b.relevanceScore - a.relevanceScore;
-                  
-                  // If scores are very close (within 10%), consider secondary factors
-                  if (Math.abs(scoreDiff) <= Math.max(a.relevanceScore, b.relevanceScore) * 0.1) {
-                    // Prefer exact year matches if query contains year
-                    const yearMatch = query.match(/\b(19|20)\d{2}\b/);
-                    if (yearMatch) {
-                      const targetYear = yearMatch[0];
-                      const aYearMatch = a.year === targetYear;
-                      const bYearMatch = b.year === targetYear;
-                      if (aYearMatch !== bYearMatch) {
-                        return aYearMatch ? -1 : 1;
-                      }
-                    }
-                    
-                    // Then by recency
-                    const aYear = parseInt(a.year) || 0;
-                    const bYear = parseInt(b.year) || 0;
-                    return bYear - aYear;
-                  }
-                  
-                  return scoreDiff;
-                });
+            }
+
+            // --- 熔断机制的实现 ---
+            let failureCount = 0;
+            const failureThreshold = 5;
+            let isServiceDown = false;
+
+            // 添加批次处理，避免并发过高
+            const batchSize = 3;
+            const batches = [];
+            for (let i = 0; i < filteredResults.length; i += batchSize) {
+              batches.push(filteredResults.slice(i, i + batchSize));
+            }
+
+            const moderatedResults = [];
+            for (const batch of batches) {
+              const batchPromises = batch.map(async (item) => {
+                if (isServiceDown) {
+                  console.log(`[AI Filter DEBUG][WS] Circuit breaker is OPEN. Allowing item to pass directly.`);
+                  return item;
+                }
+
+                const moderationResult = await moderateImage(item.poster, config);
+                
+                if (moderationResult.decision === 'error') {
+                  failureCount++;
+                  console.log(`[AI Filter DEBUG][WS] Moderation failure #${failureCount} recorded.`);
+                } else {
+                  failureCount = Math.max(0, failureCount - 1);
+                }
+
+                if (failureCount >= failureThreshold) {
+                  isServiceDown = true;
+                  console.warn(`[AI Filter DEBUG][WS] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+                }
+
+                // 策略：失败时放行
+                return moderationResult.decision !== 'block' ? item : null;
+              });
               
-              filteredResults = scoredResults;
+              const batchResults = await Promise.all(batchPromises);
+              moderatedResults.push(...batchResults);
+              
+              // 批次间添加延迟
+              if (batches.indexOf(batch) < batches.length - 1) {
+                await new Promise(resolve => setTimeout(resolve, 250));
+              }
+            }
+            
+            filteredResults = moderatedResults.filter((item): item is any => item !== null);
+          }
+      
+          // Apply advanced relevance scoring and intelligent filtering (consistent with standard API)
+          const scoredResults = filteredResults
+            .map(item => ({
+              ...item,
+              relevanceScore: calculateRelevanceScore(item, query)
+            }))
+            .filter(item => {
+              // Dynamic threshold based on query characteristics
+              const minThreshold = query.length <= 2 ? 100 : 50;
+              return item.relevanceScore >= minThreshold;
+            })
+            .sort((a, b) => {
+              // Multi-tier sorting for optimal relevance
+              const scoreDiff = b.relevanceScore - a.relevanceScore;
+              // If scores are very close (within 10%), consider secondary factors
+              if (Math.abs(scoreDiff) <= Math.max(a.relevanceScore, b.relevanceScore) * 0.1) {
+                // Prefer exact year matches if query contains year
+                const yearMatch = query.match(/\b(19|20)\d{2}\b/);
+                if (yearMatch) {
+                  const targetYear = yearMatch[0];
+                  const aYearMatch = a.year === targetYear;
+                  const bYearMatch = b.year === targetYear;
+                  if (aYearMatch !== bYearMatch) {
+                    return aYearMatch ? -1 : 1;
+                  }
+                }
+                // Then by recency
+                const aYear = parseInt(a.year) || 0;
+                const bYear = parseInt(b.year) || 0;
+                return bYear - aYear;
+              }
+              return scoreDiff;
+            });
+          
+          filteredResults = scoredResults;
 
           // 发送该源的搜索结果
           completedSources++;
-
           if (!streamClosed) {
             const sourceEvent = `data: ${JSON.stringify({
               type: 'source_result',
@@ -537,7 +440,6 @@ export async function GET(request: NextRequest) {
               results: filteredResults,
               timestamp: Date.now(),
             })}\n\n`;
-
             if (!safeEnqueue(encoder.encode(sourceEvent))) {
               streamClosed = true;
               return; // 连接已关闭，停止处理
@@ -549,10 +451,8 @@ export async function GET(request: NextRequest) {
           }
         } catch (error) {
           console.warn(`搜索失败 ${site.name}:`, error);
-
           // 发送源错误事件
           completedSources++;
-
           if (!streamClosed) {
             const errorEvent = `data: ${JSON.stringify({
               type: 'source_error',
@@ -561,7 +461,6 @@ export async function GET(request: NextRequest) {
               error: error instanceof Error ? error.message : '搜索失败',
               timestamp: Date.now(),
             })}\n\n`;
-
             if (!safeEnqueue(encoder.encode(errorEvent))) {
               streamClosed = true;
               return; // 连接已关闭，停止处理
@@ -579,14 +478,11 @@ export async function GET(request: NextRequest) {
               completedSources,
               timestamp: Date.now(),
             })}\n\n`;
-
             if (safeEnqueue(encoder.encode(completeEvent))) {
               // 只有在成功发送完成事件后才关闭流
               try {
                 controller.close();
-              } catch (error) {
-                console.warn('Failed to close controller:', error);
-              }
+              } catch (e) { console.warn('Failed to close controller:', e); }
             }
           }
         }
