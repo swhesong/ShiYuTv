@@ -51,6 +51,8 @@ export interface SiteConfig {
             apiKey: string;
             secretKey: string;
             tokenUrl?: string;
+            timeoutMs?: number; // 新增：审核请求超时
+            tokenTimeoutMs?: number; // 新增：Token请求超时
           };
           // 阿里云 的配置
           aliyun?: {
