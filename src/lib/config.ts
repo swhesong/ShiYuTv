@@ -245,6 +245,8 @@ async function getInitConfig(
             apiKey: '',
             secretKey: '',
             tokenUrl: 'https://aip.baidubce.com/oauth/2.0/token',
+            timeoutMs: 15000, // 新增：默认审核超时15秒
+            tokenTimeoutMs: 15000, // 新增：默认Token超时15秒
           },
           aliyun: {
             accessKeyId: '',
