@@ -5878,6 +5878,7 @@ useEffect(() => {
                   type='text'
                   value={siteSettings.IntelligentFilter.options.sightengine?.apiUrl || ''}
                   onChange={(e) => handleFilterOptionChange('sightengine', 'apiUrl', e.target.value)}
+                  placeholder='留空将使用默认地址: https://api.sightengine.com/'
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
