@@ -11,6 +11,53 @@ interface SightengineResult {
 const cache = new Map<string, SightengineResult>();
 const CACHE_TTL = 1000 * 60 * 60; // 缓存1小时
 
+// 添加一个正确实现的请求队列来管理并发
+class RequestQueue {
+  private queue: Array<() => Promise<any>> = [];
+  private processing = false;
+  private readonly maxConcurrent = 3; // 限制并发数为3，以减轻API压力
+  private activeRequests = 0;
+
+  async add<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push(async () => {
+        try {
+          const result = await fn();
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+      this.process();
+    });
+  }
+
+  private process() { // process 方法可以是同步的，因为它只负责启动任务
+    if (this.processing || this.activeRequests >= this.maxConcurrent) {
+      return;
+    }
+
+    this.processing = true;
+
+    while (this.queue.length > 0 && this.activeRequests < this.maxConcurrent) {
+      const task = this.queue.shift();
+      if (task) {
+        this.activeRequests++;
+        // 任务本身是异步的
+        task().finally(() => {
+          this.activeRequests--;
+          // 增加请求间隔，避免触发速率限制
+          setTimeout(() => this.process(), 200); // 增加间隔到200ms
+        });
+      }
+    }
+
+    this.processing = false;
+  }
+}
+
+const requestQueue = new RequestQueue();
+
 /**
  * 使用 Sightengine API 检查图片，并实现内存缓存。
  * @param imageUrl 要检查的图片 URL
@@ -35,68 +82,107 @@ export async function checkImageWithSightengine(
   }
 
   // 2. 准备API请求
-  const { apiUrl, apiUser, apiSecret, confidence, timeoutMs = 15000 } = config;
+  const { apiUrl, apiUser, apiSecret, confidence, timeoutMs = 30000 } = config;
   // 1. 只检查关键凭证，因为 apiUrl 可以使用默认值
   if (!apiUser || !apiSecret) {
-    return { score: 0, decision: 'error', reason: 'Sightengine config incomplete' };
+    return { score: 0, decision: 'error', reason: 'Sightengine config incomplete: missing credentials' };
+  }
+  // URL 基础验证
+  if (!imageUrl || !imageUrl.startsWith('http')) {
+    return { score: 0, decision: 'error', reason: 'Invalid image URL' };
   }
 
-  // 2. 如果 apiUrl 为空，则使用默认的 Sightengine API 地址
-  const effectiveApiUrl = apiUrl || 'https://api.sightengine.com/1.0/check.json';
+  // 2.使用请求队列管理并发
+  return requestQueue.add(async () => {
+    const effectiveApiUrl = apiUrl || 'https://api.sightengine.com/1.0/check.json';
 
-  const params = new URLSearchParams({
-    url: imageUrl,
-    models: 'nudity-2.0',
-    api_user: apiUser,
-    api_secret: apiSecret,
-  });
-
-  // 3. 直接使用 effectiveApiUrl 构建最终请求
-  //    注意：这里我们假设 apiUrl 已经是完整的端点，所以直接拼接参数
-  const requestUrl = `${effectiveApiUrl}?${params.toString()}`;
-  
-  // 4. 执行API调用
-  try {
-    const agent = new Agent({ connectTimeout: timeoutMs });
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-
-    const response = await undiciFetch(requestUrl, {
-      method: 'GET',
-      dispatcher: agent,
-      signal: controller.signal,
+    const params = new URLSearchParams({
+      url: imageUrl,
+      models: 'nudity-2.0',
+      api_user: apiUser,
+      api_secret: apiSecret,
     });
-    clearTimeout(timeoutId);
+  // 3. 直接使用 effectiveApiUrl 构建最终请求
+    const requestUrl = `${effectiveApiUrl}?${params.toString()}`;
+    
+  // 4. 执行API调用
+    try {
+      // 优化 Agent 配置，使其更具弹性
+      const agent = new Agent({ 
+        connectTimeout: Math.min(timeoutMs, 15000),  // 连接超时最多15秒或配置值
+        bodyTimeout: timeoutMs,     // 响应体超时使用完整配置值
+        headersTimeout: Math.min(timeoutMs, 20000),  // 头部超时最多20秒或配置值
+        keepAliveTimeout: 4000,
+        keepAliveMaxTimeout: 600000
+      });
+      
+      const controller = new AbortController();
+      // 使用从 config 传入的 timeoutMs，而不是硬编码的值
+      const timeoutId = setTimeout(() => {
+        console.log(`[Sightengine Client] Request timeout after ${timeoutMs}ms for: ${imageUrl}`);
+        controller.abort();
+      }, timeoutMs);
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`API returned status ${response.status}: ${errorText}`);
+      console.log(`[Sightengine Client] Starting moderation for: ${imageUrl}`);
+      
+      const response = await undiciFetch(requestUrl, {
+        method: 'GET',
+        dispatcher: agent,
+        signal: controller.signal,
+      });
+      
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Unable to read error response');
+        const errorMsg = `API returned status ${response.status}: ${errorText}`;
+        console.error(`[Sightengine Client] HTTP Error:`, errorMsg);
+        return { score: -1, decision: 'error' as const, reason: errorMsg };
+      }
+
+      const result = await response.json() as any;
+
+      if (result.status !== 'success') {
+        const errorMsg = result.error?.message || `API returned status: ${result.status}`;
+        console.error(`[Sightengine Client] API Error:`, errorMsg);
+        return { score: -1, decision: 'error' as const, reason: errorMsg };
+      }
+
+      // 正确解析分数
+      const nudity = result.nudity || {};
+      const score = Math.max(
+        nudity.sexual_activity || 0,
+        nudity.sexual_display || 0,
+        nudity.erotica || 0,
+        nudity.suggestive || 0
+      );
+      const decision = score >= confidence ? 'block' : 'allow';
+
+      // 缓存结果
+      cache.set(imageUrl, { score, decision, timestamp: now });
+
+      console.log(`[Sightengine Client] Moderation complete for ${imageUrl}: score=${score}, decision=${decision}`);
+      
+      return { 
+        score, 
+        decision, 
+        reason: `Moderation complete with score ${score}` 
+      };
+    } catch (error) {
+      // 使用最可靠的方式判断超时错误
+      const isAbortError = error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+      const reason = isAbortError 
+        ? `Request timeout after ${timeoutMs}ms for ${imageUrl}`
+        : error instanceof Error ? error.message : 'Unknown error during moderation';
+      
+      console.error(`[Sightengine Client] Error moderating ${imageUrl}:`, reason);
+      
+      // 对于超时错误，返回 allow 决策以避免因网络问题误伤内容
+      return { 
+        score: -1, 
+        decision: isAbortError ? 'allow' as const : 'error' as const, 
+        reason 
+      };
     }
-
-    const result = await response.json() as any;
-
-    if (result.status !== 'success') {
-      throw new Error(result.error?.message || 'API returned non-success status');
-    }
-
-    // 5. 正确解析分数
-    const nudity = result.nudity || {};
-    const score = Math.max(
-      nudity.sexual_activity || 0,
-      nudity.sexual_display || 0,
-      nudity.erotica || 0,
-      nudity.suggestive || 0 // 也考虑进 gợi ý
-    );
-
-    const decision = score >= confidence ? 'block' : 'allow';
-
-    // 6. 缓存结果
-    cache.set(imageUrl, { score, decision, timestamp: now });
-
-    return { score, decision, reason: `Moderation complete with score ${score}` };
-  } catch (error) {
-    const reason = error instanceof Error ? error.message : 'Unknown error during moderation';
-    console.error(`[Sightengine Client] Error moderating ${imageUrl}:`, reason);
-    return { score: -1, decision: 'error', reason };
-  }
+  });
 }
