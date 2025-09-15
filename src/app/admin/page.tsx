@@ -5990,6 +5990,31 @@ useEffect(() => {
                   className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
                 />
               </div>
+              {/* 新增：超时时间设置 */}
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  审核请求超时 (毫秒)
+                </label>
+                <input
+                  type='number'
+                  placeholder='默认 15000'
+                  value={siteSettings.IntelligentFilter.options.baidu?.timeoutMs || ''}
+                  onChange={(e) => handleFilterOptionChange('baidu', 'timeoutMs', e.target.value)}
+                  className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                />
+              </div>
+              <div>
+                <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+                  Token 请求超时 (毫秒)
+                </label>
+                <input
+                  type='number'
+                  placeholder='默认 15000'
+                  value={siteSettings.IntelligentFilter.options.baidu?.tokenTimeoutMs || ''}
+                  onChange={(e) => handleFilterOptionChange('baidu', 'tokenTimeoutMs', e.target.value)}
+                  className='w-full px-3 py-2 border rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100'
+                />
+              </div>              
               {/* 为百度云添加测试连接按钮 */}
               <div className='pt-2'>
                 <button
