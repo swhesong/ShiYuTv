@@ -5279,8 +5279,20 @@ useEffect(() => {
                 : prevSettings.IntelligentFilter.options.baidu!.secretKey,
               tokenUrl: intelligentFilter?.options?.baidu?.tokenUrl ?? prevOptions.baidu!.tokenUrl,
             },
-            aliyun: { ... }, // 确保 aliyun 和 tencent 的默认结构也存在
-            tencent: { ... },
+            aliyun: {
+              accessKeyId: intelligentFilter?.options?.aliyun?.accessKeyId ?? prevOptions.aliyun!.accessKeyId,
+              accessKeySecret: (intelligentFilter?.options?.aliyun?.accessKeySecret && intelligentFilter.options.aliyun.accessKeySecret !== '********')
+                ? intelligentFilter.options.aliyun.accessKeySecret
+                : prevSettings.IntelligentFilter.options.aliyun!.accessKeySecret,
+              regionId: intelligentFilter?.options?.aliyun?.regionId ?? prevOptions.aliyun!.regionId,
+            },
+            tencent: {
+              secretId: intelligentFilter?.options?.tencent?.secretId ?? prevOptions.tencent!.secretId,
+              secretKey: (intelligentFilter?.options?.tencent?.secretKey && intelligentFilter.options.tencent.secretKey !== '********')
+                ? intelligentFilter.options.tencent.secretKey
+                : prevSettings.IntelligentFilter.options.tencent!.secretKey,
+              region: intelligentFilter?.options?.tencent?.region ?? prevOptions.tencent!.region,
+            },
           },
         },
         // 保留其他字段的默认值逻辑
