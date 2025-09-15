@@ -119,7 +119,6 @@ export async function checkImageWithSightengine(
       
       const controller = new AbortController();
       // 减少超时时间并添加更详细的日志
-      const effectiveTimeout = Math.min(timeoutMs, 20000); // 最大20秒
       const timeoutId = setTimeout(() => {
         console.log(`[Sightengine Client] Request timeout after ${effectiveTimeout}ms for: ${imageUrl}`);
         controller.abort();
