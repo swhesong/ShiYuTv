@@ -44,16 +44,18 @@ export async function checkImageWithBaidu(
   try {
     // 3. 获取 Access Token (调用您提供的 token manager)
     const accessToken = await getBaiduAccessToken(apiKey, secretKey, tokenTimeoutMs);
-
     // 4. 准备审核请求
     const requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${accessToken}`;
     const body = new URLSearchParams();
     body.append('imgUrl', imageUrl);
-
-    const agent = new Agent({ connectTimeout: timeoutMs });
+    // 优化 Agent 配置
+    const agent = new Agent({
+      connectTimeout: Math.min(timeoutMs, 10000),
+      bodyTimeout: timeoutMs,
+      headersTimeout: Math.min(timeoutMs, 15000),
+    });
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeoutMs); // 使用可配置的超时
-
     const response = await undiciFetch(requestUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -88,10 +90,18 @@ export async function checkImageWithBaidu(
       : 'Baidu moderation passed';
 
     return { score, decision, reason };
-
   } catch (error) {
-    const reason = error instanceof Error ? error.message : 'Unknown error during Baidu moderation';
+    const isAbortError = error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+    const reason = isAbortError
+      ? `Request timeout after ${timeoutMs}ms for ${imageUrl}`
+      : error instanceof Error ? error.message : 'Unknown error during Baidu moderation';
+    
     console.error(`[Baidu Client] Error moderating ${imageUrl}:`, reason);
-    return { score: -1, decision: 'error', reason };
+    // 超时也返回 allow
+    return { 
+      score: -1,
+      decision: isAbortError ? 'allow' : 'error',
+      reason 
+    };
   }
 }
