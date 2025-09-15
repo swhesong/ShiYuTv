@@ -378,7 +378,30 @@ export function parseImportData(rawText: string, existingKeys: Set<string>) {
       format = 'json';
       jsonData.forEach((item, index) => {
         if (!item.key || !item.name || !item.api) {
-
+          errors.push(`第 ${index + 1} 行 (JSON): 缺少 name, key, 或 api 字段。`);
+          return;
+        }
+        if (existingKeys.has(item.key)) {
+          errors.push(`第 ${index + 1} 行 (JSON): Key "${item.key}" 已存在，将跳过。`);
+          return;
+        }
+        if (importKeys.has(item.key)) {
+          errors.push(`第 ${index + 1} 行 (JSON): Key "${item.key}" 在导入数据中重复，将跳过。`);
+          return;
+        }
+        parsedData.push({
+          name: String(item.name),
+          key: String(item.key),
+          api: String(item.api),
+          detail: String(item.detail || ''),
+          disabled: Boolean(item.disabled),
+        });
+        importKeys.add(item.key);
+      });
+      return { data: parsedData, format, errors };
+    }
+  } catch (e) { /* 不是 JSON, 继续尝试下一种格式 */ }
+  
   // 2. Try parsing as CSV
   if (lines[0].includes(',')) {
     format = 'csv';
