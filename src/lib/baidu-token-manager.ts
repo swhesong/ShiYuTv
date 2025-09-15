@@ -42,9 +42,14 @@ export async function getBaiduAccessToken(apiKey: string, secretKey: string, tim
     try {
       const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`;
       
-      const agent = new Agent({ connectTimeout: timeoutMs });
+      const effectiveTimeout = Math.min(timeoutMs, 12000); // token请求最大12秒超时
+      const agent = new Agent({ 
+        connectTimeout: Math.min(effectiveTimeout / 2, 6000),
+        bodyTimeout: effectiveTimeout,
+        headersTimeout: Math.min(effectiveTimeout / 2, 8000)
+      });
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
 
       const response = await undiciFetch(tokenUrl, {
         method: 'POST',
@@ -75,6 +80,11 @@ export async function getBaiduAccessToken(apiKey: string, secretKey: string, tim
     } catch (error) {
       // 请求失败时，清空缓存和promise，以便下次重试
       cachedToken = null;
+      console.error('[Baidu Token Manager] Token request failed:', {
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        timeoutUsed: effectiveTimeout
+      });
       throw error;
     } finally {
       // 无论成功与否，都要清空风暴锁
