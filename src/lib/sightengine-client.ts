@@ -36,9 +36,13 @@ export async function checkImageWithSightengine(
 
   // 2. 准备API请求
   const { apiUrl, apiUser, apiSecret, confidence } = config;
-  if (!apiUrl || !apiUser || !apiSecret) {
+  // 1. 只检查关键凭证，因为 apiUrl 可以使用默认值
+  if (!apiUser || !apiSecret) {
     return { score: 0, decision: 'error', reason: 'Sightengine config incomplete' };
   }
+
+  // 2. 如果 apiUrl 为空，则使用默认的 Sightengine API 地址
+  const effectiveApiUrl = apiUrl || 'https://api.sightengine.com/1.0/check.json';
 
   const params = new URLSearchParams({
     url: imageUrl,
@@ -47,9 +51,11 @@ export async function checkImageWithSightengine(
     api_secret: apiSecret,
   });
 
-  const requestUrl = `${apiUrl.replace(/\/$/, '')}/1.0/check.json?${params.toString()}`;
+  // 3. 直接使用 effectiveApiUrl 构建最终请求
+  //    注意：这里我们假设 apiUrl 已经是完整的端点，所以直接拼接参数
+  const requestUrl = `${effectiveApiUrl}?${params.toString()}`;
   
-  // 3. 执行API调用
+  // 4. 执行API调用
   try {
     const agent = new Agent({ connectTimeout: 15000 });
     const controller = new AbortController();
@@ -73,7 +79,7 @@ export async function checkImageWithSightengine(
       throw new Error(result.error?.message || 'API returned non-success status');
     }
 
-    // 4. 正确解析分数
+    // 5. 正确解析分数
     const nudity = result.nudity || {};
     const score = Math.max(
       nudity.sexual_activity || 0,
@@ -84,7 +90,7 @@ export async function checkImageWithSightengine(
 
     const decision = score >= confidence ? 'block' : 'allow';
 
-    // 5. 缓存结果
+    // 6. 缓存结果
     cache.set(imageUrl, { score, decision, timestamp: now });
 
     return { score, decision, reason: `Moderation complete with score ${score}` };
