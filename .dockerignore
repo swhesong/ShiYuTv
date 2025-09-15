@@ -42,6 +42,7 @@ docs
 
 # 忽略 IPTV 文件夹，因为它与应用运行无关
 iptv
+shipinywan
 
 # 开发脚本和配置
 .eslintrc*
