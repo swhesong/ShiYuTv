@@ -42,9 +42,9 @@ export async function getBaiduAccessToken(apiKey: string, secretKey: string, tim
     try {
       const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`;
       
-      const agent = new Agent({ connectTimeout: 15000 });
+      const agent = new Agent({ connectTimeout: timeoutMs });
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
       const response = await undiciFetch(tokenUrl, {
         method: 'POST',
