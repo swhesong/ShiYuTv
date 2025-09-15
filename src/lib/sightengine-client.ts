@@ -15,12 +15,12 @@ const CACHE_TTL = 1000 * 60 * 60; // 缓存1小时
  * 使用 Sightengine API 检查图片，并实现内存缓存。
  * @param imageUrl 要检查的图片 URL
  * @param config Sightengine 的配置
- * @returns {Promise<{ score: number; decision: 'allow' | 'block'; reason: string }>} 审核结果
+ * @returns {Promise<{ score: number; decision: 'allow' | 'block' | 'error'; reason: string }>} 审核结果
  */
 export async function checkImageWithSightengine(
   imageUrl: string,
   config: { apiUrl: string; apiUser: string; apiSecret: string; confidence: number }
-): Promise<{ score: number; decision: 'allow' | 'block'; reason: string }> {
+): Promise<{ score: number; decision: 'allow' | 'block' | 'error'; reason: string }> {
   const now = Date.now();
 
   // 1. 检查缓存
