@@ -48,14 +48,15 @@ export async function checkImageWithBaidu(
     const requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${accessToken}`;
     const body = new URLSearchParams();
     body.append('imgUrl', imageUrl);
-    // 优化 Agent 配置
+    // 优化 Agent 配置，使用更保守的超时设置
+    const effectiveTimeout = Math.min(timeoutMs, 15000); // 最大15秒
     const agent = new Agent({
-      connectTimeout: Math.min(timeoutMs, 10000),
-      bodyTimeout: timeoutMs,
-      headersTimeout: Math.min(timeoutMs, 15000),
+      connectTimeout: Math.min(effectiveTimeout / 2, 8000),  // 连接超时设为总超时的一半，最多8秒
+      bodyTimeout: effectiveTimeout,
+      headersTimeout: Math.min(effectiveTimeout / 2, 10000), // 头部超时设为总超时的一半，最多10秒
     });
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), timeoutMs); // 使用可配置的超时
+    const timeoutId = setTimeout(() => controller.abort(), effectiveTimeout);
     const response = await undiciFetch(requestUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -91,12 +92,23 @@ export async function checkImageWithBaidu(
 
     return { score, decision, reason };
   } catch (error) {
-    const isAbortError = error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+    const isAbortError = error instanceof Error && (
+      error.name === 'AbortError' || 
+      error.name === 'TimeoutError' ||
+      error.message.includes('aborted') ||
+      error.message.includes('timeout')
+    );
     const reason = isAbortError
-      ? `Request timeout after ${timeoutMs}ms for ${imageUrl}`
+      ? `Request timeout/aborted after ${effectiveTimeout}ms for ${imageUrl}`
       : error instanceof Error ? error.message : 'Unknown error during Baidu moderation';
     
     console.error(`[Baidu Client] Error moderating ${imageUrl}:`, reason);
+    console.error(`[Baidu Client] Error details:`, {
+      errorName: error instanceof Error ? error.name : 'Unknown',
+      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+      isAbortError,
+      url: imageUrl
+    });
     // 超时也返回 allow
     return { 
       score: -1,
@@ -104,4 +116,3 @@ export async function checkImageWithBaidu(
       reason 
     };
   }
-}
