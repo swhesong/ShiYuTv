@@ -232,9 +232,21 @@ export async function GET(request: NextRequest) {
         }
         
         try {
-          const agent = new Agent({ connectTimeout: 30000 });
+          // 优化 Agent 配置，使用更保守的超时设置
+          const effectiveTimeout = Math.min(timeoutMs, 20000); // 最大20秒
+          const agent = new Agent({ 
+            connectTimeout: Math.min(effectiveTimeout / 2, 10000),  // 连接超时设为总超时的一半，最多10秒
+            bodyTimeout: effectiveTimeout,     // 响应体超时使用完整配置值
+            headersTimeout: Math.min(effectiveTimeout / 2, 10000),  // 头部超时设为总超时的一半，最多10秒
+            keepAliveTimeout: 4000,
+            keepAliveMaxTimeout: 600000
+          });
+          
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 30000);
+          const timeoutId = setTimeout(() => {
+            console.log(`[Custom API] Request timeout after ${effectiveTimeout}ms for: ${imageUrl}`);
+            controller.abort();
+          }, effectiveTimeout);
 
           const headers: Record<string, string> = { 'Content-Type': 'application/json' };
           headers[opts.apiKeyHeader] = apiKeyValue;
@@ -279,9 +291,27 @@ export async function GET(request: NextRequest) {
           return { decision: 'allow', reason: 'Moderation passed', score };
 
         } catch (error) {
-          const reason = `Exception during API call for custom: ${(error as Error).message}`;
+          const isAbortError = error instanceof Error && (
+            error.name === 'AbortError' || 
+            error.name === 'TimeoutError' ||
+            error.message.includes('aborted') ||
+            error.message.includes('timeout')
+          );
+          const reason = isAbortError 
+            ? `Custom API timeout/aborted after ${effectiveTimeout}ms for ${imageUrl}`
+            : `Exception during API call for custom: ${(error as Error).message}`;
           console.error(`[AI Filter DEBUG] <== ${reason} URL: ${imageUrl}`, error);
-          return { decision: 'error', reason };
+          console.error(`[Custom API] Error details:`, {
+            errorName: error instanceof Error ? error.name : 'Unknown',
+            errorMessage: error instanceof Error ? error.message : 'Unknown error',
+            isAbortError,
+            url: imageUrl
+          });
+          // 超时时返回 allow，其他错误返回 error
+          return { 
+            decision: isAbortError ? 'allow' : 'error', 
+            reason 
+          };
         }
       }
       default:
