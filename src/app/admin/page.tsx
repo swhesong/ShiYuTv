@@ -5279,6 +5279,8 @@ useEffect(() => {
                 : prevSettings.IntelligentFilter.options.baidu!.secretKey,
               tokenUrl: intelligentFilter?.options?.baidu?.tokenUrl ?? prevOptions.baidu!.tokenUrl,
             },
+            aliyun: { ... }, // 确保 aliyun 和 tencent 的默认结构也存在
+            tencent: { ... },
           },
         },
         // 保留其他字段的默认值逻辑
