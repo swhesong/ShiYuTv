@@ -35,7 +35,7 @@ export async function checkImageWithSightengine(
   }
 
   // 2. 准备API请求
-  const { apiUrl, apiUser, apiSecret, confidence } = config;
+  const { apiUrl, apiUser, apiSecret, confidence, timeoutMs = 15000 } = config;
   // 1. 只检查关键凭证，因为 apiUrl 可以使用默认值
   if (!apiUser || !apiSecret) {
     return { score: 0, decision: 'error', reason: 'Sightengine config incomplete' };
@@ -57,9 +57,9 @@ export async function checkImageWithSightengine(
   
   // 4. 执行API调用
   try {
-    const agent = new Agent({ connectTimeout: 15000 });
+    const agent = new Agent({ connectTimeout: timeoutMs });
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
     const response = await undiciFetch(requestUrl, {
       method: 'GET',
