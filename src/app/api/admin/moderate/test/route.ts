@@ -28,12 +28,16 @@ export async function POST(request: NextRequest) {
   // 3. 根据 provider 调用不同的测试逻辑
   try {
     if (provider === 'sightengine') {
-      // --- Sightengine 测试逻辑 ---
-      if (!config.apiUrl || !config.apiUser || !config.apiSecret) {
-        return NextResponse.json({ error: 'Sightengine 配置不完整' }, { status: 400 });
+      // --- Sightengine 测试逻辑
+
+      // 1. 只检查关键凭证
+      if (!config.apiUser || !config.apiSecret) {
+        return NextResponse.json({ error: 'Sightengine 配置不完整: 缺少 apiUser 或 apiSecret' }, { status: 400 });
       }
 
-      // 将POST请求改为GET请求，并使用URLSearchParams构建查询字符串
+      // 2. 如果 apiUrl 为空，则使用默认值
+      const effectiveApiUrl = config.apiUrl || 'https://api.sightengine.com/1.0/check.json';
+
       const params = new URLSearchParams({
         api_user: config.apiUser,
         api_secret: config.apiSecret,
@@ -41,7 +45,7 @@ export async function POST(request: NextRequest) {
         models: 'nudity-2.0',
       });
       
-      const testUrl = `${config.apiUrl.replace(/\/$/, '')}/1.0/check.json?${params.toString()}`;
+      const testUrl = `${effectiveApiUrl}?${params.toString()}`;
 
       const response = await fetch(testUrl, { method: 'GET' });
       const result = await response.json();
