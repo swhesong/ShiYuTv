@@ -19,7 +19,7 @@ const CACHE_TTL = 1000 * 60 * 60; // 缓存1小时
  */
 export async function checkImageWithSightengine(
   imageUrl: string,
-  config: { apiUrl: string; apiUser: string; apiSecret: string; confidence: number }
+  config: { apiUrl: string; apiUser: string; apiSecret: string; confidence: number; timeoutMs?: number }
 ): Promise<{ score: number; decision: 'allow' | 'block' | 'error'; reason: string }> {
   const now = Date.now();
 
