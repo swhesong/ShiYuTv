@@ -33,14 +33,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Sightengine 配置不完整' }, { status: 400 });
       }
 
-      const formData = new FormData();
-      formData.append('api_user', config.apiUser);
-      formData.append('api_secret', config.apiSecret);
-      formData.append('url', 'https://placehold.co/100x100.png'); // 使用一个公开、安全的图片URL进行测试
-      formData.append('models', 'nudity-2.0');
+      // 将POST请求改为GET请求，并使用URLSearchParams构建查询字符串
+      const params = new URLSearchParams({
+        api_user: config.apiUser,
+        api_secret: config.apiSecret,
+        url: 'https://placehold.co/100x100.png',
+        models: 'nudity-2.0',
+      });
+      
+      const testUrl = `${config.apiUrl.replace(/\/$/, '')}/1.0/check.json?${params.toString()}`;
 
-      const testUrl = config.apiUrl.includes('/1.0/check.json') ? config.apiUrl : `${config.apiUrl.replace(/\/$/, '')}/1.0/check.json`;
-      const response = await fetch(testUrl, { method: 'POST', body: formData });
+      const response = await fetch(testUrl, { method: 'GET' });
       const result = await response.json();
 
       if (response.ok && result.status === 'success') {
