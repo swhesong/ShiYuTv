@@ -305,6 +305,8 @@ export async function GET(request: NextRequest) {
                   return await checkImageWithBaidu(imageUrl, {
                     apiKey: process.env.BAIDU_API_KEY || opts.apiKey,
                     secretKey: process.env.BAIDU_SECRET_KEY || opts.secretKey,
+                    timeoutMs: opts.timeoutMs, // 新增：传递审核超时
+                    tokenTimeoutMs: opts.tokenTimeoutMs, // 新增：传递Token超时
                   });
                 }
                 case 'custom': {
