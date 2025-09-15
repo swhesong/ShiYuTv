@@ -208,6 +208,7 @@ export async function GET(request: NextRequest) {
           apiUser: process.env.SIGHTENGINE_API_USER || opts.apiUser,
           apiSecret: process.env.SIGHTENGINE_API_SECRET || opts.apiSecret,
           confidence: filterConfig.confidence,
+          timeoutMs: opts.timeoutMs, // 传递超时配置
         });
       }
       case 'baidu': {
@@ -217,6 +218,8 @@ export async function GET(request: NextRequest) {
           // 1. 优先从环境变量读取密钥，如果不存在，则回退到前端设置
           apiKey: process.env.BAIDU_API_KEY || opts.apiKey,
           secretKey: process.env.BAIDU_SECRET_KEY || opts.secretKey,
+          timeoutMs: opts.timeoutMs, // 传递审核超时
+          tokenTimeoutMs: opts.tokenTimeoutMs, // 传递Token超时
         });
       }
       case 'custom': {
