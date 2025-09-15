@@ -1,0 +1,16 @@
+{
+    "cache_time": 9200,
+    "api_site": {
+        "api_1": {
+            "name": "if101资源",
+            "api": "https://demo.if101.tv/api.php/provide/vod",
+            "detail": "https://demo.if101.tv"
+        },
+        "api_2": {
+            "name": "8090资源",
+            "api": "http://zy.yilans.net:8090/api.php/provide/vod",
+            "detail": "http://zy.yilans.net:8090"
+        },
+        "api_3": {
+            "name": "天堂资源",
+            "api": "http://vipmv.cc/api.php/provide/vod",
