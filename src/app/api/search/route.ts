@@ -6,6 +6,7 @@ import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
 import { moderateContent, decisionThresholds } from '@/lib/yellow';
+import { checkImageWithSightengine } from '@/lib/sightengine-client'; 
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
@@ -236,23 +237,15 @@ export async function GET(request: NextRequest) {
       // --- 1. 根据提供商准备请求参数 ---
       switch (provider) {
         case 'sightengine': {
+          // 直接调用封装好的客户端
           const opts = filterConfig.options.sightengine || {};
-          opts.apiUser = process.env.SIGHTENGINE_API_USER || opts.apiUser;
-          opts.apiSecret = process.env.SIGHTENGINE_API_SECRET || opts.apiSecret;
-
-          if (!opts || !opts.apiUrl || !opts.apiUser || !opts.apiSecret || opts.apiSecret === '(not provided)') {
-            console.warn('[AI Filter] Sightengine is not fully configured.');
-            return { decision: 'error', reason: 'Sightengine not fully configured' };
-          }
-          requestUrl = opts.apiUrl.includes('/1.0/check.json') ? opts.apiUrl : `${opts.apiUrl.replace(/\/$/, '')}/1.0/check.json`;
-          const formData = new FormData();
-          formData.append('api_user', opts.apiUser);
-          formData.append('api_secret', opts.apiSecret);
-          formData.append('url', imageUrl);
-          formData.append('models', 'nudity-2.0');
-          requestOptions = { method: 'POST', body: formData };
-          scorePath = 'nudity.raw';
-          break;
+          const sightengineConfig = {
+            apiUrl: opts.apiUrl,
+            apiUser: process.env.SIGHTENGINE_API_USER || opts.apiUser,
+            apiSecret: process.env.SIGHTENGINE_API_SECRET || opts.apiSecret,
+            confidence: filterConfig.confidence,
+          };
+          return await checkImageWithSightengine(imageUrl, sightengineConfig);
         }
         case 'baidu': {
           // 从前端配置中获取选项，并提供一个空对象作为默认值
