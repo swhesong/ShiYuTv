@@ -20,7 +20,7 @@ const CACHE_TTL = 1000 * 60 * 60; // 缓存1小时
  */
 export async function checkImageWithBaidu(
   imageUrl: string,
-  config: { apiKey: string; secretKey: string; }
+  config: { apiKey: string; secretKey: string; timeoutMs?: number; tokenTimeoutMs?: number }
 ): Promise<{ score: number; decision: 'allow' | 'block' | 'error'; reason: string }> {
   const now = Date.now();
 
