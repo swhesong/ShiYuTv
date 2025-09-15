@@ -232,6 +232,7 @@ async function getInitConfig(
             apiUrl: 'https://api.sightengine.com/1.0/check.json',
             apiUser: '',
             apiSecret: '',
+            timeoutMs: 15000,
           },
           custom: {
             apiUrl: '',
