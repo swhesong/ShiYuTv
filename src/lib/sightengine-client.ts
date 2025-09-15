@@ -106,6 +106,7 @@ export async function checkImageWithSightengine(
     const requestUrl = `${effectiveApiUrl}?${params.toString()}`;
     
   // 4. 执行API调用
+    let effectiveTimeout = Math.min(timeoutMs, 20000);
     try {
       // 优化 Agent 配置，使用更保守的超时设置
       const agent = new Agent({ 
