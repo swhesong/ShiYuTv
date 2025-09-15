@@ -50,7 +50,6 @@ export async function checkImageWithBaidu(
     const body = new URLSearchParams();
     body.append('imgUrl', imageUrl);
     // 优化 Agent 配置，使用更保守的超时设置
-    const effectiveTimeout = Math.min(timeoutMs, 15000); // 最大15秒
     const agent = new Agent({
       connectTimeout: Math.min(effectiveTimeout / 2, 8000),  // 连接超时设为总超时的一半，最多8秒
       bodyTimeout: effectiveTimeout,
