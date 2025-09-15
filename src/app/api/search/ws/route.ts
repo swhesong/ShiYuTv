@@ -318,9 +318,17 @@ export async function GET(request: NextRequest) {
                     return { decision: 'error', reason: 'Custom API not fully configured' };
                   }
                   try {
-                    const agent = new Agent({ connectTimeout: 30000 });
+                    const effectiveTimeout = 20000; // 流式搜索中固定20秒超时
+                    const agent = new Agent({ 
+                      connectTimeout: Math.min(effectiveTimeout / 2, 10000),
+                      bodyTimeout: effectiveTimeout,
+                      headersTimeout: Math.min(effectiveTimeout / 2, 10000)
+                    });
                     const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 30000);
+                    const timeoutId = setTimeout(() => {
+                      console.log(`[Custom API WS] Request timeout after ${effectiveTimeout}ms for: ${imageUrl}`);
+                      controller.abort();
+                    }, effectiveTimeout);
                     const headers: Record<string, string> = { 'Content-Type': 'application/json' };
                     headers[opts.apiKeyHeader] = apiKeyValue;
                     const body = JSON.parse(opts.jsonBodyTemplate.replace('{{URL}}', imageUrl));
@@ -339,7 +347,26 @@ export async function GET(request: NextRequest) {
                     if (score >= filterConfig.confidence) return { decision: 'block', reason: `Blocked by custom. Score: ${score} >= Confidence: ${filterConfig.confidence}.`, score };
                     return { decision: 'allow', reason: 'Moderation passed', score };
                   } catch (error) {
-                    return { decision: 'error', reason: `Exception during API call for custom: ${(error as Error).message}` };
+                    const isAbortError = error instanceof Error && (
+                      error.name === 'AbortError' || 
+                      error.name === 'TimeoutError' ||
+                      error.message.includes('aborted') ||
+                      error.message.includes('timeout')
+                    );
+                    const reason = isAbortError 
+                      ? `Custom API timeout/aborted after 20000ms for ${imageUrl}`
+                      : `Exception during API call for custom: ${(error as Error).message}`;
+                    console.error(`[Custom API WS] Error details:`, {
+                      errorName: error instanceof Error ? error.name : 'Unknown',
+                      errorMessage: error instanceof Error ? error.message : 'Unknown error',
+                      isAbortError,
+                      url: imageUrl
+                    });
+                    // 超时时返回 allow，其他错误返回 error
+                    return { 
+                      decision: isAbortError ? 'allow' : 'error', 
+                      reason 
+                    };
                   }
                 }
                 default:
