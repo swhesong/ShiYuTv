@@ -107,23 +107,24 @@ export async function checkImageWithSightengine(
     
   // 4. 执行API调用
     try {
-      // 优化 Agent 配置，使其更具弹性
+      // 优化 Agent 配置，使用更保守的超时设置
       const agent = new Agent({ 
-        connectTimeout: Math.min(timeoutMs, 15000),  // 连接超时最多15秒或配置值
-        bodyTimeout: timeoutMs,     // 响应体超时使用完整配置值
-        headersTimeout: Math.min(timeoutMs, 20000),  // 头部超时最多20秒或配置值
+        connectTimeout: Math.min(timeoutMs / 2, 10000),  // 连接超时设为总超时的一半，最多10秒
+        bodyTimeout: Math.min(timeoutMs, 15000),     // 响应体超时最多15秒
+        headersTimeout: Math.min(timeoutMs / 2, 10000),  // 头部超时设为总超时的一半，最多10秒
         keepAliveTimeout: 4000,
         keepAliveMaxTimeout: 600000
       });
       
       const controller = new AbortController();
-      // 使用从 config 传入的 timeoutMs，而不是硬编码的值
+      // 减少超时时间并添加更详细的日志
+      const effectiveTimeout = Math.min(timeoutMs, 20000); // 最大20秒
       const timeoutId = setTimeout(() => {
-        console.log(`[Sightengine Client] Request timeout after ${timeoutMs}ms for: ${imageUrl}`);
+        console.log(`[Sightengine Client] Request timeout after ${effectiveTimeout}ms for: ${imageUrl}`);
         controller.abort();
-      }, timeoutMs);
+      }, effectiveTimeout);
 
-      console.log(`[Sightengine Client] Starting moderation for: ${imageUrl}`);
+      console.log(`[Sightengine Client] Starting moderation for: ${imageUrl} (timeout: ${effectiveTimeout}ms)`);
       
       const response = await undiciFetch(requestUrl, {
         method: 'GET',
@@ -169,13 +170,25 @@ export async function checkImageWithSightengine(
         reason: `Moderation complete with score ${score}` 
       };
     } catch (error) {
-      // 使用最可靠的方式判断超时错误
-      const isAbortError = error instanceof Error && (error.name === 'AbortError' || error.name === 'TimeoutError');
+      // 增强错误判断，包含更多中止错误类型
+      const isAbortError = error instanceof Error && (
+        error.name === 'AbortError' || 
+        error.name === 'TimeoutError' ||
+        error.message.includes('aborted') ||
+        error.message.includes('timeout')
+      );
+      
       const reason = isAbortError 
-        ? `Request timeout after ${timeoutMs}ms for ${imageUrl}`
+        ? `Request timeout/aborted after ${effectiveTimeout}ms for ${imageUrl}`
         : error instanceof Error ? error.message : 'Unknown error during moderation';
       
       console.error(`[Sightengine Client] Error moderating ${imageUrl}:`, reason);
+      console.error(`[Sightengine Client] Error details:`, {
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : 'Unknown error',
+        isAbortError,
+        url: imageUrl
+      });
       
       // 对于超时错误，返回 allow 决策以避免因网络问题误伤内容
       return { 
@@ -184,5 +197,3 @@ export async function checkImageWithSightengine(
         reason 
       };
     }
-  });
-}
