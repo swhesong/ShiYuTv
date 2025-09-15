@@ -42,8 +42,6 @@ export async function getBaiduAccessToken(apiKey: string, secretKey: string, tim
     let effectiveTimeout = Math.min(timeoutMs, 12000);
     try {
       const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`;
-      
-      const effectiveTimeout = Math.min(timeoutMs, 12000); // token请求最大12秒超时
       const agent = new Agent({ 
         connectTimeout: Math.min(effectiveTimeout / 2, 6000),
         bodyTimeout: effectiveTimeout,
