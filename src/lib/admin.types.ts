@@ -35,6 +35,7 @@ export interface SiteConfig {
             apiUrl: string;
             apiUser: string;
             apiSecret: string;
+            timeoutMs?: number;
           };
           // 自定义 API 的配置
           custom?: {
