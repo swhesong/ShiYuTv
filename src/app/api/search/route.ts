@@ -233,7 +233,6 @@ export async function GET(request: NextRequest) {
         let effectiveTimeout = 20000; 
         try {
           // 优化 Agent 配置，使用更保守的超时设置
-          const effectiveTimeout = Math.min(timeoutMs, 20000); // 最大20秒
           const agent = new Agent({ 
             connectTimeout: Math.min(effectiveTimeout / 2, 10000),  // 连接超时设为总超时的一半，最多10秒
             bodyTimeout: effectiveTimeout,     // 响应体超时使用完整配置值
