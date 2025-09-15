@@ -296,6 +296,7 @@ export async function GET(request: NextRequest) {
                     apiUser: process.env.SIGHTENGINE_API_USER || opts.apiUser,
                     apiSecret: process.env.SIGHTENGINE_API_SECRET || opts.apiSecret,
                     confidence: filterConfig.confidence,
+                    timeoutMs: opts.timeoutMs,
                   });
                 }
                 case 'baidu': {
