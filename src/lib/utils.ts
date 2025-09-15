@@ -344,33 +344,40 @@ export function parseImportData(rawText: string, existingKeys: Set<string>) {
   // 1. Try parsing as JSON
   try {
     const jsonData = JSON.parse(rawText);
+    
+    // 检查是否为 config.json 格式 (包含 api_site 对象)
+    if (jsonData && typeof jsonData.api_site === 'object' && !Array.isArray(jsonData.api_site)) {
+      format = 'json';
+      Object.entries(jsonData.api_site).forEach(([key, site]: [string, any], index) => {
+        if (!site.name || !site.api) {
+          errors.push(`第 ${index + 1} 条 (JSON config): 源 "${key}" 缺少 name 或 api 字段。`);
+          return;
+        }
+        if (existingKeys.has(key)) {
+          errors.push(`第 ${index + 1} 条 (JSON config): Key "${key}" 已存在，将跳过。`);
+          return;
+        }
+        if (importKeys.has(key)) {
+          errors.push(`第 ${index + 1} 条 (JSON config): Key "${key}" 在导入数据中重复，将跳过。`);
+          return;
+        }
+        parsedData.push({
+          name: String(site.name),
+          key: key,
+          api: String(site.api),
+          detail: String(site.detail || ''),
+          disabled: false, // 默认不禁用
+        });
+        importKeys.add(key);
+      });
+      return { data: parsedData, format, errors };
+    }
+    
+    // 检查是否为简单的对象数组格式
     if (Array.isArray(jsonData)) {
       format = 'json';
       jsonData.forEach((item, index) => {
         if (!item.key || !item.name || !item.api) {
-          errors.push(`第 ${index + 1} 行 (JSON): 缺少 name, key, 或 api 字段。`);
-          return;
-        }
-        if (existingKeys.has(item.key)) {
-          errors.push(`第 ${index + 1} 行 (JSON): Key "${item.key}" 已存在，将跳过。`);
-          return;
-        }
-        if (importKeys.has(item.key)) {
-          errors.push(`第 ${index + 1} 行 (JSON): Key "${item.key}" 在导入数据中重复，将跳过。`);
-          return;
-        }
-        parsedData.push({
-          name: String(item.name),
-          key: String(item.key),
-          api: String(item.api),
-          detail: String(item.detail || ''),
-          disabled: Boolean(item.disabled),
-        });
-        importKeys.add(item.key);
-      });
-      return { data: parsedData, format, errors };
-    }
-  } catch (e) { /* 不是 JSON, 继续尝试下一种格式 */ }
 
   // 2. Try parsing as CSV
   if (lines[0].includes(',')) {
