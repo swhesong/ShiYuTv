@@ -19,7 +19,8 @@ let tokenPromise: Promise<BaiduToken> | null = null;
  * @param secretKey Baidu Secret Key
  * @returns {Promise<string>} Access Token
  */
-export async function getBaiduAccessToken(apiKey: string, secretKey: string): Promise<string> {
+
+export async function getBaiduAccessToken(apiKey: string, secretKey: string, timeoutMs = 15000): Promise<string> {
   const now = Date.now();
 
   // 1. 检查缓存中是否有有效的token
