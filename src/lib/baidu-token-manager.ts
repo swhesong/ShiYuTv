@@ -39,6 +39,7 @@ export async function getBaiduAccessToken(apiKey: string, secretKey: string, tim
   // 3. 发起新的token请求
   console.log('[Baidu Token Manager] No valid token, fetching a new one...');
   tokenPromise = (async () => {
+    let effectiveTimeout = Math.min(timeoutMs, 12000);
     try {
       const tokenUrl = `https://aip.baidubce.com/oauth/2.0/token?grant_type=client_credentials&client_id=${apiKey}&client_secret=${secretKey}`;
       
