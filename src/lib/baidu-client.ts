@@ -40,7 +40,8 @@ export async function checkImageWithBaidu(
   if (!apiKey || !secretKey) {
     return { score: 0, decision: 'error', reason: 'Baidu API keys not configured' };
   }
-
+  
+  let effectiveTimeout = Math.min(timeoutMs, 15000);
   try {
     // 3. 获取 Access Token (调用您提供的 token manager)
     const accessToken = await getBaiduAccessToken(apiKey, secretKey, tokenTimeoutMs);
