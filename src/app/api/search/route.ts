@@ -2,6 +2,7 @@
 import { fetch as undiciFetch, RequestInit, FormData, Agent } from 'undici';
 import { NextRequest, NextResponse } from 'next/server';
 import { getBaiduAccessToken } from '@/lib/baidu-token-manager';
+import { checkImageWithBaidu } from '@/lib/baidu-client';
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
