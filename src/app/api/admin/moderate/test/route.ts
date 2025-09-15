@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAuthInfoFromCookie } from '@/lib/auth';
+import { checkImageWithSightengine } from '@/lib/sightengine-client';
+import { checkImageWithBaidu } from '@/lib/baidu-client';
 
 export const runtime = 'nodejs';
 
@@ -28,50 +30,38 @@ export async function POST(request: NextRequest) {
   // 3. 根据 provider 调用不同的测试逻辑
   try {
     if (provider === 'sightengine') {
-      // --- Sightengine 测试逻辑
-
-      // 1. 只检查关键凭证
+      // --- Sightengine 测试逻辑 (使用客户端) ---
       if (!config.apiUser || !config.apiSecret) {
-        return NextResponse.json({ error: 'Sightengine 配置不完整: 缺少 apiUser 或 apiSecret' }, { status: 400 });
+        return NextResponse.json({ error: 'Sightengine 配置不完整' }, { status: 400 });
       }
-
-      // 2. 如果 apiUrl 为空，则使用默认值
-      const effectiveApiUrl = config.apiUrl || 'https://api.sightengine.com/1.0/check.json';
-
-      const params = new URLSearchParams({
-        api_user: config.apiUser,
-        api_secret: config.apiSecret,
-        url: 'https://placehold.co/100x100.png',
-        models: 'nudity-2.0',
-      });
       
-      const testUrl = `${effectiveApiUrl}?${params.toString()}`;
+      const result = await checkImageWithSightengine('https://placehold.co/100x100.png', {
+        apiUrl: config.apiUrl,
+        apiUser: config.apiUser,
+        apiSecret: config.apiSecret,
+        confidence: 0.99, // 使用高置信度进行测试，确保能通过
+      });
 
-      const response = await fetch(testUrl, { method: 'GET' });
-      const result = await response.json();
-
-      if (response.ok && result.status === 'success') {
+      if (result.decision !== 'error') {
         return NextResponse.json({ success: true, message: 'Sightengine 凭证有效，连接成功！' });
       } else {
-        const errorMessage = result.error?.message || '凭证无效或API错误';
-        throw new Error(`Sightengine 测试失败: ${errorMessage}`);
+        throw new Error(`Sightengine 测试失败: ${result.reason}`);
       }
     } else if (provider === 'baidu') {
-      // --- 百度智能云测试逻辑 ---
+      // --- 百度智能云测试逻辑 (使用客户端) ---
       if (!config.apiKey || !config.secretKey) {
         return NextResponse.json({ error: '百度智能云配置不完整' }, { status: 400 });
       }
-      
-      const baseUrl = config.tokenUrl || 'https://aip.baidubce.com/oauth/2.0/token';
-      const tokenUrl = `${baseUrl}?grant_type=client_credentials&client_id=${config.apiKey}&client_secret=${config.secretKey}`;
-      const tokenResponse = await fetch(tokenUrl, { method: 'POST' });
-      const tokenData = await tokenResponse.json();
 
-      if (tokenResponse.ok && tokenData.access_token) {
+      const result = await checkImageWithBaidu('https://placehold.co/100x100.png', {
+        apiKey: config.apiKey,
+        secretKey: config.secretKey,
+      });
+
+      if (result.decision !== 'error') {
         return NextResponse.json({ success: true, message: '百度智能云凭证有效，连接成功！' });
       } else {
-        const errorMessage = tokenData.error_description || '获取 access_token 失败';
-        throw new Error(`百度智能云测试失败: ${errorMessage}`);
+        throw new Error(`百度智能云测试失败: ${result.reason}`);
       }
     
     } else if (provider === 'aliyun') {
