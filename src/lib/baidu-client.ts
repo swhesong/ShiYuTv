@@ -36,23 +36,23 @@ export async function checkImageWithBaidu(
   }
 
   // 2. 准备API请求
-  const { apiKey, secretKey } = config;
+  const { apiKey, secretKey, timeoutMs = 15000, tokenTimeoutMs = 15000 } = config;
   if (!apiKey || !secretKey) {
     return { score: 0, decision: 'error', reason: 'Baidu API keys not configured' };
   }
 
   try {
     // 3. 获取 Access Token (调用您提供的 token manager)
-    const accessToken = await getBaiduAccessToken(apiKey, secretKey);
+    const accessToken = await getBaiduAccessToken(apiKey, secretKey, tokenTimeoutMs);
 
     // 4. 准备审核请求
     const requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${accessToken}`;
     const body = new URLSearchParams();
     body.append('imgUrl', imageUrl);
 
-    const agent = new Agent({ connectTimeout: 15000 });
+    const agent = new Agent({ connectTimeout: timeoutMs });
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15秒超时
+    const timeoutId = setTimeout(() => controller.abort(), timeoutMs); // 使用可配置的超时
 
     const response = await undiciFetch(requestUrl, {
       method: 'POST',
