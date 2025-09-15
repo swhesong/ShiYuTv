@@ -292,28 +292,28 @@ export async function GET(request: NextRequest) {
       .filter((result) => result.status === 'fulfilled')
       .map((result) => (result as PromiseFulfilledResult<any>).value);
     let flattenedResults = successResults.flat();
-      // 在此处添加修正逻辑
+    // 在此处添加修正逻辑
     flattenedResults.forEach((item: any) => {
       if (item.poster && item.poster.startsWith('http://')) {
         item.poster = item.poster.replace('http://', 'https://');
       }
     });
     
-      // --- 1. 关键词预过滤 ---
+    // --- 1. 关键词预过滤 ---
     if (!config.SiteConfig.DisableYellowFilter) {
       flattenedResults = flattenedResults.filter((result) => {
         const typeName = result.type_name || '';
         const title = result.title || '';
-          // 使用新的审核函数检查标题和分类名
+        // 使用新的审核函数检查标题和分类名
         const titleModeration = moderateContent(title);
         const typeModeration = moderateContent(typeName);
-          // 如果标题或分类名任一超过FLAG阈值，则过滤掉
+        // 如果标题或分类名任一超过FLAG阈值，则过滤掉
         return titleModeration.totalScore < decisionThresholds.FLAG && 
                typeModeration.totalScore < decisionThresholds.FLAG;
       });
     }
 
-      // --- 2. 智能 AI 审核 (新增熔断机制) ---
+    // --- 2. 智能 AI 审核 (新增熔断机制) ---
     if (config.SiteConfig.IntelligentFilter?.enabled) {
       console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
       
@@ -321,7 +321,7 @@ export async function GET(request: NextRequest) {
       const failureThreshold = 5;
       let isServiceDown = false;
 
-        // 添加批次处理，避免并发过高
+      // 添加批次处理，避免并发过高
       const batchSize = 5;
       const batches = [];
       for (let i = 0; i < flattenedResults.length; i += batchSize) {
@@ -331,7 +331,7 @@ export async function GET(request: NextRequest) {
       const moderatedResults = [];
       for (const batch of batches) {
         const batchPromises = batch.map(async (item) => {
-            // 如果服务已熔断，则直接放行
+          // 如果服务已熔断，则直接放行
           if (isServiceDown) {
             console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
             return item;
@@ -343,24 +343,24 @@ export async function GET(request: NextRequest) {
             failureCount++;
             console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
           } else {
-              // 任何一次成功都重置失败计数器
+            // 任何一次成功都重置失败计数器
             failureCount = Math.max(0, failureCount - 1);
           }
 
-            // 检查是否达到熔断阈值
+          // 检查是否达到熔断阈值
           if (failureCount >= failureThreshold) {
             isServiceDown = true;
             console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
           }
 
-            // 策略：失败时放行 (当审核出错或审核通过时，都保留)
+          // 策略：失败时放行 (当审核出错或审核通过时，都保留)
           return moderationResult.decision !== 'block' ? item : null;
         });
         
         const batchResults = await Promise.all(batchPromises);
         moderatedResults.push(...batchResults);
         
-          // 批次间添加延迟，减少API压力
+        // 批次间添加延迟，减少API压力
         if (batches.indexOf(batch) < batches.length - 1) {
           await new Promise(resolve => setTimeout(resolve, 200));
         }
@@ -369,7 +369,7 @@ export async function GET(request: NextRequest) {
       flattenedResults = moderatedResults.filter((item): item is any => item !== null);
     }
     
-      // Create a map for quick lookup of site health status
+    // Create a map for quick lookup of site health status
     const siteStatusMap = new Map(apiSites.map(site => {
       const getPriority = (s: typeof site) => {
         if (!s.lastCheck || s.lastCheck.status === 'untested') return 1;
@@ -385,7 +385,7 @@ export async function GET(request: NextRequest) {
       return [site.key, getPriority(site)];
     }));
 
-      // Apply advanced relevance scoring and intelligent filtering
+    // Apply advanced relevance scoring and intelligent filtering
     const scoredResults = flattenedResults
       .map(item => ({
         ...item,
@@ -404,12 +404,12 @@ export async function GET(request: NextRequest) {
           return priorityA - priorityB;
         }
 
-          // 2. Secondary Sort: By relevance score
+        // 2. Secondary Sort: By relevance score
         const scoreDiff = b.relevanceScore - a.relevanceScore;
         
-          // If scores are very close (within 10%), consider tertiary factors
+        // If scores are very close (within 10%), consider tertiary factors
         if (Math.abs(scoreDiff) <= Math.max(a.relevanceScore, b.relevanceScore) * 0.1) {
-            // Prefer exact year matches if query contains year
+          // Prefer exact year matches if query contains year
           const yearMatch = query.match(/\b(19|20)\d{2}\b/);
           if (yearMatch) {
             const targetYear = yearMatch[0];
@@ -420,7 +420,7 @@ export async function GET(request: NextRequest) {
             }
           }
           
-            // Then by recency
+          // Then by recency
           const aYear = parseInt(a.year) || 0;
           const bYear = parseInt(b.year) || 0;
           return bYear - aYear;
