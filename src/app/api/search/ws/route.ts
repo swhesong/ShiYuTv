@@ -317,8 +317,8 @@ export async function GET(request: NextRequest) {
                     console.warn('[AI Filter] Custom API is not fully configured.');
                     return { decision: 'error', reason: 'Custom API not fully configured' };
                   }
+                  let effectiveTimeout = 20000;
                   try {
-                    const effectiveTimeout = 20000; // 流式搜索中固定20秒超时
                     const agent = new Agent({ 
                       connectTimeout: Math.min(effectiveTimeout / 2, 10000),
                       bodyTimeout: effectiveTimeout,
