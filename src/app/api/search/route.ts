@@ -1,13 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any,no-console */
-import { fetch as undiciFetch, RequestInit, FormData, Agent } from 'undici';
+import { fetch as undiciFetch, RequestInit, Agent } from 'undici';
 import { NextRequest, NextResponse } from 'next/server';
-import { getBaiduAccessToken } from '@/lib/baidu-token-manager';
-import { checkImageWithBaidu } from '@/lib/baidu-client';
+
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
 import { searchFromApi } from '@/lib/downstream';
 import { moderateContent, decisionThresholds } from '@/lib/yellow';
-import { checkImageWithSightengine } from '@/lib/sightengine-client'; 
+import { checkImageWithSightengine } from '@/lib/sightengine-client';
+import { checkImageWithBaidu } from '@/lib/baidu-client';
+
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
@@ -85,13 +86,13 @@ export async function GET(request: NextRequest) {
         setTimeout(() => reject(new Error(`${site.name} timeout`)), 20000)
       ),
     ]).catch((err) => {
-      console.warn(`搜索失败 ${site.name}:`, err.message);
+      console.warn(`搜索失败 ${site.name}:`, (err as Error).message);
       return []; // 返回空数组而不是抛出错误
     })
   );
 
-    // International leading advanced search relevance scoring algorithm
-    const calculateRelevanceScore = (item: any, searchQuery: string): number => {
+  // International leading advanced search relevance scoring algorithm
+  const calculateRelevanceScore = (item: any, searchQuery: string): number => {
       const query = searchQuery.toLowerCase().trim();
       const title = (item.title || '').toLowerCase();
       const typeName = (item.type_name || '').toLowerCase();
@@ -162,370 +163,273 @@ export async function GET(request: NextRequest) {
       
       // Enhanced metadata matching
       let metadataScore = 0;
-      if (typeName.includes(query)) {
-        metadataScore += 40;
-      }
-      if (director.includes(query)) {
-        metadataScore += 60; // Director matches are quite relevant
-      }
-      if (actor.includes(query)) {
-        metadataScore += 50; // Actor matches are also relevant
-      }
+      if (typeName.includes(query)) metadataScore += 40;
+      if (director.includes(query)) metadataScore += 60;
+      if (actor.includes(query)) metadataScore += 50;
       score += metadataScore;
       
       // Content quality and recency weighting
       const currentYear = new Date().getFullYear();
       const itemYear = parseInt(item.year) || 0;
       
-      if (itemYear >= currentYear - 1) {
-        score += 30; // Very recent content
-      } else if (itemYear >= currentYear - 3) {
-        score += 20; // Recent content
-      } else if (itemYear >= currentYear - 10) {
-        score += 10; // Moderately recent
-      }
+      if (itemYear >= currentYear - 1) score += 30;
+      else if (itemYear >= currentYear - 3) score += 20;
+      else if (itemYear >= currentYear - 10) score += 10;
       
       // Penalty adjustments for better relevance
-      if (titleLength > queryLength * 4) {
-        score *= 0.9; // Slight penalty for very long titles
-      }
-      
+      if (titleLength > queryLength * 4) score *= 0.9;
       // Boost for concise, relevant titles
-      if (titleLength <= queryLength * 2 && score > 100) {
-        score *= 1.1;
-      }
-      
+      if (titleLength <= queryLength * 2 && score > 100) score *= 1.1;
       // Ensure minimum threshold for very weak matches
-      if (score > 0 && score < 50 && !title.includes(query)) {
-        score = 0; // Filter out very weak matches
-      }
+      if (score > 0 && score < 50 && !title.includes(query)) score = 0;
       
       return Math.max(0, Math.round(score));
-    };
-  
-    // 真正通用化的审核函数
-    async function moderateImage(imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> {
-      console.log(`[AI Filter DEBUG] ==> moderateImage CALLED for URL: ${imageUrl}`);
-      const filterConfig = config.SiteConfig.IntelligentFilter;
+  };
 
-      // 新增：创建一个 Agent 来设置连接超时，并复用它
-      const agent = new Agent({
-        connectTimeout: 30000 // 30秒连接超时
-      });
-    
-      if (!filterConfig || !filterConfig.enabled || !imageUrl) {
-        console.log(`[AI Filter DEBUG] SKIPPING: Filter disabled or no image URL.`);
-        return { decision: 'allow', reason: 'Filter disabled or no image URL' };
-      }
-      
-      // 辅助函数：根据路径字符串安全地从对象中获取嵌套值
-      const getNestedValue = (obj: any, path: string): number | null => {
-        if (!path) return null;
-        try {
-          const value = path.split('.').reduce((o, k) => (o || {})[k], obj);
-          const num = parseFloat(value);
-          return isNaN(num) ? null : num;
-        } catch {
-          return null;
-        }
-      };
-    
-      let provider: string = filterConfig.provider;
-      let requestUrl: string = '';
-      let requestOptions: RequestInit = {};
-      let scorePath: string = '';
-    
-      // --- 1. 根据提供商准备请求参数 ---
-      switch (provider) {
-        case 'sightengine': {
-          // 直接调用封装好的客户端
-          const opts = filterConfig.options.sightengine || {};
-          const sightengineConfig = {
-            apiUrl: opts.apiUrl,
-            apiUser: process.env.SIGHTENGINE_API_USER || opts.apiUser,
-            apiSecret: process.env.SIGHTENGINE_API_SECRET || opts.apiSecret,
-            confidence: filterConfig.confidence,
-          };
-          return await checkImageWithSightengine(imageUrl, sightengineConfig);
-        }
-        case 'baidu': {
-          // 从前端配置中获取选项，并提供一个空对象作为默认值
-          const opts = filterConfig.options.baidu || {};
+  // 通用化审核函数
+  async function moderateImage(imageUrl: string, config: any): Promise<{ decision: 'allow' | 'block' | 'error'; reason: string; score?: number }> {
+    console.log(`[AI Filter DEBUG] ==> moderateImage CALLED for URL: ${imageUrl}`);
+    const filterConfig = config.SiteConfig.IntelligentFilter;
 
-          // 1. 优先从环境变量读取密钥，如果不存在，则回退到前端设置
-          const baiduApiKey = process.env.BAIDU_API_KEY || opts.apiKey;
-          const baiduSecretKey = process.env.BAIDU_SECRET_KEY || opts.secretKey;
-          
-          // 2. 检查最终确定的密钥是否存在
-          if (!baiduApiKey || !baiduSecretKey) {
-            // 更新日志，告知用户两种配置方式
-            console.warn('[AI Filter] Baidu API keys are not configured. Please set them either in environment variables (BAIDU_API_KEY, BAIDU_SECRET_KEY) or in the web UI.');
-            return { decision: 'error', reason: 'Baidu API keys not configured' };
-          }
-          
-          try {
-            // 3. 使用新的管理器获取 Access Token
-            const accessToken = await getBaiduAccessToken(baiduApiKey, baiduSecretKey);
-            
-            // 4. 准备审核请求
-            requestUrl = `https://aip.baidubce.com/rest/2.0/solution/v1/img_censor/v2/user_defined?access_token=${accessToken}`;
-            const body = new URLSearchParams();
-            body.append('imgUrl', imageUrl);
-            
-            const censorController = new AbortController();
-            const censorTimeoutId = setTimeout(() => censorController.abort(), 15000); // 15秒超时
-
-            requestOptions = {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body: body.toString(),
-              dispatcher: agent,
-              signal: censorController.signal
-            };
-            clearTimeout(censorTimeoutId);
-            
-            scorePath = 'conclusionType'; // 百度返回的结论类型 1:合规, 2:不合规, 3:疑似, 4:审核失败
-            
-          } catch (error) {
-            console.error('[AI Filter] Failed to prepare Baidu request:', error);
-            return { decision: 'error', reason: `Failed to prepare Baidu request: ${(error as Error).message}` };
-          }
-          break;
-        }
-   
-        case 'custom': {
-          const opts = filterConfig.options.custom || {};
-          opts.apiKeyValue = process.env.CUSTOM_API_KEY_VALUE || opts.apiKeyValue;
-
-          if (!opts || !opts.apiUrl || !opts.apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath || opts.apiKeyValue === '(not provided)') {
-            console.warn('[AI Filter] Custom API is not fully configured.');
-            return { decision: 'error', reason: 'Custom API not fully configured' };
-          }
-          try {
-            requestUrl = opts.apiUrl;
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            headers[opts.apiKeyHeader] = opts.apiKeyValue;
-            const body = JSON.parse(opts.jsonBodyTemplate.replace('{{URL}}', imageUrl));
-            requestOptions = { method: 'POST', headers, body: JSON.stringify(body) };
-            scorePath = opts.responseScorePath;
-          } catch (error) {
-            console.error('[AI Filter] Failed to construct custom API request:', error);
-            return { decision: 'error', reason: 'Failed to construct custom API request' };
-          }
-          break;
-        }
-    
-        default:
-          return { decision: 'allow', reason: 'Unknown provider' }; // 未知提供商
-      }
-      
-      // --- 2. 执行 API 请求并解析响应 ---
-      try {
-        console.log(`[AI Filter DEBUG] Sending request to ${provider} API: ${requestUrl}`);
-        console.log(`[AI Filter DEBUG] Network test - attempting connection to API endpoint...`);
-        // 新增：为 fetch 请求添加 30 秒超时控制
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
-
-        const response = await undiciFetch(requestUrl, {
-          ...requestOptions,
-          signal: controller.signal,
-          dispatcher: agent
-        });
-        
-        clearTimeout(timeoutId); // 如果请求成功，清除超时定时器
-    
-        if (!response.ok) {
-          const errorBody = await response.text();
-          const reason = `API request for ${provider} failed with status ${response.status}. Body: ${errorBody.substring(0, 200)}`;
-          console.warn(`[AI Filter DEBUG] ${reason}`);
-          return { decision: 'error', reason };
-        }
-    
-        const result = await response.json();
-        console.log(`[AI Filter DEBUG] Received response from ${provider}:`, JSON.stringify(result).substring(0, 500));
-        // 特殊处理百度的 conclusionType
-        if (provider === 'baidu') {
-            const conclusionType = getNestedValue(result, scorePath);
-            if (conclusionType === null || conclusionType === 4) { // 4是审核失败
-                return { decision: 'error', reason: 'Baidu moderation failed or invalid response' };
-            }
-            // 2:不合规, 3:疑似。我们把疑似也当作不合规处理
-            if (conclusionType === 2 || conclusionType === 3) {
-                const reason = `Blocked by Baidu. ConclusionType: ${conclusionType}.`;
-                return { decision: 'block', reason, score: conclusionType };
-            }
-            return { decision: 'allow', reason: 'Baidu moderation passed', score: conclusionType };
-        }
-        const score = getNestedValue(result, scorePath);
-        
-        if (score === null) {
-          const reason = `Could not find a valid score at path "${scorePath}" for ${provider}.`;
-          console.warn(`[AI Filter DEBUG] ${reason}`);
-          return { decision: 'error', reason };
-        }
-    
-        if (score >= filterConfig.confidence) {
-          const reason = `Blocked by ${provider}. Score: ${score} >= Confidence: ${filterConfig.confidence}.`;
-          console.log(`[AI Filter DEBUG] <== ${reason} URL: ${imageUrl}`);
-          return { decision: 'block', reason, score };
-        }
-        
-        console.log(`[AI Filter DEBUG] <== Image PASSED. Score: ${score}, Confidence: ${filterConfig.confidence}. URL: ${imageUrl}`);
-        return { decision: 'allow', reason: 'Moderation passed', score };
-      } catch (error) {
-        const reason = `Exception during API call for ${provider}: ${(error as Error).message}`;
-        console.error(`[AI Filter DEBUG] <== ${reason} URL: ${imageUrl}`, error);
-        return { decision: 'error', reason };
-      }
+    if (!filterConfig || !filterConfig.enabled || !imageUrl) {
+      console.log(`[AI Filter DEBUG] SKIPPING: Filter disabled or no image URL.`);
+      return { decision: 'allow', reason: 'Filter disabled or no image URL' };
     }
+    
+    const provider: string = filterConfig.provider;
 
-    try {
-      const results = await Promise.allSettled(searchPromises);
-      const successResults = results
-        .filter((result) => result.status === 'fulfilled')
-        .map((result) => (result as PromiseFulfilledResult<any>).value);
-      let flattenedResults = successResults.flat();
-      // 在此处添加修正逻辑
-      flattenedResults.forEach((item: any) => {
-        if (item.poster && item.poster.startsWith('http://')) {
-          item.poster = item.poster.replace('http://', 'https://');
-        }
-      });
-      
-      // --- 1. 关键词预过滤 ---
-      if (!config.SiteConfig.DisableYellowFilter) {
-        flattenedResults = flattenedResults.filter((result) => {
-          const typeName = result.type_name || '';
-          const title = result.title || ''; // 新增：获取标题
-
-          // 使用新的审核函数检查标题和分类名
-          const titleModeration = moderateContent(title);
-          const typeModeration = moderateContent(typeName);
-          
-          // 如果标题或分类名任一超过FLAG阈值，则过滤掉
-          return titleModeration.totalScore < decisionThresholds.FLAG && 
-                 typeModeration.totalScore < decisionThresholds.FLAG;
+      // --- 1. 根据提供商准备请求参数 ---
+    switch (provider) {
+      case 'sightengine': {
+          // 直接调用封装好的客户端
+        const opts = filterConfig.options.sightengine || {};
+        return await checkImageWithSightengine(imageUrl, {
+          apiUrl: opts.apiUrl,
+          apiUser: process.env.SIGHTENGINE_API_USER || opts.apiUser,
+          apiSecret: process.env.SIGHTENGINE_API_SECRET || opts.apiSecret,
+          confidence: filterConfig.confidence,
         });
       }
+      case 'baidu': {
+          // 从前端配置中获取选项，并提供一个空对象作为默认值
+        const opts = filterConfig.options.baidu || {};
+        return await checkImageWithBaidu(imageUrl, {
+          // 1. 优先从环境变量读取密钥，如果不存在，则回退到前端设置
+          apiKey: process.env.BAIDU_API_KEY || opts.apiKey,
+          secretKey: process.env.BAIDU_SECRET_KEY || opts.secretKey,
+        });
+      }
+      case 'custom': {
+        const opts = filterConfig.options.custom || {};
+        const apiKeyValue = process.env.CUSTOM_API_KEY_VALUE || opts.apiKeyValue;
 
-      // --- 2. 智能 AI 审核 (新增熔断机制) ---
-      if (config.SiteConfig.IntelligentFilter?.enabled) {
-        console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
-        
-        let failureCount = 0;
-        const failureThreshold = 5; // 提高失败阈值到5次
-        let isServiceDown = false;
-
-        // 添加批次处理，避免并发过高
-        const batchSize = 5;
-        const batches = [];
-        for (let i = 0; i < flattenedResults.length; i += batchSize) {
-          batches.push(flattenedResults.slice(i, i + batchSize));
+        if (!opts.apiUrl || !apiKeyValue || !opts.apiKeyHeader || !opts.jsonBodyTemplate || !opts.responseScorePath || apiKeyValue === '(not provided)') {
+          console.warn('[AI Filter] Custom API is not fully configured.');
+          return { decision: 'error', reason: 'Custom API not fully configured' };
         }
+        
+        try {
+          const agent = new Agent({ connectTimeout: 30000 });
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        const moderatedResults = [];
-        for (const batch of batches) {
-          const batchPromises = batch.map(async (item, index) => {
-            // 如果服务已熔断，则直接放行
-            if (isServiceDown) {
-              console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
-              return item;
-            }
+          const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+          headers[opts.apiKeyHeader] = apiKeyValue;
+          const body = JSON.parse(opts.jsonBodyTemplate.replace('{{URL}}', imageUrl));
+      // --- 2. 执行 API 请求并解析响应 ---
 
-            const moderationResult = await moderateImage(item.poster, config);
-            
-            if (moderationResult.decision === 'error') {
-              failureCount++;
-              console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
-            } else {
-              // 任何一次成功都重置失败计数器
-              failureCount = Math.max(0, failureCount - 1);
-            }
-
-            // 检查是否达到熔断阈值
-            if (failureCount >= failureThreshold) {
-              isServiceDown = true;
-              console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
-            }
-
-            // 策略：失败时放行 (当审核出错或审核通过时，都保留)
-            return moderationResult.decision !== 'block' ? item : null;
+          const response = await undiciFetch(opts.apiUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(body),
+            signal: controller.signal,
+            dispatcher: agent
           });
           
-          const batchResults = await Promise.all(batchPromises);
-          moderatedResults.push(...batchResults);
-          
-          // 批次间添加延迟，减少API压力
-          if (batches.indexOf(batch) < batches.length - 1) {
-            await new Promise(resolve => setTimeout(resolve, 200));
-          }
-        }
+          clearTimeout(timeoutId);
 
-        flattenedResults = moderatedResults.filter((item): item is any => item !== null);
-      }
-      
-      // Create a map for quick lookup of site health status
-      const siteStatusMap = new Map(apiSites.map(site => {
-        const getPriority = (s: typeof site) => {
-          if (!s.lastCheck || s.lastCheck.status === 'untested') return 1;
-          switch (s.lastCheck.status) {
-            case 'valid': return 0;
-            case 'no_results': return 1;
-            case 'invalid':
-            case 'timeout':
-            case 'unreachable': return 2;
-            default: return 1;
+          if (!response.ok) {
+            const errorBody = await response.text();
+            return { decision: 'error', reason: `API request for custom failed with status ${response.status}. Body: ${errorBody.substring(0, 200)}` };
           }
-        };
-        return [site.key, getPriority(site)];
-      }));
+
+          const getNestedValue = (obj: any, path: string): number | null => {
+              if (!path) return null;
+              try {
+                const value = path.split('.').reduce((o, k) => (o || {})[k], obj);
+                const num = parseFloat(value);
+                return isNaN(num) ? null : num;
+              } catch { return null; }
+          };
+
+          const result = await response.json();
+          const score = getNestedValue(result, opts.responseScorePath);
+          
+          if (score === null) {
+            return { decision: 'error', reason: `Could not find a valid score at path "${opts.responseScorePath}" for custom.` };
+          }
+
+          if (score >= filterConfig.confidence) {
+            return { decision: 'block', reason: `Blocked by custom. Score: ${score} >= Confidence: ${filterConfig.confidence}.`, score };
+          }
+          
+          return { decision: 'allow', reason: 'Moderation passed', score };
+
+        } catch (error) {
+          const reason = `Exception during API call for custom: ${(error as Error).message}`;
+          console.error(`[AI Filter DEBUG] <== ${reason} URL: ${imageUrl}`, error);
+          return { decision: 'error', reason };
+        }
+      }
+      default:
+        return { decision: 'allow', reason: 'Unknown provider' };
+    }
+  }
+
+  try {
+    const results = await Promise.allSettled(searchPromises);
+    const successResults = results
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => (result as PromiseFulfilledResult<any>).value);
+    let flattenedResults = successResults.flat();
+      // 在此处添加修正逻辑
+    flattenedResults.forEach((item: any) => {
+      if (item.poster && item.poster.startsWith('http://')) {
+        item.poster = item.poster.replace('http://', 'https://');
+      }
+    });
+    
+      // --- 1. 关键词预过滤 ---
+    if (!config.SiteConfig.DisableYellowFilter) {
+      flattenedResults = flattenedResults.filter((result) => {
+        const typeName = result.type_name || '';
+        const title = result.title || '';
+          // 使用新的审核函数检查标题和分类名
+        const titleModeration = moderateContent(title);
+        const typeModeration = moderateContent(typeName);
+          // 如果标题或分类名任一超过FLAG阈值，则过滤掉
+        return titleModeration.totalScore < decisionThresholds.FLAG && 
+               typeModeration.totalScore < decisionThresholds.FLAG;
+      });
+    }
+
+      // --- 2. 智能 AI 审核 (新增熔断机制) ---
+    if (config.SiteConfig.IntelligentFilter?.enabled) {
+      console.log('[AI Filter DEBUG] IntelligentFilter is ENABLED. Starting moderation process...');
+      
+      let failureCount = 0;
+      const failureThreshold = 5;
+      let isServiceDown = false;
+
+        // 添加批次处理，避免并发过高
+      const batchSize = 5;
+      const batches = [];
+      for (let i = 0; i < flattenedResults.length; i += batchSize) {
+        batches.push(flattenedResults.slice(i, i + batchSize));
+      }
+
+      const moderatedResults = [];
+      for (const batch of batches) {
+        const batchPromises = batch.map(async (item) => {
+            // 如果服务已熔断，则直接放行
+          if (isServiceDown) {
+            console.log(`[AI Filter DEBUG] Circuit breaker is OPEN. Allowing item to pass directly.`);
+            return item;
+          }
+
+          const moderationResult = await moderateImage(item.poster, config);
+          
+          if (moderationResult.decision === 'error') {
+            failureCount++;
+            console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
+          } else {
+              // 任何一次成功都重置失败计数器
+            failureCount = Math.max(0, failureCount - 1);
+          }
+
+            // 检查是否达到熔断阈值
+          if (failureCount >= failureThreshold) {
+            isServiceDown = true;
+            console.warn(`[AI Filter DEBUG] Circuit breaker OPENED due to ${failureCount} consecutive failures.`);
+          }
+
+            // 策略：失败时放行 (当审核出错或审核通过时，都保留)
+          return moderationResult.decision !== 'block' ? item : null;
+        });
+        
+        const batchResults = await Promise.all(batchPromises);
+        moderatedResults.push(...batchResults);
+        
+          // 批次间添加延迟，减少API压力
+        if (batches.indexOf(batch) < batches.length - 1) {
+          await new Promise(resolve => setTimeout(resolve, 200));
+        }
+      }
+
+      flattenedResults = moderatedResults.filter((item): item is any => item !== null);
+    }
+    
+      // Create a map for quick lookup of site health status
+    const siteStatusMap = new Map(apiSites.map(site => {
+      const getPriority = (s: typeof site) => {
+        if (!s.lastCheck || s.lastCheck.status === 'untested') return 1;
+        switch (s.lastCheck.status) {
+          case 'valid': return 0;
+          case 'no_results': return 1;
+          case 'invalid':
+          case 'timeout':
+          case 'unreachable': return 2;
+          default: return 1;
+        }
+      };
+      return [site.key, getPriority(site)];
+    }));
 
       // Apply advanced relevance scoring and intelligent filtering
-      const scoredResults = flattenedResults
-        .map(item => ({
-          ...item,
-          relevanceScore: calculateRelevanceScore(item, query)
-        }))
-        .filter(item => {
+    const scoredResults = flattenedResults
+      .map(item => ({
+        ...item,
+        relevanceScore: calculateRelevanceScore(item, query)
+      }))
+      .filter(item => {
           // Dynamic threshold based on query characteristics
-          const minThreshold = query.length <= 2 ? 100 : 50;
-          return item.relevanceScore >= minThreshold;
-        })
-        .sort((a, b) => {
+        const minThreshold = query.length <= 2 ? 100 : 50;
+        return item.relevanceScore >= minThreshold;
+      })
+      .sort((a, b) => {
           // 1. Primary Sort: By source health status
-          const priorityA = siteStatusMap.get(a.source) ?? 2; // Default to lowest priority
-          const priorityB = siteStatusMap.get(b.source) ?? 2;
-          if (priorityA !== priorityB) {
-            return priorityA - priorityB;
-          }
+        const priorityA = siteStatusMap.get(a.source) ?? 2;
+        const priorityB = siteStatusMap.get(b.source) ?? 2;
+        if (priorityA !== priorityB) {
+          return priorityA - priorityB;
+        }
 
           // 2. Secondary Sort: By relevance score
-          const scoreDiff = b.relevanceScore - a.relevanceScore;
-          
+        const scoreDiff = b.relevanceScore - a.relevanceScore;
+        
           // If scores are very close (within 10%), consider tertiary factors
-          if (Math.abs(scoreDiff) <= Math.max(a.relevanceScore, b.relevanceScore) * 0.1) {
+        if (Math.abs(scoreDiff) <= Math.max(a.relevanceScore, b.relevanceScore) * 0.1) {
             // Prefer exact year matches if query contains year
-            const yearMatch = query.match(/\b(19|20)\d{2}\b/);
-            if (yearMatch) {
-              const targetYear = yearMatch[0];
-              const aYearMatch = a.year === targetYear;
-              const bYearMatch = b.year === targetYear;
-              if (aYearMatch !== bYearMatch) {
-                return aYearMatch ? -1 : 1;
-              }
+          const yearMatch = query.match(/\b(19|20)\d{2}\b/);
+          if (yearMatch) {
+            const targetYear = yearMatch[0];
+            const aYearMatch = a.year === targetYear;
+            const bYearMatch = b.year === targetYear;
+            if (aYearMatch !== bYearMatch) {
+              return aYearMatch ? -1 : 1;
             }
-            
-            // Then by recency
-            const aYear = parseInt(a.year) || 0;
-            const bYear = parseInt(b.year) || 0;
-            return bYear - aYear;
           }
           
-          return scoreDiff;
-        });
-      
-      flattenedResults = scoredResults;
+            // Then by recency
+          const aYear = parseInt(a.year) || 0;
+          const bYear = parseInt(b.year) || 0;
+          return bYear - aYear;
+        }
+        
+        return scoreDiff;
+      });
+    
+    flattenedResults = scoredResults;
     const cacheTime = await getCacheTime();
 
     if (flattenedResults.length === 0) {
@@ -545,6 +449,7 @@ export async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
+    console.error('搜索处理过程中发生意外错误:', error);
     return NextResponse.json({ error: '搜索失败' }, { status: 500 });
   }
 }
