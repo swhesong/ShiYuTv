@@ -71,8 +71,7 @@ export default async function RootLayout({
     doubanImageProxyType = config.SiteConfig.DoubanImageProxyType;
     doubanImageProxy = config.SiteConfig.DoubanImageProxy;
     disableYellowFilter = config.SiteConfig.DisableYellowFilter;
-    showContentFilter =
-      disableYellowFilter || !config.SiteConfig.IntelligentFilter.enabled;
+    showContentFilter = config.SiteConfig.ShowContentFilter !== false;
     customCategories = config.CustomCategories.filter(
       (category) => !category.disabled
     ).map((category) => ({
