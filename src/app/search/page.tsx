@@ -934,24 +934,42 @@ function SearchPageClient() {
                     />
                   )}
                 </div>
-                {/* 聚合开关 */}
-                <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
-                  <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>
-                    聚合
-                  </span>
-                  <div className='relative'>
-                    <input
-                      type='checkbox'
-                      className='sr-only peer'
-                      checked={viewMode === 'agg'}
-                      onChange={() =>
-                        setViewMode(viewMode === 'agg' ? 'all' : 'agg')
+                <div className='flex items-center gap-4 w-full sm:w-auto justify-between'>
+                  {/* 内容分类筛选器 */}
+                  {showContentFilterUI && (
+                    <CapsuleSwitch
+                      options={[
+                        { label: '全部内容', value: 'all' },
+                        { label: '常规内容', value: 'normal' },
+                        { label: '探索内容', value: 'yellow' },
+                      ]}
+                      active={contentFilter}
+                      onChange={(value) =>
+                        setContentFilter(
+                          value as 'all' | 'normal' | 'yellow'
+                        )
                       }
                     />
-                    <div className='w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
-                    <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
-                  </div>
-                </label>
+                  )}
+                  {/* 聚合开关 */}
+                  <label className='flex items-center gap-2 cursor-pointer select-none shrink-0'>
+                    <span className='text-xs sm:text-sm text-gray-700 dark:text-gray-300'>
+                      聚合
+                    </span>
+                    <div className='relative'>
+                      <input
+                        type='checkbox'
+                        className='sr-only peer'
+                        checked={viewMode === 'agg'}
+                        onChange={() =>
+                          setViewMode(viewMode === 'agg' ? 'all' : 'agg')
+                        }
+                      />
+                      <div className='w-9 h-5 bg-gray-300 rounded-full peer-checked:bg-green-500 transition-colors dark:bg-gray-600'></div>
+                      <div className='absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full transition-transform peer-checked:translate-x-4'></div>
+                    </div>
+                  </label>
+                </div>
               </div>
               {searchResults.length === 0 ? (
                 isLoading ? (
