@@ -25,6 +25,7 @@ import PageLayout from '@/components/PageLayout';
 import SearchResultFilter, {
   SearchFilterCategory,
 } from '@/components/SearchResultFilter';
+import CapsuleSwitch from '@/components/CapsuleSwitch';
 import SearchSuggestions from '@/components/SearchSuggestions';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 
@@ -48,6 +49,10 @@ function SearchPageClient() {
   const pendingResultsRef = useRef<SearchResult[]>([]);
   const flushTimerRef = useRef<number | null>(null);
   const [useFluidSearch, setUseFluidSearch] = useState(true);
+  const [showContentFilterUI, setShowContentFilterUI] = useState(false);
+  const [contentFilter, setContentFilter] = useState<
+    'all' | 'normal' | 'yellow'
+  >('all');
   // 聚合卡片 refs 与聚合统计缓存
   const groupRefs = useRef<Map<string, React.RefObject<VideoCardHandle>>>(
     new Map()
@@ -418,13 +423,22 @@ function SearchPageClient() {
   // 非聚合：应用筛选与排序
   const filteredAllResults = useMemo(() => {
     const { source, title, year, yearOrder } = filterAll;
-    const filtered = searchResults.filter((item) => {
+    let filtered = searchResults.filter((item) => {
       if (source !== 'all' && item.source !== source) return false;
       if (title !== 'all' && item.title !== title) return false;
       if (year !== 'all' && item.year !== year) return false;
       return true;
     });
-
+    
+    // 内容类型筛选
+    if (showContentFilterUI) {
+      if (contentFilter === 'normal') {
+        filtered = filtered.filter((item) => !item.isYellow);
+      } else if (contentFilter === 'yellow') {
+        filtered = filtered.filter((item) => item.isYellow);
+      }
+    }
+    
     // 统一排序逻辑：先按年份（如果指定），再按相关性评分
     return filtered.sort((a, b) => {
       // 1. 年份排序优先
@@ -443,7 +457,7 @@ function SearchPageClient() {
   // 聚合：应用筛选与排序
   const filteredAggResults = useMemo(() => {
     const { source, title, year, yearOrder } = filterAgg as any;
-    const filtered = aggregatedResults.filter(([_, group]) => {
+    let filtered = aggregatedResults.filter(([_, group]) => {
       const gTitle = group[0]?.title ?? '';
       const gYear = group[0]?.year ?? 'unknown';
       const hasSource =
@@ -453,7 +467,20 @@ function SearchPageClient() {
       if (year !== 'all' && gYear !== year) return false;
       return true;
     });
-
+    
+    // 内容类型筛选
+    if (showContentFilterUI) {
+      if (contentFilter === 'normal') {
+        filtered = filtered.filter(
+          ([, group]) => !group.some((item) => item.isYellow)
+        );
+      } else if (contentFilter === 'yellow') {
+        filtered = filtered.filter(([, group]) =>
+          group.some((item) => item.isYellow)
+        );
+      }
+    }
+    
     // 统一排序逻辑：先按年份（如果指定），再按组内最高相关性评分
     return filtered.sort((a, b) => {
       // 1. 年份排序优先
@@ -482,6 +509,8 @@ function SearchPageClient() {
 
     // 读取流式搜索设置
     if (typeof window !== 'undefined') {
+      const shouldShow = (window as any).RUNTIME_CONFIG?.SHOW_CONTENT_FILTER;
+      setShowContentFilterUI(shouldShow);
       const savedFluidSearch = localStorage.getItem('fluidSearch');
       const defaultFluidSearch =
         (window as any).RUNTIME_CONFIG?.FLUID_SEARCH !== false;
@@ -872,9 +901,9 @@ function SearchPageClient() {
                   )}
                 </h2>
               </div>
-              {/* 筛选器 + 聚合开关 同行 */}
-              <div className='mb-8 flex items-center justify-between gap-3'>
-                <div className='flex-1 min-w-0'>
+              {/* 筛选器 + 聚合开关 + 内容分类 同行 */}
+              <div className='mb-8 flex flex-col sm:flex-row items-center justify-between gap-4'>
+                <div className='flex-1 min-w-0 w-full'>
                   {viewMode === 'agg' ? (
                     <SearchResultFilter
                       categories={filterOptions.categoriesAgg}
