@@ -432,10 +432,18 @@ function SearchPageClient() {
     
     // 内容类型筛选
     if (showContentFilterUI) {
-      if (contentFilter === 'normal') {
-        filtered = filtered.filter((item) => !item.isYellow);
-      } else if (contentFilter === 'yellow') {
-        filtered = filtered.filter((item) => item.isYellow);
+      switch (contentFilter) {
+        case 'normal':
+          // 仅保留 isYellow 不为 true 的项 (undefined 和 false 都会被保留)
+          filtered = filtered.filter((item) => item.isYellow !== true);
+          break;
+        case 'yellow':
+          // 仅保留 isYellow 为 true 的项
+          filtered = filtered.filter((item) => item.isYellow === true);
+          break;
+        default:
+          // 'all' 或其他情况，不过滤
+          break;
       }
     }
     
