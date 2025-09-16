@@ -480,14 +480,22 @@ function SearchPageClient() {
     
     // 内容类型筛选
     if (showContentFilterUI) {
-      if (contentFilter === 'normal') {
-        filtered = filtered.filter(
-          ([, group]) => !group.some((item) => item.isYellow)
-        );
-      } else if (contentFilter === 'yellow') {
-        filtered = filtered.filter(([, group]) =>
-          group.some((item) => item.isYellow)
-        );
+      switch (contentFilter) {
+        case 'normal':
+          // 只要组内没有任何一项的 isYellow 是 true，就保留该组
+          filtered = filtered.filter(
+            ([, group]) => !group.some((item) => item.isYellow === true)
+          );
+          break;
+        case 'yellow':
+          // 只要组内有任何一项的 isYellow 是 true，就保留该组
+          filtered = filtered.filter(([, group]) =>
+            group.some((item) => item.isYellow === true)
+          );
+          break;
+        default:
+          // 'all' 或其他情况，不过滤
+          break;
       }
     }
     
