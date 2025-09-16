@@ -955,9 +955,9 @@ function SearchPageClient() {
                   {showContentFilterUI && (
                     <CapsuleSwitch
                       options={[
-                        { label: '全部内容', value: 'all' },
-                        { label: '常规内容', value: 'normal' },
-                        { label: '探索内容', value: 'yellow' },
+                        { label: '全部', value: 'all' },
+                        { label: '常规', value: 'normal' },
+                        { label: '探索', value: 'yellow' },
                       ]}
                       active={contentFilter}
                       onChange={(value) =>
