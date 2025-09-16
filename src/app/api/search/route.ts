@@ -331,37 +331,24 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // --- 1. 关键词预过滤或标记 ---
-    const shouldTagInsteadOfFilter =
-      config.SiteConfig.DisableYellowFilter ||
-      !config.SiteConfig.IntelligentFilter.enabled;
+    // --- 1. 关键词过滤 ---
+    // 首先，无论如何都先根据关键词给内容打上 isYellow 标签，供前端UI使用
+    flattenedResults.forEach((result: any) => {
+      const typeName = result.type_name || '';
+      const title = result.title || '';
+      const titleModeration = moderateContent(title);
+      const typeModeration = moderateContent(typeName);
+      if (
+        titleModeration.totalScore >= decisionThresholds.FLAG ||
+        typeModeration.totalScore >= decisionThresholds.FLAG
+      ) {
+        result.isYellow = true;
+      }
+    });
 
-    if (shouldTagInsteadOfFilter) {
-      // 标记模式：为黄色内容添加 isYellow 标志
-      flattenedResults.forEach((result: any) => {
-        const typeName = result.type_name || '';
-        const title = result.title || '';
-        const titleModeration = moderateContent(title);
-        const typeModeration = moderateContent(typeName);
-        if (
-          titleModeration.totalScore >= decisionThresholds.FLAG ||
-          typeModeration.totalScore >= decisionThresholds.FLAG
-        ) {
-          result.isYellow = true;
-        }
-      });
-    } else {
-      // 过滤模式：移除黄色内容
-      flattenedResults = flattenedResults.filter((result) => {
-        const typeName = result.type_name || '';
-        const title = result.title || '';
-        const titleModeration = moderateContent(title);
-        const typeModeration = moderateContent(typeName);
-        return (
-          titleModeration.totalScore < decisionThresholds.FLAG &&
-          typeModeration.totalScore < decisionThresholds.FLAG
-        );
-      });
+    // 然后，如果“禁用黄色过滤器”开关是关闭的，则执行过滤
+    if (!config.SiteConfig.DisableYellowFilter) {
+      flattenedResults = flattenedResults.filter((result) => !result.isYellow);
     }
 
     // --- 2. 智能 AI 审核 (新增熔断机制) ---
