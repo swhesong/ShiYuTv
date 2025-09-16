@@ -22,6 +22,7 @@ export interface SiteConfig {
     DoubanImageProxyType: string;
     DoubanImageProxy: string;
     DisableYellowFilter: boolean;
+    ShowContentFilter?: boolean;
     FluidSearch: boolean;
     // 智能审核字段
       IntelligentFilter: {
