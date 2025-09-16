@@ -246,18 +246,38 @@ export async function GET(request: NextRequest) {
               item.poster = item.poster.replace('http://', 'https://');
             }
           });
-          if (!config.SiteConfig.DisableYellowFilter) {
+
+          const shouldTagInsteadOfFilter =
+            config.SiteConfig.DisableYellowFilter ||
+            !config.SiteConfig.IntelligentFilter.enabled;
+
+          if (shouldTagInsteadOfFilter) {
+            // 标记模式：为黄色内容添加 isYellow 标志
+            filteredResults.forEach((result: any) => {
+              const typeName = result.type_name || '';
+              const title = result.title || '';
+              const titleModeration = moderateContent(title);
+              const typeModeration = moderateContent(typeName);
+              if (
+                titleModeration.totalScore >= decisionThresholds.FLAG ||
+                typeModeration.totalScore >= decisionThresholds.FLAG
+              ) {
+                result.isYellow = true;
+              }
+            });
+          } else {
+            // 过滤模式：移除黄色内容
             filteredResults = results.filter((result) => {
               const typeName = result.type_name || '';
-              const title = result.title || ''; // 新增：获取标题
-
+              const title = result.title || '';
               // 使用新的审核函数检查标题和分类名
               const titleModeration = moderateContent(title);
               const typeModeration = moderateContent(typeName);
-              
+              return (
               // 如果标题或分类名任一超过FLAG阈值，则过滤掉
-              return titleModeration.totalScore < decisionThresholds.FLAG && 
-                     typeModeration.totalScore < decisionThresholds.FLAG;
+                titleModeration.totalScore < decisionThresholds.FLAG &&
+                typeModeration.totalScore < decisionThresholds.FLAG
+              );
             });
           }
 
