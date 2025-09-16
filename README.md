@@ -344,8 +344,9 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 | NEXT_PUBLIC_DOUBAN_PROXY | 自定义豆瓣数据代理 URL | url prefix | (空) |
 | NEXT_PUBLIC_DOUBAN_IMAGE_PROXY_TYPE | 豆瓣图片代理类型 | 见下方 | direct |
 | NEXT_PUBLIC_DOUBAN_IMAGE_PROXY | 自定义豆瓣图片代理 URL | url prefix | (空) |
-| NEXT_PUBLIC_DISABLE_YELLOW_FILTER | 关闭色情内容过滤 | true/false | false |
-| NEXT_PUBLIC_FLUID_SEARCH | 是否开启搜索接口流式输出 | true/ false | true |
+| NEXT_PUBLIC_DISABLE_YELLOW_FILTER | 关闭色情内容过滤（后端逻辑） | true/false | false |
+| NEXT_PUBLIC_SHOW_CONTENT_FILTER | 是否在前端显示内容筛选按钮 | true/false | true |
+| NEXT_PUBLIC_FLUID_SEARCH | 是否开启搜索接口流式输出 | true/false | true |
 | **AI 审核配置 (可选)** ||||
 | SIGHTENGINE_API_USER | Sightengine 服务的 API User | 服务商提供的 User | (空) |
 | SIGHTENGINE_API_SECRET | Sightengine 服务的 API Secret | 服务商提供的 Secret | (空) |
