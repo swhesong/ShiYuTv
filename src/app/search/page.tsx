@@ -448,11 +448,13 @@ function SearchPageClient() {
       }
       
       // 2. 按相关性评分排序（始终包含前端计算作为备用方案）
-      const scoreA = (a as any).relevanceScore || calculateRelevanceScore(a, searchQuery);
-      const scoreB = (b as any).relevanceScore || calculateRelevanceScore(b, searchQuery);
+      const scoreA =
+        (a as any).relevanceScore || calculateRelevanceScore(a, searchQuery);
+      const scoreB =
+        (b as any).relevanceScore || calculateRelevanceScore(b, searchQuery);
       return scoreB - scoreA;
     });
-  }, [searchResults, filterAll, searchQuery]);
+  }, [searchResults, filterAll, searchQuery, contentFilter, showContentFilterUI]);
 
   // 聚合：应用筛选与排序
   const filteredAggResults = useMemo(() => {
@@ -492,13 +494,27 @@ function SearchPageClient() {
       }
       
       // 2. 按组内最高相关性评分排序（始终包含前端计算作为备用方案）
-      const scoreA = Math.max(...a[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
-      const scoreB = Math.max(...b[1].map(item => (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)));
+      const scoreA = Math.max(
+        ...a[1].map(
+          (item) =>
+            (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)
+        )
+      );
+      const scoreB = Math.max(
+        ...b[1].map(
+          (item) =>
+            (item as any).relevanceScore || calculateRelevanceScore(item, searchQuery)
+        )
+      );
       return scoreB - scoreA;
     });
-  }, [aggregatedResults, filterAgg, searchQuery]);
-
-
+  }, [
+    aggregatedResults,
+    filterAgg,
+    searchQuery,
+    contentFilter,
+    showContentFilterUI,
+  ]);
 
   useEffect(() => {
     // 无搜索参数时聚焦搜索框
