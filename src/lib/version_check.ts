@@ -29,9 +29,11 @@ export async function checkForUpdates(): Promise<UpdateStatus> {
     }
 
     // 如果主要URL失败，尝试备用URL
-    const backupVersion = await fetchVersionFromUrl(VERSION_CHECK_URLS[1]);
-    if (backupVersion) {
-      return compareVersions(backupVersion);
+    if (VERSION_CHECK_URLS.length > 1 && VERSION_CHECK_URLS[1]) {
+      const backupVersion = await fetchVersionFromUrl(VERSION_CHECK_URLS[1]);
+      if (backupVersion) {
+        return compareVersions(backupVersion);
+      }
     }
 
     // 如果两个URL都失败，返回获取失败状态
