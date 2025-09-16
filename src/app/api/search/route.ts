@@ -331,17 +331,36 @@ export async function GET(request: NextRequest) {
       }
     });
     
-    // --- 1. 关键词预过滤 ---
-    if (!config.SiteConfig.DisableYellowFilter) {
+    // --- 1. 关键词预过滤或标记 ---
+    const shouldTagInsteadOfFilter =
+      config.SiteConfig.DisableYellowFilter ||
+      !config.SiteConfig.IntelligentFilter.enabled;
+
+    if (shouldTagInsteadOfFilter) {
+      // 标记模式：为黄色内容添加 isYellow 标志
+      flattenedResults.forEach((result: any) => {
+        const typeName = result.type_name || '';
+        const title = result.title || '';
+        const titleModeration = moderateContent(title);
+        const typeModeration = moderateContent(typeName);
+        if (
+          titleModeration.totalScore >= decisionThresholds.FLAG ||
+          typeModeration.totalScore >= decisionThresholds.FLAG
+        ) {
+          result.isYellow = true;
+        }
+      });
+    } else {
+      // 过滤模式：移除黄色内容
       flattenedResults = flattenedResults.filter((result) => {
         const typeName = result.type_name || '';
         const title = result.title || '';
-        // 使用新的审核函数检查标题和分类名
         const titleModeration = moderateContent(title);
         const typeModeration = moderateContent(typeName);
-        // 如果标题或分类名任一超过FLAG阈值，则过滤掉
-        return titleModeration.totalScore < decisionThresholds.FLAG && 
-               typeModeration.totalScore < decisionThresholds.FLAG;
+        return (
+          titleModeration.totalScore < decisionThresholds.FLAG &&
+          typeModeration.totalScore < decisionThresholds.FLAG
+        );
       });
     }
 
