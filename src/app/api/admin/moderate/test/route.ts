@@ -56,6 +56,8 @@ export async function POST(request: NextRequest) {
       const result = await checkImageWithBaidu('https://placehold.co/100x100.png', {
         apiKey: config.apiKey,
         secretKey: config.secretKey,
+        timeoutMs: config.timeoutMs,
+        tokenTimeoutMs: config.tokenTimeoutMs,
       });
 
       if (result.decision !== 'error') {
