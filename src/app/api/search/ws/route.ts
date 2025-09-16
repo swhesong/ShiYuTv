@@ -248,37 +248,25 @@ export async function GET(request: NextRequest) {
           });
 
           const shouldTagInsteadOfFilter =
-            config.SiteConfig.DisableYellowFilter ||
-            !config.SiteConfig.IntelligentFilter.enabled;
+            config.SiteConfig.DisableYellowFilter;
 
-          if (shouldTagInsteadOfFilter) {
-            // 标记模式：为黄色内容添加 isYellow 标志
-            filteredResults.forEach((result: any) => {
-              const typeName = result.type_name || '';
-              const title = result.title || '';
-              const titleModeration = moderateContent(title);
-              const typeModeration = moderateContent(typeName);
-              if (
-                titleModeration.totalScore >= decisionThresholds.FLAG ||
-                typeModeration.totalScore >= decisionThresholds.FLAG
-              ) {
-                result.isYellow = true;
-              }
-            });
-          } else {
-            // 过滤模式：移除黄色内容
-            filteredResults = results.filter((result) => {
-              const typeName = result.type_name || '';
-              const title = result.title || '';
-              // 使用新的审核函数检查标题和分类名
-              const titleModeration = moderateContent(title);
-              const typeModeration = moderateContent(typeName);
-              return (
-              // 如果标题或分类名任一超过FLAG阈值，则过滤掉
-                titleModeration.totalScore < decisionThresholds.FLAG &&
-                typeModeration.totalScore < decisionThresholds.FLAG
-              );
-            });
+          // 首先，统一进行关键词内容识别并打上 isYellow 标签
+          filteredResults.forEach((result: any) => {
+            const typeName = result.type_name || '';
+            const title = result.title || '';
+            const titleModeration = moderateContent(title);
+            const typeModeration = moderateContent(typeName);
+            if (
+              titleModeration.totalScore >= decisionThresholds.FLAG ||
+              typeModeration.totalScore >= decisionThresholds.FLAG
+            ) {
+              result.isYellow = true;
+            }
+          });
+          
+          // 如果关键词过滤器没有被禁用，则执行过滤
+          if (!shouldTagInsteadOfFilter) {
+              filteredResults = filteredResults.filter((result) => !result.isYellow);
           }
 
           // 新增：智能 AI 审核 (完全通用化，并增加熔断机制)
