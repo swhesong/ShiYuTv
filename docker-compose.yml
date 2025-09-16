@@ -24,6 +24,7 @@ services:
       - NEXT_PUBLIC_STORAGE_TYPE=kvrocks
       - KVROCKS_URL=redis://shihiütv-kvrocks:6666
       - NEXT_PUBLIC_ENABLE_REGISTER=true
+      - SHOW_CONTENT_FILTER=true,
       - NEXT_PUBLIC_SITE_NAME=shihiütv
       # Sightengine审核服务
       - SIGHTENGINE_API_USER=您的Sightengine_API_User  # <--- 必须修改
