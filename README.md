@@ -129,7 +129,7 @@
 ```yml
 services:
   ShihIüTV-core:
-    image: swhesong/ShihIüTV:latest
+    image: Kulapichia/ShihIüTV:latest
     container_name: ShihIüTV-core
     restart: on-failure
     ports:
@@ -165,7 +165,7 @@ volumes:
 ```yml
 services:
   ShihIüTV-core:
-    image: swhesong/ShihIüTV:latest
+    image: Kulapichia/ShihIüTV:latest
     container_name: ShihIüTV-core
     restart: on-failure
     ports:
@@ -205,7 +205,7 @@ networks:
 ```yml
 services:
   ShihIüTV-core:
-    image: swhesong/ShihIüTV:latest
+    image: Kulapichia/ShihIüTV:latest
     container_name: ShihIüTV-core
     restart: on-failure
     ports:
