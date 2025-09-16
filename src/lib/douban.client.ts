@@ -258,11 +258,26 @@ export async function getDoubanList(
       return fetchDoubanList(params, proxyUrl);
     case 'direct':
     default:
-      const response = await fetch(
-        `/api/douban?tag=${tag}&type=${type}&pageSize=${pageLimit}&pageStart=${pageStart}`
-      );
-
-      return response.json();
+      try {
+        const response = await fetch(
+          `/api/douban?tag=${tag}&type=${type}&pageSize=${pageLimit}&pageStart=${pageStart}`
+        );
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(`获取豆瓣列表数据失败 (direct):`, error);
+        // 触发全局错误提示
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('globalError', {
+              detail: { message: `获取豆瓣列表 '${tag}' 失败` },
+            })
+          );
+        }
+        return { code: 500, message: '获取失败', list: [] };
+      }
   }
 }
 
@@ -378,11 +393,26 @@ export async function getDoubanRecommends(
       return fetchDoubanRecommends(params, proxyUrl);
     case 'direct':
     default:
-      const response = await fetch(
-        `/api/douban/recommends?kind=${kind}&limit=${pageLimit}&start=${pageStart}&category=${category}&format=${format}&region=${region}&year=${year}&platform=${platform}&sort=${sort}&label=${label}`
-      );
-
-      return response.json();
+      try {
+        const response = await fetch(
+          `/api/douban/recommends?kind=${kind}&limit=${pageLimit}&start=${pageStart}&category=${category}&format=${format}&region=${region}&year=${year}&platform=${platform}&sort=${sort}&label=${label}`
+        );
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(`获取豆瓣推荐数据失败 (direct):`, error);
+        // 触发全局错误提示
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('globalError', {
+              detail: { message: `获取豆瓣推荐 '${kind}' 失败` },
+            })
+          );
+        }
+        return { code: 500, message: '获取失败', list: [] };
+      }
   }
 }
 
