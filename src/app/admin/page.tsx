@@ -5772,7 +5772,43 @@ useEffect(() => {
           禁用黄色内容的过滤功能，允许显示所有内容。
         </p>
       </div>
-
+      
+      {/* 显示内容安全筛选器 */}
+      <div>
+        <div className='flex items-center justify-between'>
+          <label className='block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2'>
+            显示内容安全筛选器
+          </label>
+          <button
+            type='button'
+            onClick={() =>
+              setSiteSettings((prev) => ({
+                ...prev,
+                ShowContentFilter: !(prev.ShowContentFilter !== false),
+              }))
+            }
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 ${
+              siteSettings.ShowContentFilter !== false
+                ? buttonStyles.toggleOn
+                : buttonStyles.toggleOff
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full ${
+                buttonStyles.toggleThumb
+              } transition-transform ${
+                siteSettings.ShowContentFilter !== false
+                  ? buttonStyles.toggleThumbOn
+                  : buttonStyles.toggleThumbOff
+              }`}
+            />
+          </button>
+        </div>
+        <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+          在搜索结果页面显示“全部/常规/探索内容”的筛选切换按钮。
+        </p>
+      </div>
+      
       {/* 流式搜索 */}
       <div>
         <div className='flex items-center justify-between'>
