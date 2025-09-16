@@ -192,12 +192,10 @@ class VideoSourceProcessor:
         logger.info(f"所有正则模式执行完毕，共找到 {len(results)} 条结果。")
 
         # 如果上述方法没有找到足够的结果，使用行解析
-        if len(results) < 5:
-            logger.info("正则查找结果不足5条，将继续执行行解析模式...")
-            line_results = self._parse_lines_with_context(content.split('\n'))
-            results.extend(line_results)
-        else:
-            logger.warning(f"正则查找结果为 {len(results)} (>=5) 条，已跳过行解析模式。这可能导致'创艺影视,...'等纯文本行被忽略。")
+        logger.info(f"正则查找找到 {len(results)} 条结果，将继续执行行解析模式以确保完整性...")
+        line_results = self._parse_lines_with_context(content.split('\n'))
+        results.extend(line_results)
+        logger.info(f"行解析模式完成，新增 {len(line_results)} 条结果。")
 
         return results
 
