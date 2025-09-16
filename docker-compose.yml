@@ -2,7 +2,7 @@ version: '3.8'
 
 services:
   shihiütv-core:
-    image: swhesong/shihiütv:latest
+    image: Kulapichia/shihiütv:latest
     container_name: shihiütv-core
     restart: unless-stopped
     ports:
