@@ -91,10 +91,41 @@ class VideoSourceProcessor:
             logger.debug(f"提取失败: URL格式不正确 (非http/https开头)。处理后URL: '{actual_url}'，原始URL: '{original_url_for_logging}'")
             return None
 
+        # 新增：检查和过滤无效URL格式
+        if self._is_invalid_url_format(actual_url):
+            logger.debug(f"提取失败: URL格式无效。URL: '{actual_url}'，原始URL: '{original_url_for_logging}'")
+            return None
+
         logger.debug(f"提取成功: 从 '{original_url_for_logging}' 提取到 '{actual_url}'")
         return actual_url
 
+    def _is_invalid_url_format(self, url):
+        """检查URL是否是无效格式"""
+        # 检查重复协议：http://http:// 、 https://https:// 、 http://https:// 、 https://http://
+        double_protocol_patterns = [
+            'http://http://',
+            'https://https://',
+            'http://https://',
+            'https://http://'
+        ]
 
+        for pattern in double_protocol_patterns:
+            if pattern in url.lower():
+                return True
+
+        # 检查是否包含中文字符
+        if re.search(r'[\u4e00-\u9fff]', url):
+            return True
+
+        # 检查是否包含带有中文的括号或其他特殊字符
+        if re.search(r'[（）\u4e00-\u9fff]', url):
+            return True
+
+        # 检查是否包含不合适的特殊字符，如反引号
+        if re.search(r'[`\uFEFF]', url):
+            return True
+
+        return False
     def extract_domain_name(self, url):
         """从URL中提取合适的名称"""
         try:
