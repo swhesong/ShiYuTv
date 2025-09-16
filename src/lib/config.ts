@@ -221,6 +221,8 @@ async function getInitConfig(
       DoubanImageProxy: process.env.NEXT_PUBLIC_DOUBAN_IMAGE_PROXY || '',
       DisableYellowFilter:
         process.env.NEXT_PUBLIC_DISABLE_YELLOW_FILTER === 'true',
+      ShowContentFilter:
+        process.env.NEXT_PUBLIC_SHOW_CONTENT_FILTER !== 'false',
       FluidSearch: process.env.NEXT_PUBLIC_FLUID_SEARCH !== 'false',
       // 智能内容审核配置
       IntelligentFilter: {
