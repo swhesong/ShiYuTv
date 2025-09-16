@@ -11,6 +11,34 @@ import sys
 logger = logging.getLogger(__name__)
 
 
+def base58_encode(data_str):
+    """Base58编码实现"""
+    ALPHABET = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+    bytes_data = data_str.encode('utf-8')
+
+    if len(bytes_data) == 0:
+        return ''
+
+    # 将字节数组转换为大整数
+    num = int.from_bytes(bytes_data, 'big')
+
+    if num == 0:
+        return ALPHABET[0]
+
+    result = ''
+    while num > 0:
+        result = ALPHABET[num % 58] + result
+        num = num // 58
+
+    # 处理前导零
+    for byte in bytes_data:
+        if byte == 0:
+            result = ALPHABET[0] + result
+        else:
+            break
+
+    return result
+
 def setup_logging(debug=False):
     """配置日志记录器"""
     # 如果开启debug模式，日志级别为DEBUG，否则为INFO
@@ -587,6 +615,22 @@ class VideoSourceProcessor:
         except Exception as e:
             logger.error(f"保存文件时出错: {str(e)}")
 
+    def save_base58_encoded_results(self, data, output_file):
+        """保存Base58编码的JSON结果"""
+        try:
+            # 先生成JSON字符串
+            json_str = json.dumps(data, ensure_ascii=False, separators=(',', ':'))
+
+            # 进行Base58编码
+            encoded_data = base58_encode(json_str)
+
+            # 保存编码后的字符串
+            with open(output_file, 'w', encoding='utf-8') as f:
+                f.write(encoded_data)
+
+            logger.info(f"Base58编码结果已保存到: {output_file}")
+        except Exception as e:
+            logger.error(f"保存Base58编码文件时出错: {str(e)}")
 
 def main():
     # --- 新增：命令行参数解析 ---
@@ -681,6 +725,10 @@ def main():
     # 保存最终的汇总JSON结果
     processor.save_results(json_output_combined, "combined_sources.json", "json")
 
+    # 生成Base58编码的汇总文件
+    logger.info("正在生成Base58编码的汇总文件...")
+    processor.save_base58_encoded_results(json_output_combined, "combined_sources_base58.txt")
+
     logger.info("处理完成！")
 
 
@@ -706,7 +754,7 @@ def main():
     print()
     print(f"汇总数据:")
     print(f"  - 内容: {len(combined_data)} 条 (basic.json + 新增)")
-    print(f"  - 文件: combined_sources.json")
+    print(f"  - 文件: combined_sources.json, combined_sources_base58.txt")
     print(f"{'=' * 60}")
 
 if __name__ == "__main__":
