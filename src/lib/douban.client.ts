@@ -210,11 +210,26 @@ export async function getDoubanCategories(
       return fetchDoubanCategories(params, proxyUrl);
     case 'direct':
     default:
-      const response = await fetch(
-        `/api/douban/categories?kind=${kind}&category=${category}&type=${type}&limit=${pageLimit}&start=${pageStart}`
-      );
-
-      return response.json();
+      try {
+        const response = await fetch(
+          `/api/douban/categories?kind=${kind}&category=${category}&type=${type}&limit=${pageLimit}&start=${pageStart}`
+        );
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        console.error(`获取豆瓣分类数据失败 (direct):`, error);
+        // 触发全局错误提示
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(
+            new CustomEvent('globalError', {
+              detail: { message: `获取豆瓣分类 '${category}' 失败` },
+            })
+          );
+        }
+        return { code: 500, message: '获取失败', list: [] };
+      }
   }
 }
 
