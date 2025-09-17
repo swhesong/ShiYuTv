@@ -722,7 +722,9 @@ function SearchPageClient() {
                 }
                 break;
             }
-          } catch {}
+          } catch (e) {
+            console.error('[Frontend] Failed to parse SSE message:', e, 'Raw data:', event.data);
+          }
         };
 
         es.onerror = (error) => {
