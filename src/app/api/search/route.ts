@@ -436,12 +436,23 @@ typescriptexport async function GET(request: NextRequest) {
     }
   }
 
+  console.log('[Search API] Starting search with sites:', apiSites.map(site => ({ key: site.key, name: site.name, status: site.lastCheck?.status })));
+
   try {
     const results = await Promise.allSettled(searchPromises);
+    console.log('[Search API] Search promises completed:', results.map((r, i) => ({ 
+      site: apiSites[i]?.name, 
+      status: r.status, 
+      resultCount: r.status === 'fulfilled' ? (r.value as any[]).length : 0,
+      error: r.status === 'rejected' ? r.reason?.message : null
+    })));
+
     const successResults = results
       .filter((result) => result.status === 'fulfilled')
       .map((result) => (result as PromiseFulfilledResult<any>).value);
     let flattenedResults = successResults.flat();
+
+    console.log('[Search API] Flattened results count:', flattenedResults.length);
     // 在此处添加修正逻辑
     flattenedResults.forEach((item: any) => {
       if (item.poster && item.poster.startsWith('http://')) {
@@ -588,11 +599,18 @@ typescriptexport async function GET(request: NextRequest) {
     flattenedResults = scoredResults;
     const cacheTime = await getCacheTime();
 
+    console.log('[Search API] Final results after all filters:', {
+      count: flattenedResults.length,
+      sample: flattenedResults.slice(0, 3).map(r => ({ title: r.title, source: r.source }))
+    });
+
     if (flattenedResults.length === 0) {
+      console.log('[Search API] No results found, returning empty array');
       // no cache if empty
       return NextResponse.json({ results: [] }, { status: 200 });
     }
 
+    console.log('[Search API] Returning successful response with', flattenedResults.length, 'results');
     return NextResponse.json(
       { results: flattenedResults },
       {
@@ -605,7 +623,12 @@ typescriptexport async function GET(request: NextRequest) {
       }
     );
   } catch (error) {
-    console.error('搜索处理过程中发生意外错误:', error);
+    console.error('[Search API] Unexpected error in search process:', {
+      error: error instanceof Error ? error.message : error,
+      stack: error instanceof Error ? error.stack : null,
+      query,
+      timestamp: new Date().toISOString()
+    });
     return NextResponse.json({ error: '搜索失败' }, { status: 500 });
   }
 }
