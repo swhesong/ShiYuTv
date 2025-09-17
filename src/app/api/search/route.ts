@@ -511,8 +511,8 @@ typescriptexport async function GET(request: NextRequest) {
             failureCount++;
             console.log(`[AI Filter DEBUG] Moderation failure #${failureCount} recorded.`);
           } else {
-            // 任何一次成功都重置失败计数器
-            failureCount = Math.max(0, failureCount - 1);
+            // 任何一次成功都应立即重置失败计数，表明服务已恢复
+            failureCount = 0;
           }
 
           // 检查是否达到熔断阈值
