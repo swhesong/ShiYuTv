@@ -90,7 +90,7 @@ export async function GET(request: NextRequest) {
       return []; // 返回空数组而不是抛出错误
     })
   );
-修改后：
+
 typescriptexport async function GET(request: NextRequest) {
   console.log('[Search API] Request received:', {
     method: request.method,
@@ -209,6 +209,7 @@ typescriptexport async function GET(request: NextRequest) {
   });
 
   console.log(`[Search API] Created ${searchPromises.length} search promises for query: "${query}"`);
+  console.log('[Search API] Starting search with sites:', apiSites.map(site => ({ key: site.key, name: site.name, status: site.lastCheck?.status })));
   // International leading advanced search relevance scoring algorithm
   const calculateRelevanceScore = (item: any, searchQuery: string): number => {
       const query = searchQuery.toLowerCase().trim();
