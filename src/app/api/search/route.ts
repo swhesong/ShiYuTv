@@ -90,7 +90,125 @@ export async function GET(request: NextRequest) {
       return []; // 返回空数组而不是抛出错误
     })
   );
+修改后：
+typescriptexport async function GET(request: NextRequest) {
+  console.log('[Search API] Request received:', {
+    method: request.method,
+    url: request.url,
+    headers: Object.fromEntries(request.headers.entries()),
+    timestamp: new Date().toISOString()
+  });
 
+  const authInfo = getAuthInfoFromCookie(request);
+  if (!authInfo || !authInfo.username) {
+    console.log('[Search API] Authorization failed:', authInfo);
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  console.log('[Search API] User authenticated:', authInfo.username);
+
+  const { searchParams } = new URL(request.url);
+  const query = searchParams.get('q');
+
+  console.log('[Search API] Query parameter:', query);
+
+  if (!query) {
+    console.log('[Search API] Empty query, returning empty results');
+    const cacheTime = await getCacheTime();
+    return NextResponse.json(
+      { results: [] },
+      {
+        headers: {
+          'Cache-Control': `public, max-age=${cacheTime}, s-maxage=${cacheTime}`,
+          'CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+          'Vercel-CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+          'Netlify-Vary': 'query',
+        },
+      }
+    );
+  }
+
+  const config = await getConfig();
+  let apiSites = await getAvailableApiSites(authInfo.username);
+  
+  console.log('[Search API] Original sites loaded:', apiSites.map(site => ({ 
+    key: site.key, 
+    name: site.name, 
+    disabled: site.disabled,
+    lastCheck: site.lastCheck ? { status: site.lastCheck.status, latency: site.lastCheck.latency } : null
+  })));
+  
+  // 过滤掉被管理员手动禁用的源
+  apiSites = apiSites.filter(site => !site.disabled);
+  console.log('[Search API] After filtering disabled sites:', apiSites.length, 'sites remain');
+  
+  // 智能视频源排序 - 确保优先使用最可靠的源
+  apiSites.sort((a, b) => {
+    const getPriority = (site: typeof a) => {
+      if (!site.lastCheck || site.lastCheck.status === 'untested') {
+        return 1; // 未测试的源，优先级中等
+      }
+      switch (site.lastCheck.status) {
+        case 'valid':
+          return 0; // 健康的源，优先级最高
+        case 'no_results':
+          return 1; // 能通但搜不到结果，优先级中等
+        case 'invalid':
+        case 'timeout':
+        case 'unreachable':
+          return 2; // 不健康的源，优先级最低
+        default:
+          return 1; // 其他情况默认为中等
+      }
+    };
+    
+    const priorityA = getPriority(a);
+    const priorityB = getPriority(b);
+    
+    if (priorityA !== priorityB) {
+      return priorityA - priorityB; // 按优先级分组
+    }
+    
+    // 如果优先级相同（都是健康源），则按延迟从低到高排序
+    if (priorityA === 0) {
+      const latencyA = a.lastCheck?.latency ?? Infinity;
+      const latencyB = b.lastCheck?.latency ?? Infinity;
+      return latencyA - latencyB;
+    }
+    
+    return 0; // 其他同级不改变顺序
+  });
+
+  console.log('[Search API] After intelligent sorting:', apiSites.map((site, index) => ({ 
+    index,
+    key: site.key, 
+    name: site.name,
+    priority: !site.lastCheck || site.lastCheck.status === 'untested' ? 'medium' : 
+              site.lastCheck.status === 'valid' ? 'high' : 
+              site.lastCheck.status === 'no_results' ? 'medium' : 'low',
+    status: site.lastCheck?.status || 'untested',
+    latency: site.lastCheck?.latency || 'N/A'
+  })));
+
+  // 为每个源创建搜索Promise，包含超时控制
+  const searchPromises = apiSites.map((site, index) => {
+    console.log(`[Search API] Creating search promise for site ${index + 1}/${apiSites.length}: ${site.name} (${site.key})`);
+    return Promise.race([
+      searchFromApi(site, query),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`${site.name} timeout after 20s`)), 20000)
+      ),
+    ]).catch((err) => {
+      console.warn(`[Search API] Search failed for ${site.name}:`, {
+        error: (err as Error).message,
+        siteKey: site.key,
+        siteStatus: site.lastCheck?.status || 'unknown'
+      });
+      return []; // 返回空数组而不是抛出错误
+    });
+  });
+
+  console.log(`[Search API] Created ${searchPromises.length} search promises for query: "${query}"`);
   // International leading advanced search relevance scoring algorithm
   const calculateRelevanceScore = (item: any, searchQuery: string): number => {
       const query = searchQuery.toLowerCase().trim();
