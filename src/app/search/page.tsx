@@ -653,10 +653,15 @@ function SearchPageClient() {
         eventSourceRef.current = es;
 
         es.onmessage = (event) => {
+          console.log('[Frontend] SSE message received:', event.data);
           if (!event.data) return;
           try {
             const payload = JSON.parse(event.data);
-            if (currentQueryRef.current !== trimmed) return;
+            console.log('[Frontend] Parsed SSE payload:', payload);
+            if (currentQueryRef.current !== trimmed) {
+              console.log('[Frontend] Query mismatch, ignoring message');
+              return;
+            }
             switch (payload.type) {
               case 'start':
                 setTotalSources(payload.totalSources || 0);
@@ -720,7 +725,8 @@ function SearchPageClient() {
           } catch {}
         };
 
-        es.onerror = () => {
+        es.onerror = (error) => {
+          console.error('[Frontend] SSE error:', error);
           setIsLoading(false);
           // 错误时也清空缓冲
           if (pendingResultsRef.current.length > 0) {
