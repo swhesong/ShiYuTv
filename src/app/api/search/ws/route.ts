@@ -11,15 +11,28 @@ import { checkImageWithBaidu } from '@/lib/baidu-client';
 export const runtime = 'nodejs';
 
 export async function GET(request: NextRequest) {
+  console.log('[WS Search API] Request received:', {
+    method: request.method,
+    url: request.url,
+    headers: Object.fromEntries(request.headers.entries()),
+    timestamp: new Date().toISOString()
+  });
+
   const authInfo = getAuthInfoFromCookie(request);
   if (!authInfo || !authInfo.username) {
+    console.log('[WS Search API] Authorization failed:', authInfo);
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+
+  console.log('[WS Search API] User authenticated:', authInfo.username);
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
+  console.log('[WS Search API] Query parameter:', query);
+
   if (!query) {
+    console.log('[WS Search API] Empty query, returning error');
     return new Response(JSON.stringify({ error: '搜索关键词不能为空' }), {
       status: 400,
       headers: {
@@ -29,7 +42,18 @@ export async function GET(request: NextRequest) {
   }
 
   const config = await getConfig();
-  const apiSites = await getAvailableApiSites(authInfo.username);
+  let apiSites = await getAvailableApiSites(authInfo.username);
+  
+  console.log('[WS Search API] Original sites loaded:', apiSites.map(site => ({ 
+    key: site.key, 
+    name: site.name, 
+    disabled: site.disabled,
+    lastCheck: site.lastCheck ? { status: site.lastCheck.status, latency: site.lastCheck.latency } : null
+  })));
+
+  // 过滤掉被管理员手动禁用的源
+  apiSites = apiSites.filter(site => !site.disabled);
+  console.log('[WS Search API] After filtering disabled sites:', apiSites.length, 'sites remain');
   
   // --- 智能排序逻辑 ---
   // 对视频源进行智能排序，确保优先搜索最健康的源
@@ -96,6 +120,19 @@ export async function GET(request: NextRequest) {
         }
       };
 
+      console.log('[WS Search API] After intelligent sorting:', apiSites.map((site, index) => ({ 
+        index,
+        key: site.key, 
+        name: site.name,
+        priority: !site.lastCheck || site.lastCheck.status === 'untested' ? 'medium' : 
+                  site.lastCheck.status === 'valid' ? 'high' : 
+                  site.lastCheck.status === 'no_results' ? 'medium' : 'low',
+        status: site.lastCheck?.status || 'untested',
+        latency: site.lastCheck?.latency || 'N/A'
+      })));
+
+      console.log('[WS Search API] Starting stream with sites:', apiSites.map(site => ({ key: site.key, name: site.name, status: site.lastCheck?.status })));
+
       // 发送开始事件
       const startEvent = `data: ${JSON.stringify({
         type: 'start',
@@ -104,7 +141,9 @@ export async function GET(request: NextRequest) {
         timestamp: Date.now(),
       })}\n\n`;
 
+      console.log('[WS Search API] Sending start event');
       if (!safeEnqueue(encoder.encode(startEvent))) {
+        console.log('[WS Search API] Failed to send start event, connection closed');
         return; // 连接已关闭，提前退出
       }
 
@@ -113,17 +152,19 @@ export async function GET(request: NextRequest) {
       const allResults: any[] = [];
 
       // 为每个源创建搜索 Promise
-      const searchPromises = apiSites.map(async (site) => {
+      const searchPromises = apiSites.map(async (site, index) => {
+        console.log(`[WS Search API] Starting search for site ${index + 1}/${apiSites.length}: ${site.name} (${site.key})`);
         try {
           // 添加超时控制
           const searchPromise = Promise.race([
             searchFromApi(site, query),
             new Promise((_, reject) =>
-              setTimeout(() => reject(new Error(`${site.name} timeout`)), 20000)
+              setTimeout(() => reject(new Error(`${site.name} timeout after 20s`)), 20000)
             ),
           ]);
 
           const results = (await searchPromise) as any[];
+          console.log(`[WS Search API] Raw results from ${site.name}:`, results.length, 'items');
 
           // International leading advanced search relevance scoring algorithm (consistent with standard API)
           const calculateRelevanceScore = (item: any, searchQuery: string): number => {
@@ -470,6 +511,8 @@ export async function GET(request: NextRequest) {
 
           // 发送该源的搜索结果
           completedSources++;
+          console.log(`[WS Search API] Source ${site.name} completed with ${filteredResults.length} results`);
+          
           if (!streamClosed) {
             const sourceEvent = `data: ${JSON.stringify({
               type: 'source_result',
@@ -478,7 +521,10 @@ export async function GET(request: NextRequest) {
               results: filteredResults,
               timestamp: Date.now(),
             })}\n\n`;
+            
+            console.log(`[WS Search API] Sending results for source ${site.name}`);
             if (!safeEnqueue(encoder.encode(sourceEvent))) {
+              console.log(`[WS Search API] Failed to send results for ${site.name}, connection closed`);
               streamClosed = true;
               return; // 连接已关闭，停止处理
             }
@@ -488,7 +534,14 @@ export async function GET(request: NextRequest) {
             allResults.push(...filteredResults);
           }
         } catch (error) {
-          console.warn(`搜索失败 ${site.name}:`, error);
+          console.error(`[WS Search API] Search failed for ${site.name}:`, {
+            error: error instanceof Error ? error.message : error,
+            siteKey: site.key,
+            siteStatus: site.lastCheck?.status || 'unknown',
+            index: index + 1,
+            totalSites: apiSites.length
+          });
+          
           // 发送源错误事件
           completedSources++;
           if (!streamClosed) {
@@ -499,7 +552,9 @@ export async function GET(request: NextRequest) {
               error: error instanceof Error ? error.message : '搜索失败',
               timestamp: Date.now(),
             })}\n\n`;
+            console.log(`[WS Search API] Sending error event for ${site.name}`);
             if (!safeEnqueue(encoder.encode(errorEvent))) {
+              console.log(`[WS Search API] Failed to send error event for ${site.name}, connection closed`);
               streamClosed = true;
               return; // 连接已关闭，停止处理
             }
