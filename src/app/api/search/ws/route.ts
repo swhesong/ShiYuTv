@@ -449,7 +449,8 @@ export async function GET(request: NextRequest) {
                   failureCount++;
                   console.log(`[AI Filter DEBUG][WS] Moderation failure #${failureCount} recorded.`);
                 } else {
-                  failureCount = Math.max(0, failureCount - 1);
+                  // 任何一次成功都应重置失败计数，表明服务已恢复
+                  failureCount = 0;
                 }
 
                 if (failureCount >= failureThreshold) {
