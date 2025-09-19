@@ -36,7 +36,7 @@ export async function GET(request: Request) {
   }
 
   // 优先使用直播源的UA，否则使用默认UA
-  const ua = (liveSource && liveSource.ua) ? liveSource.ua : 'AptvPlayer/1.4.10';
+  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 
   // 优化: 智能超时策略
   const getTimeoutBySourceDomain = (domain: string): number => {
@@ -63,11 +63,9 @@ export async function GET(request: Request) {
     }
 
     let timeout = 60000; // 默认60秒超时
-    const referer = request.headers.get('Referer');
-    if (referer) {
-      requestHeaders['Referer'] = referer;
-    }
+
     // --- 智能 Referer 与超时策略 ---
+    /*
     try {
       const urlObject = new URL(decodedUrl);
       const domain = urlObject.hostname;
@@ -93,11 +91,13 @@ export async function GET(request: Request) {
       // URL解析失败时不设置Referer
       console.warn('Failed to parse URL for Referer:', decodedUrl);
     }
+    */
 
     response = await fetch(decodedUrl, {
       headers: requestHeaders,
       signal: AbortSignal.timeout(timeout), // 应用动态超时
     });
+
 
 
     // 1. 恢复重要的错误检查
