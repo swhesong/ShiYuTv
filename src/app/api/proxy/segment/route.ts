@@ -63,7 +63,10 @@ export async function GET(request: Request) {
     }
 
     let timeout = 60000; // 默认60秒超时
-
+    const referer = request.headers.get('Referer');
+    if (referer) {
+      requestHeaders['Referer'] = referer;
+    }
     // --- 智能 Referer 与超时策略 ---
     try {
       const urlObject = new URL(decodedUrl);
