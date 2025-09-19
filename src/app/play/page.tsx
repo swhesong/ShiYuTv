@@ -555,6 +555,7 @@ function PlayPageClient() {
       sources.forEach((s) => s.remove());
       const sourceEl = document.createElement('source');
       sourceEl.src = url;
+      sourceEl.type = 'application/vnd.apple.mpegurl'; // 明确设置MIME类型
       video.appendChild(sourceEl);
     }
 
@@ -564,6 +565,24 @@ function PlayPageClient() {
     if (video.hasAttribute('disableRemotePlayback')) {
       video.removeAttribute('disableRemotePlayback');
     }
+
+    // 增加视频元素的错误恢复能力
+    video.setAttribute('preload', 'metadata'); // 预加载元数据
+    video.setAttribute('x-webkit-airplay', 'allow'); // 允许AirPlay
+
+    // 监听视频错误事件
+    const handleVideoError = () => {
+      console.warn('视频元素加载错误，尝试重新加载');
+      if (video.error) {
+        console.error('视频错误详情:', {
+          code: video.error.code,
+          message: video.error.message
+        });
+      }
+    };
+  
+    video.removeEventListener('error', handleVideoError);
+    video.addEventListener('error', handleVideoError);
   };
 
   // Wake Lock 相关函数
@@ -1462,12 +1481,21 @@ function PlayPageClient() {
             const hls = new Hls({
               debug: false, // 关闭日志
               enableWorker: true, // WebWorker 解码，降低主线程压力
-              lowLatencyMode: true, // 开启低延迟 LL-HLS
+              lowLatencyMode: false, // 关闭低延迟模式，提高稳定性
 
-              /* 缓冲/内存相关 */
-              maxBufferLength: 30, // 前向缓冲最大 30s，过大容易导致高延迟
-              backBufferLength: 30, // 仅保留 30s 已播放内容，避免内存占用
-              maxBufferSize: 60 * 1000 * 1000, // 约 60MB，超出后触发清理
+              /* 缓冲/内存相关 - 更保守的设置 */
+              maxBufferLength: 20, // 减少前向缓冲到20s
+              backBufferLength: 10, // 减少后向缓冲到10s
+              maxBufferSize: 30 * 1000 * 1000, // 减少到30MB，减少内存压力
+              maxBufferHole: 0.5, // 允许的最大缓冲空洞
+
+              /* 网络相关优化 */
+              fragLoadingTimeOut: 20000, // 片段加载超时20s
+              manifestLoadingTimeOut: 10000, // 清单加载超时10s
+              fragLoadingMaxRetry: 6, // 片段加载最大重试6次
+              manifestLoadingMaxRetry: 4, // 清单加载最大重试4次
+              fragLoadingRetryDelay: 500, // 片段重试延迟500ms
+              manifestLoadingRetryDelay: 500, // 清单重试延迟500ms
 
               /* 自定义loader */
               loader: blockAdEnabledRef.current
@@ -1475,7 +1503,10 @@ function PlayPageClient() {
                 : Hls.DefaultConfig.loader,
             });
 
-            hls.loadSource(url);
+            const proxyUrl = `/api/proxy/m3u8?url=${encodeURIComponent(
+              url
+            )}&moontv-source=${currentSourceRef.current}`;
+            hls.loadSource(proxyUrl);
             hls.attachMedia(video);
             video.hls = hls;
 
@@ -1487,15 +1518,55 @@ function PlayPageClient() {
                 switch (data.type) {
                   case Hls.ErrorTypes.NETWORK_ERROR:
                     console.log('网络错误，尝试恢复...');
-                    hls.startLoad();
+                    // 增加重试机制
+                    let networkRetryCount = 0;
+                    const maxNetworkRetries = 3;
+                    const retryNetwork = () => {
+                      if (networkRetryCount < maxNetworkRetries) {
+                        networkRetryCount++;
+                        console.log(`网络重试第 ${networkRetryCount} 次`);
+                        setTimeout(() => {
+                          hls.startLoad();
+                        }, 1000 * networkRetryCount);
+                      } else {
+                        console.log('网络重试次数耗尽，尝试重新加载');
+                        hls.destroy();
+                        // 触发重新加载
+                        if (artPlayerRef.current) {
+                          artPlayerRef.current.notice.show = '网络错误，正在重新加载...';
+                          setTimeout(() => {
+                            window.location.reload();
+                          }, 2000);
+                        }
+                      }
+                    };
+                    retryNetwork();
                     break;
                   case Hls.ErrorTypes.MEDIA_ERROR:
                     console.log('媒体错误，尝试恢复...');
-                    hls.recoverMediaError();
+                    let mediaRetryCount = 0;
+                    const maxMediaRetries = 2;
+                    const retryMedia = () => {
+                      if (mediaRetryCount < maxMediaRetries) {
+                        mediaRetryCount++;
+                        console.log(`媒体恢复第 ${mediaRetryCount} 次`);
+                        hls.recoverMediaError();
+                      } else {
+                        console.log('媒体恢复失败，销毁播放器');
+                        hls.destroy();
+                        if (artPlayerRef.current) {
+                          artPlayerRef.current.notice.show = '播放失败，请尝试切换播放源';
+                        }
+                      }
+                    };
+                    retryMedia();
                     break;
                   default:
                     console.log('无法恢复的错误');
                     hls.destroy();
+                    if (artPlayerRef.current) {
+                      artPlayerRef.current.notice.show = '播放器出现严重错误';
+                    }
                     break;
                 }
               }
@@ -1737,9 +1808,24 @@ function PlayPageClient() {
 
       artPlayerRef.current.on('error', (err: any) => {
         console.error('播放器错误:', err);
-        if (artPlayerRef.current.currentTime > 0) {
+  
+        // 如果有播放进度，尝试继续播放
+        if (artPlayerRef.current && artPlayerRef.current.currentTime > 0) {
+          console.log('尝试从当前位置继续播放');
+          setTimeout(() => {
+            if (artPlayerRef.current && artPlayerRef.current.paused) {
+              artPlayerRef.current.play().catch((playErr: any) => {
+                console.error('继续播放失败:', playErr);
+                artPlayerRef.current.notice.show = '播放中断，请手动点击播放';
+              });
+            }
+          }, 1000);
           return;
         }
+  
+        // 如果没有播放进度，可能是初始化失败
+        console.log('播放器初始化可能失败，准备重试');
+        artPlayerRef.current.notice.show = '正在重新初始化播放器...';
       });
 
       // 监听视频播放结束事件，自动播放下一集
