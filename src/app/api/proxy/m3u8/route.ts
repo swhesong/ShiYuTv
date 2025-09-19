@@ -33,8 +33,13 @@ export async function GET(request: Request) {
       cache: 'no-cache',
       redirect: 'follow',
       credentials: 'same-origin',
+      signal: AbortSignal.timeout(30000), // 30秒超时
       headers: {
         'User-Agent': ua,
+        'Accept': 'application/vnd.apple.mpegurl,application/x-mpegURL,application/octet-stream,*/*',
+        'Accept-Encoding': 'identity', // 不压缩，避免解析问题
+        'Connection': 'keep-alive',
+        'Cache-Control': 'no-cache',
       },
     });
 
