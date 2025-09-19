@@ -6,6 +6,18 @@ import { getConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, User-Agent, Referer',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const imageUrl = searchParams.get('url');
@@ -53,6 +65,7 @@ export async function GET(request: Request) {
     }
 
     // 设置缓存头
+    headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400'); // 缓存一天
 
     // 直接返回图片流
