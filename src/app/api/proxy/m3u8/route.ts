@@ -37,7 +37,7 @@ export async function GET(request: Request) {
   }
 
   const config = await getConfig();
-  let ua = 'AptvPlayer/1.4.10'; // 默认 UA
+  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 
   // --- 同时查找直播源和点播源 ---
   const liveSource = config.LiveConfig?.find((s: any) => s.key === source);
@@ -48,9 +48,9 @@ export async function GET(request: Request) {
   }
 
   // 如果是直播源且有自定义UA，则使用它
-  if (liveSource && liveSource.ua) {
-    ua = liveSource.ua;
-  }
+  // if (liveSource && liveSource.ua) {
+  //   ua = liveSource.ua;
+  // }
   // 智能超时策略
   const getTimeoutBySourceDomain = (domain: string): number => {
     const knownSlowDomains = ['bvvvvvvv7f.com', 'dytt-music.com', 'high25-playback.com', 'ffzyread2.com'];
@@ -72,14 +72,10 @@ export async function GET(request: Request) {
       'Cache-Control': 'no-cache',
     };
 
-    const referer = request.headers.get('Referer');
-    if (referer) {
-      requestHeaders['Referer'] = referer;
-    }
-    
     let timeout = 30000; // 默认30秒超时
 
     // --- 智能 Referer 与超时策略 ---
+    /*
     try {
       const urlObject = new URL(decodedUrl);
       const domain = urlObject.hostname;
@@ -105,6 +101,7 @@ export async function GET(request: Request) {
       // URL解析失败时不设置Referer
       console.warn('Failed to parse URL for Referer:', decodedUrl);
     }
+    */
 
     response = await fetch(decodedUrl, {
       cache: 'no-cache',
@@ -113,6 +110,7 @@ export async function GET(request: Request) {
       signal: AbortSignal.timeout(timeout), // 应用动态超时
       headers: requestHeaders,
     });
+
 
     if (!response.ok) {
       // 在 catch 中处理更复杂的错误
