@@ -27,8 +27,11 @@ export async function GET(request: Request) {
   }
 
   const config = await getConfig();
+  // --- 同时查找直播源和点播源 ---
   const liveSource = config.LiveConfig?.find((s: any) => s.key === source);
-  if (!liveSource) {
+  const vodSource = config.SourceConfig?.find((s: any) => s.key === source);
+
+  if (!liveSource && !vodSource) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
   const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
