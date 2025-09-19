@@ -139,7 +139,8 @@ export async function GET(request: Request) {
         m3u8Content,
         baseUrl,
         request,
-        allowCORS
+        allowCORS,
+        source
       );
 
       const headers = new Headers();
@@ -228,7 +229,8 @@ function rewriteM3U8Content(
   content: string,
   baseUrl: string,
   req: Request,
-  allowCORS: boolean
+  allowCORS: boolean,
+  source: string | null
 ) {
   // 从 referer 头提取协议信息
   const referer = req.headers.get('referer');
@@ -256,7 +258,7 @@ function rewriteM3U8Content(
       const resolvedUrl = resolveUrl(baseUrl, line);
       const proxyUrl = allowCORS
         ? resolvedUrl
-        : `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}`;
+        : `${proxyBase}/segment?url=${encodeURIComponent(resolvedUrl)}&moontv-source=${source}`;
       rewrittenLines.push(proxyUrl);
       continue;
     }
@@ -268,7 +270,7 @@ function rewriteM3U8Content(
 
     // 处理 EXT-X-KEY 标签中的 URI
     if (line.startsWith('#EXT-X-KEY:')) {
-      line = rewriteKeyUri(line, baseUrl, proxyBase);
+      line = rewriteKeyUri(line, baseUrl, proxyBase, source);
     }
 
     // 处理嵌套的 M3U8 文件 (EXT-X-STREAM-INF)
@@ -282,7 +284,7 @@ function rewriteM3U8Content(
           const resolvedUrl = resolveUrl(baseUrl, nextLine);
           const proxyUrl = `${proxyBase}/m3u8?url=${encodeURIComponent(
             resolvedUrl
-          )}`;
+          )}&moontv-source=${source}`;
           rewrittenLines.push(proxyUrl);
         } else {
           rewrittenLines.push(nextLine);
@@ -310,12 +312,12 @@ function rewriteMapUri(line: string, baseUrl: string, proxyBase: string) {
   return line;
 }
 
-function rewriteKeyUri(line: string, baseUrl: string, proxyBase: string) {
+function rewriteKeyUri(line: string, baseUrl: string, proxyBase: string, source: string | null) {
   const uriMatch = line.match(/URI="([^"]+)"/);
   if (uriMatch) {
     const originalUri = uriMatch[1];
     const resolvedUrl = resolveUrl(baseUrl, originalUri);
-    const proxyUrl = `${proxyBase}/key?url=${encodeURIComponent(resolvedUrl)}`;
+    const proxyUrl = `${proxyBase}/key?url=${encodeURIComponent(resolvedUrl)}&moontv-source=${source}`;
     return line.replace(uriMatch[0], `URI="${proxyUrl}"`);
   }
   return line;
