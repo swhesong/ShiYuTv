@@ -75,7 +75,7 @@ export async function GET(request: Request) {
     let timeout = 30000; // 默认30秒超时
 
     // --- 智能 Referer 与超时策略 ---
-    /*
+
     try {
       const urlObject = new URL(decodedUrl);
       const domain = urlObject.hostname;
@@ -101,7 +101,6 @@ export async function GET(request: Request) {
       // URL解析失败时不设置Referer
       console.warn('Failed to parse URL for Referer:', decodedUrl);
     }
-    */
 
     response = await fetch(decodedUrl, {
       cache: 'no-cache',
