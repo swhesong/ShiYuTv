@@ -77,10 +77,28 @@ export async function GET(request: Request) {
     // --- 智能 Referer 与超时策略 ---
     try {
       const urlObject = new URL(decodedUrl);
-      requestHeaders['Referer'] = urlObject.origin;
-      timeout = getTimeoutBySourceDomain(urlObject.hostname);
+      const domain = urlObject.hostname;
+      
+      // 为不同的视频源设置专门的Referer策略
+      if (domain.includes('bvvvvvvv7f.com')) {
+        requestHeaders['Referer'] = 'https://www.bvvvvvvv7f.com/';
+      } else if (domain.includes('dytt-music.com')) {
+        requestHeaders['Referer'] = 'https://www.dytt-music.com/';
+      } else if (domain.includes('high25-playback.com')) {
+        requestHeaders['Referer'] = 'https://www.high25-playback.com/';
+      } else if (domain.includes('ffzyread2.com')) {
+        requestHeaders['Referer'] = 'https://www.ffzyread2.com/';
+      } else if (domain.includes('wlcdn88.com')) {
+        requestHeaders['Referer'] = 'https://www.wlcdn88.com/';
+      } else {
+        // 通用策略：使用同域根路径
+        requestHeaders['Referer'] = urlObject.origin + '/';
+      }
+      
+      timeout = getTimeoutBySourceDomain(domain);
     } catch {
-      // 如果 URL 解析失败，则不设置 Referer
+      // URL解析失败时不设置Referer
+      console.warn('Failed to parse URL for Referer:', decodedUrl);
     }
 
     response = await fetch(decodedUrl, {
