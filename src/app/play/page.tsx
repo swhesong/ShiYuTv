@@ -206,10 +206,19 @@ function PlayPageClient() {
   // Wake Lock 相关
   const wakeLockRef = useRef<WakeLockSentinel | null>(null);
 
-  // -----------------------------------------------------------------------------
-  // 工具函数（Utils）
-  // -----------------------------------------------------------------------------
+  // 引入源健康状态缓存 (5分钟有效期)
+  const sourceEvaluationCache = useRef(new Map<string, {
+    quality: string;
+    loadSpeed: string;
+    pingTime: number;
+    hasError?: boolean;
+    isPartialFailure?: boolean;
+    timestamp: number;
+  }>()).current;
   
+  // 引入源名称质量推断缓存
+  const qualityInferenceCache = useRef(new Map<string, string>()).current;
+
   // 辅助函数：将分辨率字符串转换为数值以便排序
   const resolutionToValue = (quality: string): number => {
     const qualityLower = quality.toLowerCase();
@@ -268,6 +277,16 @@ function PlayPageClient() {
       const batchSources = sources.slice(start, start + batchSize);
       // Use map to create an array of promises
       const batchPromises = batchSources.map(async (source) => {
+        const cacheKey = `${source.source}-${source.id}`;
+        const cached = sourceEvaluationCache.get(cacheKey);
+
+        // 如果缓存有效（5分钟内），直接使用缓存结果
+        if (cached && Date.now() - cached.timestamp < 300000) {
+          return {
+            source,
+            testResult: cached,
+          };
+        }
         try {
           // 检查是否有第一集的播放地址
           if (!source.episodes || source.episodes.length === 0) {
@@ -282,7 +301,8 @@ function PlayPageClient() {
           const testResult = await getVideoResolutionFromM3u8(
             episodeUrl
           );
-
+          // 测试成功，存入缓存
+          sourceEvaluationCache.set(cacheKey, { ...testResult, timestamp: Date.now() });
           return {
             source,
             testResult,
@@ -301,11 +321,32 @@ function PlayPageClient() {
 
           if (isNetworkError) {
             // 网络错误：尝试从源名称推断分辨率，否则标记为网络问题
-            let inferredQuality = '网络超时';
             const sourceName = source.source_name?.toLowerCase() || '';
 
-            // 尝试从源名称推断可能的分辨率
-            if (sourceName.includes('4k') || sourceName.includes('超清')) {
+            // 使用带缓存的质量推断函数
+            const inferQuality = (sName: string): string => {
+              if (qualityInferenceCache.has(sName)) {
+                return qualityInferenceCache.get(sName)!;
+              }
+              // 尝试从源名称推断可能的分辨率
+              if (sName.includes('4k') || sName.includes('超清')) {
+                qualityInferenceCache.set(sName, '4K(推测)');
+                return '4K(推测)';
+              } else if (
+                sName.includes('1080') ||
+                sName.includes('高清')
+              ) {
+                qualityInferenceCache.set(sName, '1080p(推测)');
+                return '1080p(推测)';
+              } else if (sName.includes('720')) {
+                qualityInferenceCache.set(sName, '720p(推测)');
+                return '720p(推测)';
+              }
+              qualityInferenceCache.set(sName, '网络超时');
+              return '网络超时';
+            };
+
+            const inferredQuality = inferQuality(sourceName);
               inferredQuality = '4K(推测)';
             } else if (
               sourceName.includes('1080') ||
@@ -532,6 +573,43 @@ function PlayPageClient() {
     score += pingScore * 0.2;
 
     return Math.round(score * 100) / 100; // 保留两位小数
+  };
+
+  // 对最优的几个源进行预连接，减少后续请求的握手时间
+  const preconnectTopSources = (sortedSources: SearchResult[]) => {
+    // 移除旧的预连接标签
+    document.querySelectorAll('link[rel="preconnect"]').forEach(link => link.remove());
+    
+    // 只对前3个最优源进行预连接
+    sortedSources.slice(0, 3).forEach((source) => {
+      try {
+        if (source.episodes?.length > 0) {
+          const origin = new URL(source.episodes[0]).origin;
+          // 避免重复添加同一个 origin
+          if (!document.querySelector(`link[href="${origin}"]`)) {
+            const link = document.createElement('link');
+            link.rel = 'preconnect';
+            link.href = origin;
+            document.head.appendChild(link);
+          }
+        }
+      } catch (e) {
+        // 忽略无效的URL
+      }
+    });
+  };
+  
+  // 预加载下一个备选源的 m3u8 文件
+  const preloadNextSource = (currentIndex: number, sources: SearchResult[]) => {
+    if (currentIndex + 1 < sources.length) {
+      const nextSource = sources[currentIndex + 1];
+      if (nextSource && nextSource.episodes && nextSource.episodes.length > 0) {
+        const nextEpisodeUrl = nextSource.episodes[currentEpisodeIndexRef.current] || nextSource.episodes[0];
+        const proxyUrl = `/api/proxy/m3u8?url=${encodeURIComponent(nextEpisodeUrl)}&moontv-source=${nextSource.source}`;
+        // 使用 fetch 发起低优先级预加载，静默失败
+        fetch(proxyUrl, { cache: 'force-cache' }).catch(() => {});
+      }
+    }
   };
 
   // 更新视频地址
@@ -897,7 +975,10 @@ function PlayPageClient() {
       
       // 关键：无论是否优选，都将最终的列表（可能是排序后的）设置为换源列表
       setAvailableSources(finalSources);
-
+      
+      // 对最优源进行预连接
+      preconnectTopSources(finalSources);
+      
       // 决定首次播放哪个源
       if (currentSource && currentId && !needPreferRef.current) {
         // 如果URL指定了源，则在最终列表里找到它
@@ -1084,6 +1165,11 @@ function PlayPageClient() {
       setCurrentId(newId);
       setDetail(newDetail);
       setCurrentEpisodeIndex(targetIndex);
+      // 预加载下一个备选源
+      const newSourceIndex = availableSources.findIndex(s => s.source === newSource && s.id === newId);
+      if (newSourceIndex !== -1) {
+        preloadNextSource(newSourceIndex, availableSources);
+      }
     } catch (err) {
       // 隐藏换源加载状态
       setIsVideoLoading(false);
