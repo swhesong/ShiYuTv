@@ -239,7 +239,7 @@ function PlayPageClient() {
     if (sources.length === 1) {
       return { bestSource: sources[0], sortedSources: sources };
     }
-  
+
     // 关键改动：为每个源分配一个初始的"健康优先级"
     // 这个优先级是基于后端返回的顺序，后端已经按健康度排过序了
     // 越靠前，优先级越高（数值越小）
@@ -248,13 +248,13 @@ function PlayPageClient() {
       const sourceKey = `${source.source}-${source.id}`;
       initialPriorityMap.set(sourceKey, index);
     });
-  
+
     type TestResultType = {
       quality: string;
       loadSpeed: string;
       pingTime: number;
       hasError?: boolean;
-      isPartialFailure?: boolean; // 新增：部分失败标记
+      isPartialFailure?: boolean;
     };
 
     // 将播放源分为两批，并发测速各批，避免一次性过多请求
@@ -263,7 +263,7 @@ function PlayPageClient() {
       source: SearchResult;
       testResult: TestResultType;
     }> = [];
-  
+
     for (let start = 0; start < sources.length; start += batchSize) {
       const batchSources = sources.slice(start, start + batchSize);
       // Use map to create an array of promises
@@ -274,41 +274,49 @@ function PlayPageClient() {
             console.warn(`播放源 ${source.source_name} 没有可用的播放地址`);
             throw new Error('No episodes available');
           }
-  
+
           const episodeUrl =
             source.episodes.length > 1
               ? source.episodes[1]
               : source.episodes[0];
-          const testResult = await getVideoResolutionFromM3u8(episodeUrl);
-  
+          const testResult = await getVideoResolutionFromM3u8(
+            episodeUrl,
+            source.source
+          );
+
           return {
             source,
             testResult,
           };
         } catch (error) {
           // 改进：区分不同类型的错误
-          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-          
+          const errorMessage =
+            error instanceof Error ? error.message : 'Unknown error';
+
           // 网络相关错误给予更宽松的处理
-          const isNetworkError = errorMessage.includes('fetch') || 
-                                errorMessage.includes('timeout') ||
-                                errorMessage.includes('CORS') ||
-                                errorMessage.includes('NetworkError');
-          
+          const isNetworkError =
+            errorMessage.includes('fetch') ||
+            errorMessage.includes('timeout') ||
+            errorMessage.includes('CORS') ||
+            errorMessage.includes('NetworkError');
+
           if (isNetworkError) {
             // 网络错误：尝试从源名称推断分辨率，否则标记为网络问题
             let inferredQuality = '网络超时';
             const sourceName = source.source_name?.toLowerCase() || '';
-            
+
             // 尝试从源名称推断可能的分辨率
             if (sourceName.includes('4k') || sourceName.includes('超清')) {
               inferredQuality = '4K(推测)';
-            } else if (sourceName.includes('1080') || sourceName.includes('高清')) {
+            } else if (
+              sourceName.includes('1080') ||
+              sourceName.includes('高清')
+            ) {
               inferredQuality = '1080p(推测)';
             } else if (sourceName.includes('720')) {
               inferredQuality = '720p(推测)';
             }
-            
+
             return {
               source,
               testResult: {
