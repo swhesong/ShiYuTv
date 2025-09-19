@@ -29,6 +29,7 @@ export async function GET(request: Request) {
   const config = await getConfig();
   const liveSource = config.LiveConfig?.find((s: any) => s.key === source);
   if (!liveSource) {
+    // 即使是点播，也需要源信息来获取UA，所以这里检查是必要的
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
   const ua = liveSource.ua || 'AptvPlayer/1.4.10';
@@ -61,22 +62,29 @@ export async function GET(request: Request) {
     });
 
 
+    // 1. 恢复重要的错误检查
     if (!response.ok) {
       return NextResponse.json(
-        { error: 'Failed to fetch segment' },
-        { status: 500 }
+        { error: 'Failed to fetch segment from source' },
+        { status: response.status }
       );
     }
 
+    // 2. 先声明 headers 变量
     const headers = new Headers();
+    // 3. 安全地复制源站的响应头    
+    if (response) {
+      ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(header => {
+        const value = response.headers.get(header);
+        if (value) {
+          headers.set(header, value);
+        }
+      });
+    }
     
-    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(header => {
-      const value = response.headers.get(header);
-      if (value) {
-        headers.set(header, value);
-      }
-    });
+
     
+    // 4. 设置默认值和CORS头
     if (!headers.has('content-type')) {
       headers.set('Content-Type', 'video/mp2t');
     }
