@@ -72,6 +72,11 @@ export async function GET(request: Request) {
       'Cache-Control': 'no-cache',
     };
 
+    const referer = request.headers.get('Referer');
+    if (referer) {
+      requestHeaders['Referer'] = referer;
+    }
+    
     let timeout = 30000; // 默认30秒超时
 
     // --- 智能 Referer 与超时策略 ---
