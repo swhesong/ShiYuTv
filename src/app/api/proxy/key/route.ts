@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     };
     
     // --- 智能 Referer 策略 ---
-    /*
+
     try {
       const urlObject = new URL(decodedUrl);
       const domain = urlObject.hostname;
@@ -70,7 +70,7 @@ export async function GET(request: Request) {
       // URL解析失败时不设置Referer
       console.warn('Failed to parse URL for Referer:', decodedUrl);
     }
-    */
+
 
     const response = await fetch(decodedUrl, {
       headers: requestHeaders,
