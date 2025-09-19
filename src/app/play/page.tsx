@@ -280,8 +280,7 @@ function PlayPageClient() {
               ? source.episodes[1]
               : source.episodes[0];
           const testResult = await getVideoResolutionFromM3u8(
-            episodeUrl,
-            source.source
+            episodeUrl
           );
 
           return {
