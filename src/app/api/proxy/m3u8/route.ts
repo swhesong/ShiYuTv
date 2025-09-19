@@ -79,14 +79,7 @@ export async function GET(request: Request) {
       signal: AbortSignal.timeout(30000), // 30秒超时
       headers: requestHeaders,
     });
-      headers: {
-        'User-Agent': ua,
-        'Accept': 'application/vnd.apple.mpegurl,application/x-mpegURL,application/octet-stream,*/*',
-        'Accept-Encoding': 'identity', // 不压缩，避免解析问题
-        'Connection': 'keep-alive',
-        'Cache-Control': 'no-cache',
-      },
-    });
+
 
     if (!response.ok) {
       // 在 catch 中处理更复杂的错误
@@ -180,7 +173,12 @@ export async function GET(request: Request) {
   
     return NextResponse.json(
       { error: errorMessage },
-      { status: statusCode }
+      {
+        status: statusCode,
+        headers: {
+          'Access-Control-Allow-Origin': '*',
+        },
+      }
     );
   } finally {
     // 确保 response 被正确关闭以释放资源
