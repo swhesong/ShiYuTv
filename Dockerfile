@@ -53,7 +53,11 @@ RUN echo "=== Node Version ===" && \
 # 2. 列出当前目录文件，检查代码是否已正确复制
 RUN echo "=== Listing Files in /app ===" && \
     ls -la
-
+    
+RUN echo "vvv DEBUG: Displaying content of route.ts vvv" && \
+    cat src/app/api/proxy/segment/route.ts && \
+    echo "^^^ DEBUG: End of content for route.ts ^^^"
+    
 # 3. 独立运行类型检查，将类型错误和构建错误分离
 RUN echo "=== Running TypeScript Type Check ===" && \
     pnpm exec tsc --noEmit --pretty && \
