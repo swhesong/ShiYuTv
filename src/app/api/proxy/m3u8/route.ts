@@ -16,18 +16,36 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Missing url' }, { status: 400 });
   }
 
+  // --- 强制校验 moontv-source 参数 ---
+  if (!source) {
+    return NextResponse.json(
+      { error: 'Missing moontv-source parameter' },
+      { status: 400 }
+    );
+  }
+
   const config = await getConfig();
+  let ua = 'AptvPlayer/1.4.10'; // 默认 UA
+
+  // --- 同时查找直播源和点播源 ---
   const liveSource = config.LiveConfig?.find((s: any) => s.key === source);
-  if (!liveSource) {
+  const vodSource = config.SourceConfig?.find((s: any) => s.key === source);
+
+  if (!liveSource && !vodSource) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
-  const ua = liveSource.ua || 'AptvPlayer/1.4.10';
+
+  // 如果是直播源且有自定义UA，则使用它
+  if (liveSource && liveSource.ua) {
+    ua = liveSource.ua;
+  }
 
   let response: Response | null = null;
   let responseUsed = false;
+  let decodedUrl = ''; // 将 decodedUrl 提升作用域以便在 catch 中使用
 
   try {
-    const decodedUrl = decodeURIComponent(url);
+    decodedUrl = decodeURIComponent(url);
 
     response = await fetch(decodedUrl, {
       cache: 'no-cache',
@@ -44,6 +62,7 @@ export async function GET(request: Request) {
     });
 
     if (!response.ok) {
+      // 在 catch 中处理更复杂的错误
       return NextResponse.json(
         { error: 'Failed to fetch m3u8' },
         { status: 500 }
@@ -111,9 +130,30 @@ export async function GET(request: Request) {
       headers,
     });
   } catch (error) {
+    // --- 增强的错误处理 ---
+    console.error('代理请求失败:', {
+      url: decodedUrl,
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    });
+  
+    // 根据错误类型返回不同的状态码
+    let statusCode = 500;
+    let errorMessage = 'Failed to fetch m3u8';
+  
+    if (error instanceof Error) {
+      if (error.name === 'AbortError' || error.message.includes('timeout')) {
+        statusCode = 408; // Request Timeout
+        errorMessage = 'Request timeout';
+      } else if (error.message.includes('network') || error.message.includes('fetch')) {
+        statusCode = 502; // Bad Gateway
+        errorMessage = 'Network error';
+      }
+    }
+  
     return NextResponse.json(
-      { error: 'Failed to fetch m3u8' },
-      { status: 500 }
+      { error: errorMessage },
+      { status: statusCode }
     );
   } finally {
     // 确保 response 被正确关闭以释放资源
