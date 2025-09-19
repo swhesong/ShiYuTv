@@ -12,8 +12,8 @@ export async function OPTIONS(request: Request) {
     status: 200,
     headers: {
       'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
-      'Access-Control-Allow-Headers': 'Range, Content-Type, User-Agent, Referer',
+      'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, Range, Origin, Accept, User-Agent, Referer',
       'Access-Control-Max-Age': '86400',
     },
   });
@@ -58,12 +58,27 @@ export async function GET(request: Request) {
 
   try {
     decodedUrl = decodeURIComponent(url);
+    
+    const requestHeaders: Record<string, string> = {
+      'User-Agent': ua,
+      'Accept': 'application/vnd.apple.mpegurl,application/x-mpegURL,application/octet-stream,*/*',
+      'Accept-Encoding': 'identity',
+      'Connection': 'keep-alive',
+      'Cache-Control': 'no-cache',
+    };
+
+    const originalReferer = request.headers.get('referer');
+    if (originalReferer) {
+      requestHeaders['Referer'] = originalReferer;
+    }
 
     response = await fetch(decodedUrl, {
       cache: 'no-cache',
       redirect: 'follow',
-      credentials: 'same-origin',
+      credentials: 'omit', // 避免跨域凭据问题
       signal: AbortSignal.timeout(30000), // 30秒超时
+      headers: requestHeaders,
+    });
       headers: {
         'User-Agent': ua,
         'Accept': 'application/vnd.apple.mpegurl,application/x-mpegURL,application/octet-stream,*/*',
@@ -106,16 +121,16 @@ export async function GET(request: Request) {
       const headers = new Headers();
       headers.set('Content-Type', contentType);
       headers.set('Access-Control-Allow-Origin', '*');
-      headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD');
       headers.set(
         'Access-Control-Allow-Headers',
-        'Content-Type, Range, Origin, Accept'
+        'Content-Type, Range, Origin, Accept, User-Agent, Referer'
       );
-      headers.set('Cache-Control', 'no-cache');
-      headers.set(
-        'Access-Control-Expose-Headers',
-        'Content-Length, Content-Range'
-      );
+      headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Content-Type');
+      headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      headers.set('Pragma', 'no-cache');
+      headers.set('Expires', '0');
+      
       return new Response(modifiedContent, { headers });
     }
     // just proxy
