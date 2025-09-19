@@ -5240,73 +5240,74 @@ const SiteConfigComponent = ({
 
 
 useEffect(() => {
-    if (config?.SiteConfig) {
-      // 使用函数式更新和深度合并，确保 IntelligentFilter 结构始终存在
-      setSiteSettings(prevSettings => {
-        const intelligentFilter = config.SiteConfig.IntelligentFilter;
-        const prevOptions = prevSettings.IntelligentFilter.options;
-        return {
-        ...prevSettings, // 首先保留代码中定义的完整默认结构
-        ...config.SiteConfig, // 然后用服务器加载的配置覆盖现有字段
-        // 关键：确保 IntelligentFilter 及其内部 options 总是对象，而不是 undefined
-        IntelligentFilter: {
-          enabled: intelligentFilter?.enabled ?? prevSettings.IntelligentFilter.enabled,
-          provider: intelligentFilter?.provider ?? prevSettings.IntelligentFilter.provider,
-          confidence: intelligentFilter?.confidence ?? prevSettings.IntelligentFilter.confidence,
-          options: {
-            sightengine: {
-              apiUrl: intelligentFilter?.options?.sightengine?.apiUrl ?? prevOptions.sightengine!.apiUrl,
-              apiUser: intelligentFilter?.options?.sightengine?.apiUser ?? prevOptions.sightengine!.apiUser,
-              // 核心修改：检查后端返回的 secret 是否为占位符，如果是则保留当前状态中的值
-              apiSecret: (intelligentFilter?.options?.sightengine?.apiSecret && intelligentFilter.options.sightengine.apiSecret !== '********')
-                ? intelligentFilter.options.sightengine.apiSecret
-                : prevSettings.IntelligentFilter.options.sightengine!.apiSecret,
-            },
-            custom: {
-              apiUrl: intelligentFilter?.options?.custom?.apiUrl ?? prevOptions.custom!.apiUrl,
-              apiKeyHeader: intelligentFilter?.options?.custom?.apiKeyHeader ?? prevOptions.custom!.apiKeyHeader,
-              // 核心修改：同上，处理自定义API的密钥
-              apiKeyValue: (intelligentFilter?.options?.custom?.apiKeyValue && intelligentFilter.options.custom.apiKeyValue !== '********')
-                ? intelligentFilter.options.custom.apiKeyValue
-                : prevSettings.IntelligentFilter.options.custom!.apiKeyValue,
-              jsonBodyTemplate: intelligentFilter?.options?.custom?.jsonBodyTemplate ?? prevOptions.custom!.jsonBodyTemplate,
-              responseScorePath: intelligentFilter?.options?.custom?.responseScorePath ?? prevOptions.custom!.responseScorePath,
-            },
-            baidu: {
-              apiKey: intelligentFilter?.options?.baidu?.apiKey ?? prevOptions.baidu!.apiKey,
-              secretKey: (intelligentFilter?.options?.baidu?.secretKey && intelligentFilter.options.baidu.secretKey !== '********')
-                ? intelligentFilter.options.baidu.secretKey
-                : prevSettings.IntelligentFilter.options.baidu!.secretKey,
-              tokenUrl: intelligentFilter?.options?.baidu?.tokenUrl ?? prevOptions.baidu!.tokenUrl,
-            },
-            aliyun: {
-              accessKeyId: intelligentFilter?.options?.aliyun?.accessKeyId ?? prevOptions.aliyun!.accessKeyId,
-              accessKeySecret: (intelligentFilter?.options?.aliyun?.accessKeySecret && intelligentFilter.options.aliyun.accessKeySecret !== '********')
-                ? intelligentFilter.options.aliyun.accessKeySecret
-                : prevSettings.IntelligentFilter.options.aliyun!.accessKeySecret,
-              regionId: intelligentFilter?.options?.aliyun?.regionId ?? prevOptions.aliyun!.regionId,
-            },
-            tencent: {
-              secretId: intelligentFilter?.options?.tencent?.secretId ?? prevOptions.tencent!.secretId,
-              secretKey: (intelligentFilter?.options?.tencent?.secretKey && intelligentFilter.options.tencent.secretKey !== '********')
-                ? intelligentFilter.options.tencent.secretKey
-                : prevSettings.IntelligentFilter.options.tencent!.secretKey,
-              region: intelligentFilter?.options?.tencent?.region ?? prevOptions.tencent!.region,
-            },
-          },
-        },
-        // 保留其他字段的默认值逻辑
-        DoubanProxyType:
-          config.SiteConfig.DoubanProxyType || 'cmliussss-cdn-tencent',
-        DoubanProxy: config.SiteConfig.DoubanProxy || '',
-        DoubanImageProxyType:
-          config.SiteConfig.DoubanImageProxyType || 'cmliussss-cdn-tencent',
-        DoubanImageProxy: config.SiteConfig.DoubanImageProxy || '',
-        DisableYellowFilter: config.SiteConfig.DisableYellowFilter || false,
-        FluidSearch: config.SiteConfig.FluidSearch ?? true,
-      }});
-    }
-  }, [config]);
+  if (config?.SiteConfig) {
+    // 深度合并配置，确保所有层级的默认值都存在
+    const deepMerge = (defaults: any, newConfig: any): any => {
+      const merged = { ...defaults };
+      for (const key in newConfig) {
+        if (newConfig[key] !== undefined && newConfig[key] !== null) {
+          if (
+            typeof newConfig[key] === 'object' &&
+            !Array.isArray(newConfig[key]) &&
+            defaults[key] &&
+            typeof defaults[key] === 'object'
+          ) {
+            merged[key] = deepMerge(defaults[key], newConfig[key]);
+          } else {
+            merged[key] = newConfig[key];
+          }
+        }
+      }
+      return merged;
+    };
+
+    setSiteSettings((prevSettings) => {
+      // 步骤 1: 深度合并，处理所有 ?? 逻辑
+      const newConfig = deepMerge(prevSettings, config.SiteConfig);
+      
+      // 步骤 2: 处理密钥占位符
+      const newOptions = newConfig.IntelligentFilter.options;
+      const prevOptions = prevSettings.IntelligentFilter.options;
+      
+      if (newOptions.sightengine.apiSecret === '********') {
+        newOptions.sightengine.apiSecret = prevOptions.sightengine.apiSecret;
+      }
+      if (newOptions.custom.apiKeyValue === '********') {
+        newOptions.custom.apiKeyValue = prevOptions.custom.apiKeyValue;
+      }
+      if (newOptions.baidu.secretKey === '********') {
+        newOptions.baidu.secretKey = prevOptions.baidu.secretKey;
+      }
+      if (newOptions.aliyun.accessKeySecret === '********') {
+        newOptions.aliyun.accessKeySecret = prevOptions.aliyun.accessKeySecret;
+      }
+      if (newOptions.tencent.secretKey === '********') {
+        newOptions.tencent.secretKey = prevOptions.tencent.secretKey;
+      }
+
+      // 步骤 3: 处理需要 || 逻辑的字段
+      const fieldsWithFalsyDefaults = {
+        DoubanProxyType: 'cmliussss-cdn-tencent',
+        DoubanImageProxyType: 'cmliussss-cdn-tencent',
+        DoubanProxy: '',
+        DoubanImageProxy: '',
+	DisableYellowFilter: false,
+      };
+      
+      for (const [field, defaultValue] of Object.entries(fieldsWithFalsyDefaults)) {
+        // 使用这个判断条件来正确模拟 || 的行为
+        if (!newConfig[field]) {
+          // 特殊处理布尔值 false，因为 !false 是 true
+          if (newConfig[field] === false) continue;
+          newConfig[field] = defaultValue;
+        }
+      }
+      
+      return newConfig;
+    });
+  }
+}, [config]);
+
 
   // 点击外部区域关闭下拉框
   useEffect(() => {
