@@ -51,7 +51,12 @@ export async function GET(request: Request) {
   if (liveSource && liveSource.ua) {
     ua = liveSource.ua;
   }
-
+  // 智能超时策略
+  const getTimeoutBySourceDomain = (domain: string): number => {
+    const knownSlowDomains = ['bvvvvvvv7f.com', 'dytt-music.com', 'high25-playback.com', 'ffzyread2.com'];
+    // 如果域名包含在慢速列表中，给予更长的超时时间
+    return knownSlowDomains.some(slow => domain.includes(slow)) ? 45000 : 30000;
+  };
   let response: Response | null = null;
   let responseUsed = false;
   let decodedUrl = ''; // 将 decodedUrl 提升作用域以便在 catch 中使用
@@ -67,11 +72,13 @@ export async function GET(request: Request) {
       'Cache-Control': 'no-cache',
     };
 
-    // --- 智能 Referer 策略 ---
-    // 尝试将 Referer 设置为目标 URL 的根域名，模拟直接访问
+    let timeout = 30000; // 默认30秒超时
+
+    // --- 智能 Referer 与超时策略 ---
     try {
       const urlObject = new URL(decodedUrl);
       requestHeaders['Referer'] = urlObject.origin;
+      timeout = getTimeoutBySourceDomain(urlObject.hostname);
     } catch {
       // 如果 URL 解析失败，则不设置 Referer
     }
@@ -80,7 +87,7 @@ export async function GET(request: Request) {
       cache: 'no-cache',
       redirect: 'follow',
       credentials: 'omit', // 避免跨域凭据问题
-      signal: AbortSignal.timeout(30000), // 30秒超时
+      signal: AbortSignal.timeout(timeout), // 应用动态超时
       headers: requestHeaders,
     });
 
