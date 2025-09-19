@@ -82,8 +82,6 @@ export async function GET(request: Request) {
       });
     }
     
-
-    
     // 4. 设置默认值和CORS头
     if (!headers.has('content-type')) {
       headers.set('Content-Type', 'video/mp2t');
@@ -107,19 +105,20 @@ export async function GET(request: Request) {
         }
 
         reader = response.body.getReader();
-        const isCancelled = false;
+        
+
+        // const isCancelled = false;
 
         function pump() {
-          if (isCancelled || !reader) {
+          // 只检查 reader 是否存在
+          if (!reader) {
             return;
           }
 
           reader
             .read()
             .then(({ done, value }) => {
-              if (isCancelled) {
-                return;
-              }
+              // if (isCancelled)
 
               if (done) {
                 controller.close();
@@ -131,12 +130,12 @@ export async function GET(request: Request) {
               pump();
             })
             .catch((error) => {
-              if (!isCancelled) {
-                controller.error(error);
-                cleanup();
-              }
+              // if (!isCancelled)
+              controller.error(error);
+              cleanup();
             });
         }
+
 
         function cleanup() {
           if (reader) {
