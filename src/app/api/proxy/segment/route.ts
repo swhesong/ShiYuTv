@@ -27,12 +27,23 @@ export async function GET(request: Request) {
   }
 
   const config = await getConfig();
+  // --- 同时查找直播源和点播源，以支持点播视频片段的代理 ---
   const liveSource = config.LiveConfig?.find((s: any) => s.key === source);
-  if (!liveSource) {
-    // 即使是点播，也需要源信息来获取UA，所以这里检查是必要的
+  const vodSource = config.SourceConfig?.find((s: any) => s.key === source);
+
+  if (!liveSource && !vodSource) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
-  const ua = liveSource.ua || 'AptvPlayer/1.4.10';
+
+  // 优先使用直播源的UA，否则使用默认UA
+  const ua = (liveSource && liveSource.ua) ? liveSource.ua : 'AptvPlayer/1.4.10';
+
+  // 优化: 智能超时策略
+  const getTimeoutBySourceDomain = (domain: string): number => {
+    const knownSlowDomains = ['bvvvvvvv7f.com', 'dytt-music.com', 'high25-playback.com', 'ffzyread2.com'];
+    // 如果域名包含在慢速列表中，给予更长的超时时间
+    return knownSlowDomains.some(slow => domain.includes(slow)) ? 75000 : 60000;
+  };
 
   let response: Response | null = null;
   let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
@@ -51,18 +62,20 @@ export async function GET(request: Request) {
       requestHeaders['Range'] = range;
     }
 
-    // --- 智能 Referer 策略 ---
-    // 尝试将 Referer 设置为目标 URL 的根域名，模拟直接访问
+    let timeout = 60000; // 默认60秒超时
+
+    // --- 智能 Referer 与超时策略 ---
     try {
       const urlObject = new URL(decodedUrl);
       requestHeaders['Referer'] = urlObject.origin;
+      timeout = getTimeoutBySourceDomain(urlObject.hostname);
     } catch {
       // 如果 URL 解析失败，则不设置 Referer
     }
 
     response = await fetch(decodedUrl, {
       headers: requestHeaders,
-      signal: AbortSignal.timeout(60000), // 视频段超时时间更长
+      signal: AbortSignal.timeout(timeout), // 应用动态超时
     });
 
 
