@@ -1598,58 +1598,44 @@ function PlayPageClient() {
             hls.on(Hls.Events.ERROR, function (event: any, data: any) {
               console.error('HLS Error:', event, data);
               if (data.fatal) {
+                const tryNextSource = () => {
+                  if (artPlayerRef.current) {
+                    artPlayerRef.current.notice.show =
+                      '当前源播放失败，正在尝试下一个...';
+                  }
+                  const currentIndex = availableSources.findIndex(
+                    (s) =>
+                      s.source === currentSourceRef.current &&
+                      s.id === currentIdRef.current
+                  );
+                  const nextIndex = currentIndex + 1;
+                  if (nextIndex < availableSources.length) {
+                    const nextSource = availableSources[nextIndex];
+                    handleSourceChange(
+                      nextSource.source,
+                      nextSource.id,
+                      nextSource.title
+                    );
+                  } else {
+                    if (artPlayerRef.current) {
+                      artPlayerRef.current.notice.show = '所有播放源均尝试失败';
+                    }
+                    setError('所有可用播放源均无法播放');
+                  }
+                };
+
                 switch (data.type) {
                   case Hls.ErrorTypes.NETWORK_ERROR:
-                    console.log('网络错误，尝试恢复...');
-                    // 增加重试机制
-                    let networkRetryCount = 0;
-                    const maxNetworkRetries = 3;
-                    const retryNetwork = () => {
-                      if (networkRetryCount < maxNetworkRetries) {
-                        networkRetryCount++;
-                        console.log(`网络重试第 ${networkRetryCount} 次`);
-                        setTimeout(() => {
-                          hls.startLoad();
-                        }, 1000 * networkRetryCount);
-                      } else {
-                        console.log('网络重试次数耗尽，尝试重新加载');
-                        hls.destroy();
-                        // 触发重新加载
-                        if (artPlayerRef.current) {
-                          artPlayerRef.current.notice.show = '网络错误，正在重新加载...';
-                          setTimeout(() => {
-                            window.location.reload();
-                          }, 2000);
-                        }
-                      }
-                    };
-                    retryNetwork();
+                    console.log('网络错误，尝试切换到下一个播放源...');
+                    tryNextSource();
                     break;
                   case Hls.ErrorTypes.MEDIA_ERROR:
-                    console.log('媒体错误，尝试恢复...');
-                    let mediaRetryCount = 0;
-                    const maxMediaRetries = 2;
-                    const retryMedia = () => {
-                      if (mediaRetryCount < maxMediaRetries) {
-                        mediaRetryCount++;
-                        console.log(`媒体恢复第 ${mediaRetryCount} 次`);
-                        hls.recoverMediaError();
-                      } else {
-                        console.log('媒体恢复失败，销毁播放器');
-                        hls.destroy();
-                        if (artPlayerRef.current) {
-                          artPlayerRef.current.notice.show = '播放失败，请尝试切换播放源';
-                        }
-                      }
-                    };
-                    retryMedia();
+                    console.log('媒体错误，尝试切换到下一个播放源...');
+                    tryNextSource();
                     break;
                   default:
-                    console.log('无法恢复的错误');
-                    hls.destroy();
-                    if (artPlayerRef.current) {
-                      artPlayerRef.current.notice.show = '播放器出现严重错误';
-                    }
+                    console.log('无法恢复的错误，尝试切换播放源');
+                    tryNextSource();
                     break;
                 }
               }
