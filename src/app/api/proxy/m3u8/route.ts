@@ -7,6 +7,18 @@ import { getBaseUrl, resolveUrl } from '@/lib/live';
 
 export const runtime = 'nodejs';
 
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Content-Type, User-Agent, Referer',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
