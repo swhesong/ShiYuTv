@@ -31,7 +31,7 @@ export async function GET(request: Request) {
   if (!liveSource) {
     return NextResponse.json({ error: 'Source not found' }, { status: 404 });
   }
-  const ua = liveSource.ua || 'AptvPlayer/1.4.10';
+  const ua = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36';
 
   try {
     const decodedUrl = decodeURIComponent(url);
@@ -41,11 +41,9 @@ export async function GET(request: Request) {
       'Accept': 'application/octet-stream, */*',
       'Connection': 'keep-alive',
     };
-    const referer = request.headers.get('Referer');
-    if (referer) {
-      requestHeaders['Referer'] = referer;
-    }    
+    
     // --- 智能 Referer 策略 ---
+    /*
     try {
       const urlObject = new URL(decodedUrl);
       const domain = urlObject.hostname;
@@ -69,11 +67,13 @@ export async function GET(request: Request) {
       // URL解析失败时不设置Referer
       console.warn('Failed to parse URL for Referer:', decodedUrl);
     }
+    */
 
     const response = await fetch(decodedUrl, {
       headers: requestHeaders,
       signal: AbortSignal.timeout(30000),
     });
+
 
     
     if (!response.ok) {
