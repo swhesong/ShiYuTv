@@ -6,6 +6,18 @@ import { getConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type, User-Agent, Referer',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
@@ -23,12 +35,23 @@ export async function GET(request: Request) {
 
   try {
     const decodedUrl = decodeURIComponent(url);
-    console.log(decodedUrl);
+    
+    const requestHeaders: Record<string, string> = {
+      'User-Agent': ua,
+      'Accept': 'application/octet-stream, */*',
+      'Connection': 'keep-alive',
+    };
+    
+    const originalReferer = request.headers.get('referer');
+    if (originalReferer) {
+      requestHeaders['Referer'] = originalReferer;
+    }
+
     const response = await fetch(decodedUrl, {
-      headers: {
-        'User-Agent': ua,
-      },
+      headers: requestHeaders,
+      signal: AbortSignal.timeout(30000),
     });
+    
     if (!response.ok) {
       return NextResponse.json(
         { error: 'Failed to fetch key' },
@@ -36,14 +59,15 @@ export async function GET(request: Request) {
       );
     }
     const keyData = await response.arrayBuffer();
-    return new Response(keyData, {
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Cache-Control': 'public, max-age=3600',
-      },
-    });
+    const headers = new Headers();
+    headers.set('Content-Type', 'application/octet-stream');
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    headers.set('Access-Control-Allow-Headers', 'Content-Type, User-Agent, Referer');
+    headers.set('Cache-Control', 'public, max-age=3600');
+    headers.set('Content-Length', keyData.byteLength.toString());
+
+    return new Response(keyData, { headers });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to fetch key' }, { status: 500 });
   }
