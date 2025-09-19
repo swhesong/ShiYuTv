@@ -75,9 +75,12 @@ export async function GET(request: Request) {
     // 3. 安全地复制源站的响应头    
     if (response) {
       ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(header => {
-        const value = response.headers.get(header);
-        if (value) {
-          headers.set(header, value);
+        // Fix: Add null check within forEach callback
+        if (response) {
+          const value = response.headers.get(header);
+          if (value) {
+            headers.set(header, value);
+          }
         }
       });
     }
