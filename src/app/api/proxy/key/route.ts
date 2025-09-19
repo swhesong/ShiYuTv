@@ -42,15 +42,20 @@ export async function GET(request: Request) {
       'Connection': 'keep-alive',
     };
     
-    const originalReferer = request.headers.get('referer');
-    if (originalReferer) {
-      requestHeaders['Referer'] = originalReferer;
+    // --- 智能 Referer 策略 ---
+    // 尝试将 Referer 设置为目标 URL 的根域名，模拟直接访问
+    try {
+      const urlObject = new URL(decodedUrl);
+      requestHeaders['Referer'] = urlObject.origin;
+    } catch {
+      // 如果 URL 解析失败，则不设置 Referer
     }
 
     const response = await fetch(decodedUrl, {
       headers: requestHeaders,
       signal: AbortSignal.timeout(30000),
     });
+
     
     if (!response.ok) {
       return NextResponse.json(
