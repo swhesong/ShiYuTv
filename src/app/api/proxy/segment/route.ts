@@ -6,6 +6,18 @@ import { getConfig } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
+export async function OPTIONS(request: Request) {
+  return new Response(null, {
+    status: 200,
+    headers: {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'GET, HEAD, OPTIONS',
+      'Access-Control-Allow-Headers': 'Range, Content-Type, User-Agent, Referer',
+      'Access-Control-Max-Age': '86400',
+    },
+  });
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const url = searchParams.get('url');
@@ -26,11 +38,29 @@ export async function GET(request: Request) {
 
   try {
     const decodedUrl = decodeURIComponent(url);
+
+    const requestHeaders: Record<string, string> = {
+      'User-Agent': ua,
+      'Accept': '*/*',
+      'Connection': 'keep-alive',
+    };
+
+    const range = request.headers.get('range');
+    if (range) {
+      requestHeaders['Range'] = range;
+    }
+
+    const originalReferer = request.headers.get('referer');
+    if (originalReferer) {
+      requestHeaders['Referer'] = originalReferer;
+    }
+
     response = await fetch(decodedUrl, {
-      headers: {
-        'User-Agent': ua,
-      },
+      headers: requestHeaders,
+      signal: AbortSignal.timeout(60000), // 视频段超时时间更长
     });
+
+
     if (!response.ok) {
       return NextResponse.json(
         { error: 'Failed to fetch segment' },
@@ -39,22 +69,26 @@ export async function GET(request: Request) {
     }
 
     const headers = new Headers();
-    headers.set('Content-Type', 'video/mp2t');
-    headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    headers.set(
-      'Access-Control-Allow-Headers',
-      'Content-Type, Range, Origin, Accept'
-    );
-    headers.set('Accept-Ranges', 'bytes');
-    headers.set(
-      'Access-Control-Expose-Headers',
-      'Content-Length, Content-Range'
-    );
-    const contentLength = response.headers.get('content-length');
-    if (contentLength) {
-      headers.set('Content-Length', contentLength);
+    
+    ['content-type', 'content-length', 'content-range', 'accept-ranges'].forEach(header => {
+      const value = response.headers.get(header);
+      if (value) {
+        headers.set(header, value);
+      }
+    });
+    
+    if (!headers.has('content-type')) {
+      headers.set('Content-Type', 'video/mp2t');
     }
+    if (!headers.has('accept-ranges')) {
+      headers.set('Accept-Ranges', 'bytes');
+    }
+
+    headers.set('Access-Control-Allow-Origin', '*');
+    headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
+    headers.set('Access-Control-Allow-Headers', 'Range, Content-Type, User-Agent, Referer');
+    headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Type');
+    headers.set('Cache-Control', 'public, max-age=86400');
 
     // 使用流式传输，避免占用内存
     const stream = new ReadableStream({
