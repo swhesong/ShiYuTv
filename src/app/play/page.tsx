@@ -347,16 +347,6 @@ function PlayPageClient() {
             };
 
             const inferredQuality = inferQuality(sourceName);
-              inferredQuality = '4K(推测)';
-            } else if (
-              sourceName.includes('1080') ||
-              sourceName.includes('高清')
-            ) {
-              inferredQuality = '1080p(推测)';
-            } else if (sourceName.includes('720')) {
-              inferredQuality = '720p(推测)';
-            }
-
             return {
               source,
               testResult: {
