@@ -13,13 +13,13 @@ import {
   getDoubanRecommends,
 } from '@/lib/douban.client';
 import { DoubanItem, DoubanResult } from '@/lib/types';
-
+import { useResponsiveGrid } from '@/hooks/useResponsiveGrid';
 import DoubanCardSkeleton from '@/components/DoubanCardSkeleton';
 import DoubanCustomSelector from '@/components/DoubanCustomSelector';
 import DoubanSelector from '@/components/DoubanSelector';
 import PageLayout from '@/components/PageLayout';
 import VideoCard from '@/components/VideoCard';
-
+import VirtualDoubanGrid from '@/components/VirtualDoubanGrid';
 function DoubanPageClient() {
   const searchParams = useSearchParams();
   const [doubanData, setDoubanData] = useState<DoubanItem[]>([]);
@@ -28,10 +28,8 @@ function DoubanPageClient() {
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [selectorsReady, setSelectorsReady] = useState(false);
-  const observerRef = useRef<IntersectionObserver | null>(null);
-  const loadingRef = useRef<HTMLDivElement>(null);
   const debounceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
+  const { columnCount, columnWidth, containerWidth } = useResponsiveGrid();
   // 用于存储最新参数值的 refs
   const currentParamsRef = useRef({
     type: '',
