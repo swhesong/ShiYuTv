@@ -135,7 +135,7 @@ export async function GET(request: Request) {
     headers.set('Access-Control-Allow-Methods', 'GET, HEAD, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Range, Content-Type, User-Agent, Referer');
     headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Accept-Ranges, Content-Type');
-    headers.set('Cache-Control', 'public, max-age=86400');
+    headers.set('Cache-Control', 'public, max-age=3600, immutable'); // 片段内容不变，允许更长缓存
 
     // 使用流式传输，避免占用内存
     const stream = new ReadableStream({
