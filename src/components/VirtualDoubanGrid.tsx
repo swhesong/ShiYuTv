@@ -1,6 +1,4 @@
 import React from 'react';
-import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
-import type { GridOnItemsRenderedProps } from 'react-window';
 import { FixedSizeGrid as Grid } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { DoubanItem } from '@/lib/types';
@@ -101,7 +99,7 @@ const VirtualDoubanGrid = ({
             visibleRowStopIndex,
             overscanRowStartIndex,
             overscanRowStopIndex,
-          }: GridOnItemsRenderedProps) => {
+          }) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
