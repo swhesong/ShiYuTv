@@ -142,21 +142,30 @@ async function searchWithCache(
 
 export async function searchFromApi(
   apiSite: ApiSite,
-  query: string
+  query: string,
+  page = 1
 ): Promise<SearchResult[]> {
   try {
     const apiBaseUrl = apiSite.api;
     const apiUrl =
-      apiBaseUrl + API_CONFIG.search.path + encodeURIComponent(query);
+      apiBaseUrl +
+      API_CONFIG.search.pagePath
+        .replace('{query}', encodeURIComponent(query))
+        .replace('{page}', page.toString());
 
-    // 使用新的缓存搜索函数处理第一页
-    const firstPageResult = await searchWithCache(
+    // 使用新的缓存搜索函数处理分页
+    const pageResult = await searchWithCache(
       apiSite,
       query,
-      1,
+      page,
       apiUrl,
       8000
     );
+    return pageResult.results;
+  } catch (error) {
+    return [];
+  }
+}
     const results = firstPageResult.results;
     const pageCountFromFirst = firstPageResult.pageCount;
 
