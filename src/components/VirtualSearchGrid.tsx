@@ -1,5 +1,5 @@
 import React from 'react';
-import { FixedSizeGrid as Grid } from 'react-window';
+import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
 import { SearchResult } from '@/lib/types';
 import VideoCard from './VideoCard';
@@ -150,7 +150,7 @@ const VirtualSearchGrid = ({
             visibleRowStopIndex,
             overscanRowStartIndex,
             overscanRowStopIndex,
-          }) => {
+          }: GridOnItemsRenderedProps) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
@@ -168,4 +168,3 @@ const VirtualSearchGrid = ({
 };
 
 export default VirtualSearchGrid;
-
