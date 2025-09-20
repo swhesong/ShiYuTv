@@ -28,7 +28,8 @@ import SearchResultFilter, {
 import CapsuleSwitch from '@/components/CapsuleSwitch';
 import SearchSuggestions from '@/components/SearchSuggestions';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
-
+import VirtualSearchGrid from '@/components/VirtualSearchGrid';
+import { useResponsiveGrid } from '@/hooks/useResponsiveGrid';
 function SearchPageClient() {
   // 搜索历史
   const [searchHistory, setSearchHistory] = useState<string[]>([]);
@@ -53,6 +54,7 @@ function SearchPageClient() {
   const [contentFilter, setContentFilter] = useState<
     'all' | 'normal' | 'yellow'
   >('all');
+  const { columnCount, columnWidth, containerWidth } = useResponsiveGrid();
   // 聚合卡片 refs 与聚合统计缓存
   const groupRefs = useRef<Map<string, React.RefObject<VideoCardHandle>>>(
     new Map()
@@ -1005,6 +1007,18 @@ function SearchPageClient() {
                     未找到相关结果
                   </div>
                 )
+              ) : containerWidth > 0 && searchResults.length > 0 ? (
+                <VirtualSearchGrid
+                  results={filteredAllResults}
+                  aggregatedResults={filteredAggResults}
+                  hasNextPage={isLoading} // 使用 isLoading 作为是否有下一页的标志
+                  columnCount={columnCount}
+                  columnWidth={columnWidth}
+                  containerWidth={containerWidth}
+                  viewMode={viewMode}
+                  searchQuery={searchQuery}
+                  computeGroupStats={computeGroupStats}
+                />
               ) : (
                 <div
                   key={`search-results-${viewMode}`}
