@@ -446,6 +446,7 @@ dockge/komodo 等 docker compose UI 也有自动更新功能
 - **[LibreTV](https://github.com/LibreSpark/LibreTV)** — 由此启发，站在巨人的肩膀上。
 - **[MoonTv](https://github.com/MoonTechLab/LunaTV)** — 已完项目基础上完善。
 - **[MoonTv二改](https://github.com/puyujian/LunaTV)** — 对ShihIüTV进行二次改造。
+- **[MoonTv二改](https://github.com/SzeMeng76/LunaTV)** — 对ShihIüTV进行二次改造。
 - **[MoonTv二改](https://github.com/katelya77/KatelyaTV)** — 对ShihIüTV进行二次改造。
 - **[ArtPlayer](https://github.com/zhw2590582/ArtPlayer)** — 提供强大的网页视频播放器。
 - **[HLS.js](https://github.com/video-dev/hls.js)** — 实现 HLS 流媒体在浏览器中的播放支持。
