@@ -166,59 +166,6 @@ export async function searchFromApi(
     return [];
   }
 }
-    const results = firstPageResult.results;
-    const pageCountFromFirst = firstPageResult.pageCount;
-
-    const config = await getConfig();
-    const MAX_SEARCH_PAGES: number = config.SiteConfig.SearchDownstreamMaxPage;
-
-    // 获取总页数
-    const pageCount = pageCountFromFirst || 1;
-    // 确定需要获取的额外页数
-    const pagesToFetch = Math.min(pageCount - 1, MAX_SEARCH_PAGES - 1);
-
-    // 如果有额外页数，获取更多页的结果
-    if (pagesToFetch > 0) {
-      const additionalPagePromises = [];
-
-      for (let page = 2; page <= pagesToFetch + 1; page++) {
-        const pageUrl =
-          apiBaseUrl +
-          API_CONFIG.search.pagePath
-            .replace('{query}', encodeURIComponent(query))
-            .replace('{page}', page.toString());
-
-        const pagePromise = (async () => {
-          // 使用新的缓存搜索函数处理分页
-          const pageResult = await searchWithCache(
-            apiSite,
-            query,
-            page,
-            pageUrl,
-            8000
-          );
-          return pageResult.results;
-        })();
-
-        additionalPagePromises.push(pagePromise);
-      }
-
-      // 等待所有额外页的结果
-      const additionalResults = await Promise.all(additionalPagePromises);
-
-      // 合并所有页的结果
-      additionalResults.forEach((pageResults) => {
-        if (pageResults.length > 0) {
-          results.push(...pageResults);
-        }
-      });
-    }
-
-    return results;
-  } catch (error) {
-    return [];
-  }
-}
 
 // 匹配 m3u8 链接的正则
 const M3U8_PATTERN = /(https?:\/\/[^"'\s]+?\.m3u8)/g;
