@@ -95,11 +95,8 @@ const VirtualDoubanGrid = ({
           width={containerWidth}
           itemData={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
           onItemsRendered={({
-            visibleRowStartIndex,
-            visibleRowStopIndex,
-            overscanRowStartIndex,
-            overscanRowStopIndex,
-          }) => {
+            visibleRowStartIndex, visibleRowStopIndex, overscanRowStartIndex, overscanRowStopIndex,
+          }: any) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
