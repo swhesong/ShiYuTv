@@ -13,13 +13,13 @@ import {
   getDoubanRecommends,
 } from '@/lib/douban.client';
 import { DoubanItem, DoubanResult } from '@/lib/types';
-import { useResponsiveGrid } from '@/hooks/useResponsiveGrid';
 import DoubanCardSkeleton from '@/components/DoubanCardSkeleton';
 import DoubanCustomSelector from '@/components/DoubanCustomSelector';
 import DoubanSelector from '@/components/DoubanSelector';
 import PageLayout from '@/components/PageLayout';
 import VideoCard from '@/components/VideoCard';
 import VirtualDoubanGrid from '@/components/VirtualDoubanGrid';
+import { useResponsiveGrid } from '@/hooks/useResponsiveGrid';
 function DoubanPageClient() {
   const searchParams = useSearchParams();
   const [doubanData, setDoubanData] = useState<DoubanItem[]>([]);
@@ -545,39 +545,16 @@ function DoubanPageClient() {
     selectedWeekday,
   ]);
 
-  // 设置滚动监听
-  useEffect(() => {
-    // 如果没有更多数据或正在加载，则不设置监听
-    if (!hasMore || isLoadingMore || loading) {
-      return;
+  // 虚拟滚动加载更多数据
+  const loadNextPage = useCallback(() => {
+    if (!isLoadingMore && hasMore && !loading) {
+      setCurrentPage((prev) => prev + 1);
     }
-
-    // 确保 loadingRef 存在
-    if (!loadingRef.current) {
-      return;
-    }
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoadingMore) {
-          setCurrentPage((prev) => prev + 1);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    observer.observe(loadingRef.current);
-    observerRef.current = observer;
-
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [hasMore, isLoadingMore, loading]);
+  }, [isLoadingMore, hasMore, loading]);
 
   // 处理选择器变化
   const handlePrimaryChange = useCallback(
+
     (value: string) => {
       // 只有当值真正改变时才设置loading状态
       if (value !== primarySelection) {
@@ -749,52 +726,25 @@ function DoubanPageClient() {
           )}
         </div>
 
-        {/* 内容展示区域 */}
+        {/* 内容网格 */}
         <div className='max-w-[95%] mx-auto mt-8 overflow-visible'>
-          {/* 内容网格 */}
-          <div className='justify-start grid grid-cols-3 gap-x-2 gap-y-12 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20'>
-            {loading || !selectorsReady
-              ? // 显示骨架屏
-                skeletonData.map((index) => <DoubanCardSkeleton key={index} />)
-              : // 显示实际数据
-                doubanData.map((item, index) => (
-                  <div key={`${item.title}-${index}`} className='w-full'>
-                    <VideoCard
-                      from='douban'
-                      title={item.title}
-                      poster={item.poster}
-                      douban_id={Number(item.id)}
-                      rate={item.rate}
-                      year={item.year}
-                      type={type === 'movie' ? 'movie' : ''} // 电影类型严格控制，tv 不控
-                      isBangumi={
-                        type === 'anime' && primarySelection === '每日放送'
-                      }
-                    />
-                  </div>
-                ))}
-          </div>
-
-          {/* 加载更多指示器 */}
-          {hasMore && !loading && (
-            <div
-              ref={(el) => {
-                if (el && el.offsetParent !== null) {
-                  (
-                    loadingRef as React.MutableRefObject<HTMLDivElement | null>
-                  ).current = el;
-                }
-              }}
-              className='flex justify-center mt-12 py-8'
-            >
-              {isLoadingMore && (
-                <div className='flex items-center gap-2'>
-                  <div className='animate-spin rounded-full h-6 w-6 border-b-2 border-green-500'></div>
-                  <span className='text-gray-600'>加载中...</span>
-                </div>
-              )}
+          {/* 虚拟化网格或骨架屏 */}
+          {loading || !selectorsReady ? (
+            <div className='justify-start grid grid-cols-3 gap-x-2 gap-y-12 px-0 sm:px-2 sm:grid-cols-[repeat(auto-fill,minmax(160px,1fr))] sm:gap-x-8 sm:gap-y-20'>
+              {skeletonData.map((index) => <DoubanCardSkeleton key={index} />)}
             </div>
-          )}
+          ) : containerWidth > 0 && doubanData.length > 0 ? (
+            <VirtualDoubanGrid
+              items={doubanData}
+              hasNextPage={hasMore}
+              loadNextPage={loadNextPage}
+              columnCount={columnCount}
+              columnWidth={columnWidth}
+              containerWidth={containerWidth}
+              type={type}
+              primarySelection={primarySelection}
+            />
+          ) : null}
 
           {/* 没有更多数据提示 */}
           {!hasMore && doubanData.length > 0 && (
