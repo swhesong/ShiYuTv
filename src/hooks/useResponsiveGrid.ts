@@ -16,16 +16,17 @@ export const useResponsiveGrid = () => {
 
   useEffect(() => {
     const handleResize = () => {
-      // 对应页面布局 'max-w-[95%] mx-auto' 和 'px-4 sm:px-10'
-      const padding = window.innerWidth < 640 ? 32 : 80;
-      const currentContainerWidth = Math.min(window.innerWidth * 0.95, window.innerWidth - padding);
+      // 对应页面布局的 px-4 sm:px-10
+      const padding = window.innerWidth < 640 ? 32 : 80; 
+      // 对应页面布局的 max-w-[95%]
+      const currentContainerWidth = Math.max(window.innerWidth * 0.95, window.innerWidth - padding);
       setContainerWidth(currentContainerWidth);
       
       const newColumnCount = getColumnCount(window.innerWidth);
       setColumnCount(newColumnCount);
       
-      // 对应页面布局 'gap-x-2 sm:gap-x-8'
-      const gap = window.innerWidth < 640 ? 8 : 32;
+      // 对应网格布局的 gap-x-2 sm:gap-x-8
+      const gap = window.innerWidth < 640 ? 8 : 32; 
       const totalGapWidth = (newColumnCount - 1) * gap;
       setColumnWidth((currentContainerWidth - totalGapWidth) / newColumnCount);
     };
