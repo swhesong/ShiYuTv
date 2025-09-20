@@ -66,7 +66,7 @@ export async function GET(request: Request) {
 
     // 设置缓存头
     headers.set('Access-Control-Allow-Origin', '*');
-    headers.set('Cache-Control', 'public, max-age=86400, s-maxage=86400'); // 缓存一天
+    headers.set('Cache-Control', 'public, max-age=604800, s-maxage=604800, immutable'); // 缓存7天，且标记为不可变
 
     // 直接返回图片流
     return new Response(imageResponse.body, {
