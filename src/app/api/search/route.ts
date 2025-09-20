@@ -29,8 +29,11 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
+  const pageStr = searchParams.get('page');
+  const page = pageStr ? parseInt(pageStr, 10) : 1;
 
-  console.log('[Search API] Query parameter:', query);
+  console.log('[Search API] Query parameter:', query, 'Page:', page);
+
 
   if (!query) {
     console.log('[Search API] Empty query, returning empty results');
@@ -114,7 +117,7 @@ export async function GET(request: NextRequest) {
   const searchPromises = apiSites.map((site, index) => {
     console.log(`[Search API] Creating search promise for site ${index + 1}/${apiSites.length}: ${site.name} (${site.key})`);
     return Promise.race([
-      searchFromApi(site, query),
+      searchFromApi(site, query, page),
       new Promise((_, reject) =>
         setTimeout(() => reject(new Error(`${site.name} timeout after 20s`)), 20000)
       ),
