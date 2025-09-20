@@ -73,11 +73,11 @@ async function generateSuggestions(
   if (apiSites.length > 0) {
     // 取第一个可用的数据源进行搜索
     const firstSite = apiSites[0];
-    const results = await searchFromApi(firstSite, query);
+    const searchResult = await searchFromApi(firstSite, query);
 
     realKeywords = Array.from(
       new Set(
-        results
+        searchResult.results
           .filter(
             (r: any) => {
               if (config.SiteConfig.DisableYellowFilter) {
