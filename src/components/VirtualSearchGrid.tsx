@@ -1,6 +1,4 @@
 import React from 'react';
-import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
-import type { GridOnItemsRenderedProps } from 'react-window';
 import { FixedSizeGrid as Grid } from 'react-window';
 import { SearchResult } from '@/lib/types';
 import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
@@ -34,7 +32,7 @@ const Item = ({
   columnIndex: number;
   rowIndex: number;
   style: React.CSSProperties;
-}) => {
+}: any) => {
   const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
 
