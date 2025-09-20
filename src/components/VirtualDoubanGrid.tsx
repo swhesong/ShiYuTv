@@ -1,23 +1,17 @@
 import React from 'react';
-import { FixedSizeGrid as Grid } from 'react-window';
+import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
 import InfiniteLoader from 'react-window-infinite-loader';
-import { SearchResult } from '@/lib/types';
+import { DoubanItem } from '@/lib/types';
 import VideoCard from './VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
 interface ItemData {
   columnCount: number;
-  results: SearchResult[];
-  aggregatedResults: [string, SearchResult[]][];
+  items: DoubanItem[];
   hasNextPage: boolean;
   columnWidth: number;
-  viewMode: 'agg' | 'all';
-  searchQuery: string;
-  computeGroupStats: (group: SearchResult[]) => {
-    douban_id?: number;
-    episodes?: number;
-    source_names: string[];
-  };
+  type: string;
+  primarySelection: string;
 }
 
 const Item = ({
@@ -31,109 +25,64 @@ const Item = ({
   rowIndex: number;
   style: React.CSSProperties;
 }) => {
-  const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats } = data;
+  const { columnCount, items, hasNextPage, columnWidth, type, primarySelection } = data;
   const index = rowIndex * columnCount + columnIndex;
 
-  if (viewMode === 'agg') {
-    if (index >= aggregatedResults.length) {
-      return hasNextPage ? (
-        <div style={style}>
-          <DoubanCardSkeleton />
-        </div>
-      ) : null;
-    }
-
-    const [mapKey, group] = aggregatedResults[index];
-    const title = group[0]?.title || '';
-    const poster = group[0]?.poster || '';
-    const year = group[0]?.year || 'unknown';
-    const { episodes, source_names, douban_id } = computeGroupStats(group);
-    const type = episodes === 1 ? 'movie' : 'tv';
-
-    return (
+  if (index >= items.length) {
+    return hasNextPage ? (
       <div style={style}>
-        <VideoCard
-          from='search'
-          isAggregate={true}
-          title={title}
-          poster={poster}
-          year={year}
-          episodes={episodes}
-          source_names={source_names}
-          douban_id={douban_id}
-          query={searchQuery.trim() !== title ? searchQuery.trim() : ''}
-          type={type}
-        />
+        <DoubanCardSkeleton />
       </div>
-    );
-  } else {
-    if (index >= results.length) {
-      return hasNextPage ? (
-        <div style={style}>
-          <DoubanCardSkeleton />
-        </div>
-      ) : null;
-    }
-
-    const item = results[index];
-    return (
-      <div style={style}>
-        <VideoCard
-          id={item.id}
-          title={item.title}
-          poster={item.poster}
-          episodes={item.episodes.length}
-          source={item.source}
-          source_name={item.source_name}
-          douban_id={item.douban_id}
-          query={searchQuery.trim() !== item.title ? searchQuery.trim() : ''}
-          year={item.year}
-          from='search'
-          type={item.episodes.length > 1 ? 'tv' : 'movie'}
-        />
-      </div>
-    );
+    ) : null;
   }
+
+  const item = items[index];
+  return (
+    <div style={style}>
+      <VideoCard
+        from='douban'
+        title={item.title}
+        poster={item.poster}
+        douban_id={Number(item.id)}
+        rate={item.rate}
+        year={item.year}
+        type={type === 'movie' ? 'movie' : ''}
+        isBangumi={type === 'anime' && primarySelection === '每日放送'}
+      />
+    </div>
+  );
 };
 
-interface VirtualSearchGridProps {
-  results: SearchResult[];
-  aggregatedResults: [string, SearchResult[]][];
+interface VirtualDoubanGridProps {
+  items: DoubanItem[];
   hasNextPage: boolean;
+  loadNextPage: () => void;
   columnCount: number;
   columnWidth: number;
   containerWidth: number;
-  viewMode: 'agg' | 'all';
-  searchQuery: string;
-  computeGroupStats: (group: SearchResult[]) => {
-    douban_id?: number;
-    episodes?: number;
-    source_names: string[];
-  };
+  type: string;
+  primarySelection: string;
 }
 
-const VirtualSearchGrid = ({
-  results,
-  aggregatedResults,
+const VirtualDoubanGrid = ({
+  items,
   hasNextPage,
+  loadNextPage,
   columnCount,
   columnWidth,
   containerWidth,
-  viewMode,
-  searchQuery,
-  computeGroupStats,
-}: VirtualSearchGridProps) => {
-  const dataSource = viewMode === 'agg' ? aggregatedResults : results;
-  const itemCount = hasNextPage ? dataSource.length + columnCount : dataSource.length;
+  type,
+  primarySelection,
+}: VirtualDoubanGridProps) => {
+  const itemCount = hasNextPage ? items.length + columnCount : items.length;
   const rowCount = Math.ceil(itemCount / columnCount);
-  const headerHeight = 300; // 估算的搜索页顶部选择器等的高度
+  const headerHeight = 220; // 估算的页面顶部选择器和标题的高度
 
-  // 搜索页不需要无限滚动，因此 loadMoreItems 是空函数
   return (
     <InfiniteLoader
-      isItemLoaded={(index) => index < dataSource.length}
+      isItemLoaded={(index) => index < items.length}
       itemCount={itemCount}
-      loadMoreItems={() => {}} 
+      loadMoreItems={loadNextPage}
     >
       {({ onItemsRendered, ref }) => (
         <Grid
@@ -142,15 +91,15 @@ const VirtualSearchGrid = ({
           columnWidth={columnWidth}
           height={window.innerHeight - headerHeight}
           rowCount={rowCount}
-          rowHeight={columnWidth * 1.5 + 100}
+          rowHeight={columnWidth * 1.5 + 100} // 卡片宽高比约1.5，加上文字高度
           width={containerWidth}
-          itemData={{ columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats }}
+          itemData={{ columnCount, items, hasNextPage, columnWidth, type, primarySelection }}
           onItemsRendered={({
             visibleRowStartIndex,
             visibleRowStopIndex,
             overscanRowStartIndex,
             overscanRowStopIndex,
-          }) => {
+          }: GridOnItemsRenderedProps) => {
             onItemsRendered({
               overscanStartIndex: overscanRowStartIndex * columnCount,
               overscanStopIndex: overscanRowStopIndex * columnCount,
@@ -167,5 +116,6 @@ const VirtualSearchGrid = ({
   );
 };
 
-export default VirtualSearchGrid;
+export default VirtualDoubanGrid;
+
 
