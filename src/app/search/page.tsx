@@ -776,13 +776,11 @@ function SearchPageClient() {
               setTotalSources(1);
               setCompletedSources(1);
             }
-            setIsLoading(false);
           })
-          .catch(() => {
-            setIsLoading(false);
-          });
-      }
-          .catch(() => {
+          .catch((err) => {
+            console.error("Failed to fetch search results:", err);
+          })
+          .finally(() => {
             setIsLoading(false);
           });
       }
@@ -1021,19 +1019,7 @@ function SearchPageClient() {
                 <VirtualSearchGrid
                   results={filteredAllResults}
                   aggregatedResults={filteredAggResults}
-                  hasNextPage={isLoading} // 使用 isLoading 作为是否有下一页的标志
-                  columnCount={columnCount}
-                  columnWidth={columnWidth}
-                  containerWidth={containerWidth}
-                  viewMode={viewMode}
-                  searchQuery={searchQuery}
-                  computeGroupStats={computeGroupStats}
-                />
-              ) : containerWidth > 0 && searchResults.length > 0 ? (
-                <VirtualSearchGrid
-                  results={filteredAllResults}
-                  aggregatedResults={filteredAggResults}
-                  hasNextPage={false} // 因为已一次性加载所有数据
+                  hasNextPage={isLoading && useFluidSearch} // 仅在流式搜索且加载中时显示加载占位
                   columnCount={columnCount}
                   columnWidth={columnWidth}
                   containerWidth={containerWidth}
