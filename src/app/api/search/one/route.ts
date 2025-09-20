@@ -50,11 +50,11 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const searchResult = await searchFromApi(targetSite, query);
-    let result = searchResult.results.filter((r) => r.title === query);
+    const searchData = await searchFromApi(targetSite, query);
+    let result = searchData.results.filter((r: SearchResult) => r.title === query);
     if (!config.SiteConfig.DisableYellowFilter) {
-      result = result.filter((result) => {
-        const typeName = result.type_name || '';
+      result = result.filter((item: SearchResult) => {
+        const typeName = item.type_name || '';
         const title = result.title || '';
         
         // 使用新的审核函数检查标题和分类名
