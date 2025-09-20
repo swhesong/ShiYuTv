@@ -91,7 +91,7 @@ export async function GET(request: Request) {
     headers.set('Access-Control-Allow-Origin', '*');
     headers.set('Access-Control-Allow-Methods', 'GET, OPTIONS');
     headers.set('Access-Control-Allow-Headers', 'Content-Type, User-Agent, Referer');
-    headers.set('Cache-Control', 'public, max-age=3600');
+    headers.set('Cache-Control', 'public, max-age=172800, immutable');
     headers.set('Content-Length', keyData.byteLength.toString());
 
     return new Response(keyData, { headers });
