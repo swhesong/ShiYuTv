@@ -752,26 +752,36 @@ function SearchPageClient() {
           }
         };
       } else {
-        // 传统搜索：使用普通接口
-        fetch(`/api/search?q=${encodeURIComponent(trimmed)}`)
-          .then((response) => response.json())
-          .then((data) => {
+        // 传统搜索：并发请求所有分页
+        const MAX_PAGES = (window as any).RUNTIME_CONFIG?.SEARCH_MAX_PAGE || 1;
+        const pagePromises = Array.from({ length: MAX_PAGES }, (_, i) => i + 1).map(page =>
+          fetch(`/api/search?q=${encodeURIComponent(trimmed)}&page=${page}`).then(res => res.json())
+        );
+        
+        Promise.all(pagePromises)
+          .then(pagesData => {
             if (currentQueryRef.current !== trimmed) return;
 
-            if (data.results && Array.isArray(data.results)) {
+            const allResults = pagesData.flatMap(data => data.results || []);
+
+            if (allResults.length > 0) {
               const activeYearOrder =
                 viewMode === 'agg' ? filterAgg.yearOrder : filterAll.yearOrder;
               const results: SearchResult[] =
                 activeYearOrder === 'none'
-                  ? sortBatchForNoOrder(data.results as SearchResult[])
-                  : (data.results as SearchResult[]);
-
+                  ? sortBatchForNoOrder(allResults as SearchResult[])
+                  : (allResults as SearchResult[]);
+              
               setSearchResults(results);
               setTotalSources(1);
               setCompletedSources(1);
             }
             setIsLoading(false);
           })
+          .catch(() => {
+            setIsLoading(false);
+          });
+      }
           .catch(() => {
             setIsLoading(false);
           });
@@ -1012,6 +1022,18 @@ function SearchPageClient() {
                   results={filteredAllResults}
                   aggregatedResults={filteredAggResults}
                   hasNextPage={isLoading} // 使用 isLoading 作为是否有下一页的标志
+                  columnCount={columnCount}
+                  columnWidth={columnWidth}
+                  containerWidth={containerWidth}
+                  viewMode={viewMode}
+                  searchQuery={searchQuery}
+                  computeGroupStats={computeGroupStats}
+                />
+              ) : containerWidth > 0 && searchResults.length > 0 ? (
+                <VirtualSearchGrid
+                  results={filteredAllResults}
+                  aggregatedResults={filteredAggResults}
+                  hasNextPage={false} // 因为已一次性加载所有数据
                   columnCount={columnCount}
                   columnWidth={columnWidth}
                   containerWidth={containerWidth}
