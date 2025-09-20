@@ -28,7 +28,7 @@ export async function fetchVideoDetail({
   if (fallbackTitle) {
     try {
       const searchData = await searchFromApi(apiSite, fallbackTitle.trim());
-      const exactMatch = searchData.find(
+      const exactMatch = searchData.results.find(
         (item: SearchResult) =>
           item.source.toString() === source.toString() &&
           item.id.toString() === id.toString()
