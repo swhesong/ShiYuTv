@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { getAuthInfoFromCookie } from '@/lib/auth';
 import { getAvailableApiSites, getCacheTime, getConfig } from '@/lib/config';
+import { SearchResult } from '@/lib/types';
 import { searchFromApi } from '@/lib/downstream';
 import { moderateContent, decisionThresholds } from '@/lib/yellow';
 
