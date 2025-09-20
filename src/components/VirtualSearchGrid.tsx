@@ -151,15 +151,7 @@ const VirtualSearchGrid = ({
       rowHeight={columnWidth * 1.5 + 100}
       width={containerWidth}
       itemData={{ 
-        columnCount, 
-        results, 
-        aggregatedResults, 
-        hasNextPage, 
-        columnWidth, 
-        viewMode, 
-        searchQuery, 
-        computeGroupStats,
-        getGroupRef 
+        columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats, getGroupRef
       }}
     >
       {Item}
