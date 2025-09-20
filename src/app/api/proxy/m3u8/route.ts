@@ -151,7 +151,7 @@ export async function GET(request: Request) {
         'Content-Type, Range, Origin, Accept, User-Agent, Referer'
       );
       headers.set('Access-Control-Expose-Headers', 'Content-Length, Content-Range, Content-Type');
-      headers.set('Cache-Control', 'no-cache, no-store, must-revalidate');
+      headers.set('Cache-Control', 'public, max-age=10'); // 允许客户端缓存10秒
       headers.set('Pragma', 'no-cache');
       headers.set('Expires', '0');
       
