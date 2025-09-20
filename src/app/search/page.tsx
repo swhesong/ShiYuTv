@@ -1026,6 +1026,7 @@ function SearchPageClient() {
                   viewMode={viewMode}
                   searchQuery={searchQuery}
                   computeGroupStats={computeGroupStats}
+                  getGroupRef={getGroupRef}
                 />
               ) : (
                 <div
