@@ -641,9 +641,12 @@ function PlayPageClient() {
       video.removeAttribute('disableRemotePlayback');
     }
 
-    // 增加视频元素的错误恢复能力
-    video.setAttribute('preload', 'metadata'); // 预加载元数据
-    video.setAttribute('x-webkit-airplay', 'allow'); // 允许AirPlay
+    // 优化视频元素以提升加载速度
+    video.setAttribute('preload', 'auto'); // 预加载整个视频以提升速度
+    video.setAttribute('x-webkit-airplay', 'allow');
+    video.setAttribute('crossorigin', 'anonymous'); // 确保跨域支持
+    video.setAttribute('playsinline', 'true'); // 内联播放
+
 
     // 监听视频错误事件
     const handleVideoError = () => {
@@ -1562,24 +1565,23 @@ function PlayPageClient() {
               video.hls.destroy();
             }
             const hls = new Hls({
-              debug: false, // 关闭日志
-              enableWorker: true, // WebWorker 解码，降低主线程压力
-              lowLatencyMode: false, // 关闭低延迟模式，提高稳定性
-
-              /* 缓冲/内存相关 - 更保守的设置 */
-              maxBufferLength: 20, // 减少前向缓冲到20s
-              backBufferLength: 10, // 减少后向缓冲到10s
-              maxBufferSize: 30 * 1000 * 1000, // 减少到30MB，减少内存压力
-              maxBufferHole: 0.5, // 允许的最大缓冲空洞
-
+              debug: false,
+              enableWorker: true,
+              lowLatencyMode: false, // 保持关闭以确保稳定性
+              /* 缓冲/内存相关 - 更保守的设置 */             
+              maxBufferLength: 30,
+              backBufferLength: 30, 
+              maxBufferSize: 60 * 1000 * 1000,
+              maxBufferHole: 0.3,
+              
               /* 网络相关优化 */
-              fragLoadingTimeOut: 20000, // 片段加载超时20s
-              manifestLoadingTimeOut: 10000, // 清单加载超时10s
-              fragLoadingMaxRetry: 6, // 片段加载最大重试6次
-              manifestLoadingMaxRetry: 4, // 清单加载最大重试4次
-              fragLoadingRetryDelay: 500, // 片段重试延迟500ms
-              manifestLoadingRetryDelay: 500, // 清单重试延迟500ms
-
+              fragLoadingTimeOut: 10000, // 适中的超时时间
+              manifestLoadingTimeOut: 8000,
+              fragLoadingMaxRetry: 3,
+              manifestLoadingMaxRetry: 3,
+              fragLoadingRetryDelay: 300,
+              manifestLoadingRetryDelay: 300,
+              
               /* 自定义loader */
               loader: blockAdEnabledRef.current
                 ? CustomHlsJsLoader
