@@ -95,7 +95,7 @@ export async function GET(request: Request) {
 
     response = await fetch(decodedUrl, {
       headers: requestHeaders,
-      signal: AbortSignal.timeout(timeout), // 应用动态超时
+      signal: AbortSignal.timeout(Math.min(timeout, 30000)),
     });
 
 
