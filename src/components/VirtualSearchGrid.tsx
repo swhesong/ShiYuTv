@@ -1,15 +1,15 @@
 import React from 'react';
 import { FixedSizeGrid as Grid, GridOnItemsRenderedProps } from 'react-window';
-import InfiniteLoader from 'react-window-infinite-loader';
 import { SearchResult } from '@/lib/types';
-import VideoCard from './VideoCard';
+import VideoCard, { VideoCardHandle } from '@/components/VideoCard';
 import DoubanCardSkeleton from './DoubanCardSkeleton';
 
+// ItemData 接口定义了传递给每个网格项的数据结构
 interface ItemData {
   columnCount: number;
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
-  hasNextPage: boolean;
+  hasNextPage: boolean; // 仍然保留，用于在加载时显示骨架屏
   columnWidth: number;
   viewMode: 'agg' | 'all';
   searchQuery: string;
@@ -18,8 +18,10 @@ interface ItemData {
     episodes?: number;
     source_names: string[];
   };
+  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
+// 单个网格项的渲染组件
 const Item = ({
   data,
   columnIndex,
@@ -31,11 +33,12 @@ const Item = ({
   rowIndex: number;
   style: React.CSSProperties;
 }) => {
-  const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats } = data;
+  const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
 
   if (viewMode === 'agg') {
     if (index >= aggregatedResults.length) {
+      // 如果还在加载中（流式搜索），显示骨架屏
       return hasNextPage ? (
         <div style={style}>
           <DoubanCardSkeleton />
@@ -53,6 +56,7 @@ const Item = ({
     return (
       <div style={style}>
         <VideoCard
+          ref={getGroupRef(mapKey)}
           from='search'
           isAggregate={true}
           title={title}
@@ -96,6 +100,7 @@ const Item = ({
   }
 };
 
+// VirtualSearchGrid 组件的 Props 定义
 interface VirtualSearchGridProps {
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
@@ -110,6 +115,7 @@ interface VirtualSearchGridProps {
     episodes?: number;
     source_names: string[];
   };
+  getGroupRef: (key: string) => React.RefObject<VideoCardHandle>;
 }
 
 const VirtualSearchGrid = ({
@@ -122,48 +128,38 @@ const VirtualSearchGrid = ({
   viewMode,
   searchQuery,
   computeGroupStats,
+  getGroupRef,
 }: VirtualSearchGridProps) => {
   const dataSource = viewMode === 'agg' ? aggregatedResults : results;
+  // 如果还在加载中（流式），则多渲染一行骨架屏
   const itemCount = hasNextPage ? dataSource.length + columnCount : dataSource.length;
   const rowCount = Math.ceil(itemCount / columnCount);
   const headerHeight = 300; // 估算的搜索页顶部选择器等的高度
 
-  // 搜索页不需要无限滚动，因此 loadMoreItems 是空函数
+  // 搜索页加载所有数据后进行虚拟滚动，不需要无限加载器
   return (
-    <InfiniteLoader
-      isItemLoaded={(index) => index < dataSource.length}
-      itemCount={itemCount}
-      loadMoreItems={() => {}} 
+    <Grid
+      className="hide-scrollbar"
+      columnCount={columnCount}
+      columnWidth={columnWidth}
+      height={window.innerHeight - headerHeight}
+      rowCount={rowCount}
+      rowHeight={columnWidth * 1.5 + 100}
+      width={containerWidth}
+      itemData={{ 
+        columnCount, 
+        results, 
+        aggregatedResults, 
+        hasNextPage, 
+        columnWidth, 
+        viewMode, 
+        searchQuery, 
+        computeGroupStats,
+        getGroupRef 
+      }}
     >
-      {({ onItemsRendered, ref }) => (
-        <Grid
-          className="hide-scrollbar"
-          columnCount={columnCount}
-          columnWidth={columnWidth}
-          height={window.innerHeight - headerHeight}
-          rowCount={rowCount}
-          rowHeight={columnWidth * 1.5 + 100}
-          width={containerWidth}
-          itemData={{ columnCount, results, aggregatedResults, hasNextPage, columnWidth, viewMode, searchQuery, computeGroupStats }}
-          onItemsRendered={({
-            visibleRowStartIndex,
-            visibleRowStopIndex,
-            overscanRowStartIndex,
-            overscanRowStopIndex,
-          }: GridOnItemsRenderedProps) => {
-            onItemsRendered({
-              overscanStartIndex: overscanRowStartIndex * columnCount,
-              overscanStopIndex: overscanRowStopIndex * columnCount,
-              visibleStartIndex: visibleRowStartIndex * columnCount,
-              visibleStopIndex: visibleRowStopIndex * columnCount,
-            });
-          }}
-          ref={ref}
-        >
-          {Item}
-        </Grid>
-      )}
-    </InfiniteLoader>
+      {Item}
+    </Grid>
   );
 };
 
