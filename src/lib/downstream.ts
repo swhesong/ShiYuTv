@@ -140,11 +140,12 @@ async function searchWithCache(
   }
 }
 
+// 这个函数现在只负责获取单页数据
 export async function searchFromApi(
   apiSite: ApiSite,
   query: string,
   page = 1
-): Promise<SearchResult[]> {
+): Promise<{ results: SearchResult[]; pageCount?: number }> {
   try {
     const apiBaseUrl = apiSite.api;
     const apiUrl =
@@ -152,20 +153,62 @@ export async function searchFromApi(
       API_CONFIG.search.pagePath
         .replace('{query}', encodeURIComponent(query))
         .replace('{page}', page.toString());
-
-    // 使用新的缓存搜索函数处理分页
-    const pageResult = await searchWithCache(
+    
+    return await searchWithCache(
       apiSite,
       query,
       page,
       apiUrl,
       8000
     );
-    return pageResult.results;
   } catch (error) {
-    return [];
+    return { results: [] };
   }
 }
+
+// 这是新的 searchFromAll 函数，它包含了多页获取逻辑
+export async function* searchFromAll(keyword: string) {
+    const config = await getConfig();
+    const sites = Object.values(config.SourceConfig).filter(s => !s.disabled);
+
+    const promises = sites.map(async (site) => {
+        // Step 1: Fetch the first page to get results and page count
+        const firstPageResult = await searchFromApi(site, keyword, 1);
+        const allSiteResults = firstPageResult.results;
+        
+        // 如果第一页有结果，并且返回了总页数，则继续获取后续页面
+        if (allSiteResults.length > 0 && firstPageResult.pageCount) {
+            const config = await getConfig();
+            const MAX_SEARCH_PAGES: number = config.SiteConfig.SearchDownstreamMaxPage;
+            const totalPages = firstPageResult.pageCount;
+            const pagesToFetch = Math.min(totalPages - 1, MAX_SEARCH_PAGES - 1);
+
+            if (pagesToFetch > 0) {
+                const pagePromises = [];
+                for (let i = 2; i <= pagesToFetch + 1; i++) {
+                    pagePromises.push(searchFromApi(site, keyword, i));
+                }
+                const subsequentResults = await Promise.all(pagePromises);
+                subsequentResults.forEach(pageResult => {
+                    allSiteResults.push(...pageResult.results);
+                });
+            }
+        }
+        return allSiteResults;
+    });
+
+    for (const p of promises) {
+        try {
+            const results = await p;
+            if (results.length > 0) {
+                yield results;
+            }
+        } catch (error) {
+            // ignore
+        }
+    }
+}
+
 
 // 匹配 m3u8 链接的正则
 const M3U8_PATTERN = /(https?:\/\/[^"'\s]+?\.m3u8)/g;
