@@ -9,7 +9,7 @@ interface ItemData {
   columnCount: number;
   results: SearchResult[];
   aggregatedResults: [string, SearchResult[]][];
-  hasNextPage: boolean; // 仍然保留，用于在加载时显示骨架屏
+  hasNextPage: boolean; // 用于在流式加载时显示骨架屏
   columnWidth: number;
   viewMode: 'agg' | 'all';
   searchQuery: string;
@@ -36,6 +36,7 @@ const Item = ({
   const { columnCount, results, aggregatedResults, hasNextPage, viewMode, searchQuery, computeGroupStats, getGroupRef } = data;
   const index = rowIndex * columnCount + columnIndex;
 
+  // 聚合视图
   if (viewMode === 'agg') {
     if (index >= aggregatedResults.length) {
       // 如果还在加载中（流式搜索），显示骨架屏
@@ -70,7 +71,10 @@ const Item = ({
         />
       </div>
     );
-  } else {
+  } 
+  
+  // 全部视图
+  else {
     if (index >= results.length) {
       return hasNextPage ? (
         <div style={style}>
@@ -131,7 +135,7 @@ const VirtualSearchGrid = ({
   getGroupRef,
 }: VirtualSearchGridProps) => {
   const dataSource = viewMode === 'agg' ? aggregatedResults : results;
-  // 如果还在加载中（流式），则多渲染一行骨架屏
+  // 如果还在加载中（例如流式搜索未完成），则多渲染一行骨架屏作为占位
   const itemCount = hasNextPage ? dataSource.length + columnCount : dataSource.length;
   const rowCount = Math.ceil(itemCount / columnCount);
   const headerHeight = 300; // 估算的搜索页顶部选择器等的高度
